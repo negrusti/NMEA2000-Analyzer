@@ -1,4 +1,4 @@
-name: Build and Release WPF App
+name: Build and Release NMEA2000 Analyzer
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: Build WPF Application
+    name: Build
     runs-on: windows-latest
 
     steps:
@@ -47,6 +47,8 @@ jobs:
     name: Create GitHub Release
     runs-on: windows-latest
     needs: build
+    permissions:
+      contents: write
 
     steps:
       - name: Upload Release Artifact to GitHub
@@ -54,6 +56,4 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: v${{ github.run_number }}
-          releaseName: NMEA2000 Analyzer v${{ github.run_number }}
-          assets: |
-            artifacts/Release/**
+          artifacts: "artifacts/Release.zip"
