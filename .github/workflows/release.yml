@@ -29,7 +29,7 @@ jobs:
       # Build the solution
       - name: Build Solution
         run: |
-          msbuild NMEA2000Analyzer.sln /p:Configuration=Release
+          msbuild NMEA2000Analyzer.sln /p:Configuration=Release /p:DebugType=None /p:GenerateSatelliteAssemblies=false
 
       # Package the output into a ZIP file
       - name: Create Release ZIP
