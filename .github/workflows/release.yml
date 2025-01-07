@@ -1,0 +1,55 @@
+name: Build and Release WPF App
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build WPF Application
+    runs-on: windows-latest
+
+    steps:
+      # Checkout the repository
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Setup Visual Studio for .NET Framework or .NET Core/6.0+ projects
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v1
+
+      # Build the solution
+      - name: Build Solution
+        run: |
+          msbuild NMEA2000Analyzer.sln /p:Configuration=Release
+
+      # Package the output into a ZIP file
+      - name: Create Release ZIP
+        run: |
+          mkdir artifacts
+          # Compress the build output into a ZIP file
+          powershell Compress-Archive -Path "bin\Release\*" -DestinationPath "artifacts\Release.zip"
+
+      # Upload the ZIP file as an artifact for debugging or manual download
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: NMEA2000Analyzer
+          path: artifacts/Release.zip
+
+  release:
+    name: Create GitHub Release
+    runs-on: windows-latest
+    needs: build
+
+    steps:
+      - name: Upload Release Artifact to GitHub
+        uses: ncipollo/release-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: v${{ github.run_number }}
+          releaseName: NMEA2000 Analyzer v${{ github.run_number }}
+          assets: |
+            artifacts/Release/**
