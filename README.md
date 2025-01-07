@@ -8,3 +8,12 @@ Yet another NMEA2000 analyzer, using canboat project JSON for PGN definitions
 
 Windows only
 
+## Supported formats
+
+## PGN Definitions
+
+Custom definitions can be set in custom.json (not yet implemented)
+
+## Presets
+
+You can define your own presets in presets.json

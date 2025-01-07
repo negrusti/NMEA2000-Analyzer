@@ -1,20 +1,9 @@
-﻿using System.Text;
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
-
-using System.Windows;
 using Microsoft.Win32;
 using System.IO;
 using static NMEA2000Analyzer.PgnDefinitions;
 using System.Diagnostics;
-using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Text.Json;
 
@@ -28,16 +17,16 @@ namespace NMEA2000Analyzer
             Loaded += (s, e) => PopulatePresetsMenu();
         }
 
-        private List<Nmea2000Record> _Data;
-        private List<Nmea2000Record> _assembledData;
-        private List<Nmea2000Record> _filteredData;
+        private List<Nmea2000Record>? _Data;
+        private List<Nmea2000Record>? _assembledData;
+        private List<Nmea2000Record>? _filteredData;
         private Dictionary<string, CanboatPgn> pgnDefinitions;
 
         // Class to hold parsed data for the DataGrid
         public class Nmea2000Record
         {
             public int LogSequenceNumber { get; set; }
-            public string Timestamp { get; set; }
+            public string? Timestamp { get; set; }
             public string Source { get; set; }
             public string Destination { get; set; }
             public string PGN { get; set; }
@@ -68,7 +57,7 @@ namespace NMEA2000Analyzer
             // Open file picker dialog
             OpenFileDialog openFileDialog = new OpenFileDialog
             {
-                Filter = "Supported Files (*.csv, *.log)|*.csv;*.log|CSV Files (*.csv)|*.csv|Log Files (*.log)|*.log|All Files (*.*)|*.*",
+                Filter = "(*.csv, *.log, *.txt)|*.csv;*.log;*.txt|All Files (*.*)|*.*",
                 Title = "Open File"
             };
 
@@ -77,32 +66,27 @@ namespace NMEA2000Analyzer
                 ClearData();
                 string filePath = openFileDialog.FileName;
                 this.Title = $"NMEA2000 Analyzer - {System.IO.Path.GetFileName(filePath)}";
-                if (filePath.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+
+                var format = FileFormats.DetectFileFormat(filePath);
+
+                // Parse based on detected format
+                switch (format)
                 {
-                    // Parse CSV file
-                    try
-                    {
-                        _Data = ParseCsvFile(filePath);
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show($"Error parsing file: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
-                }
-                else if (filePath.EndsWith(".log", StringComparison.OrdinalIgnoreCase))
-                {
-                    try
-                    {
-                        _Data = LoadCanLog(filePath);
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show($"Error parsing file: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
-                }
-                else
-                {
-                    MessageBox.Show("Unsupported file format. Please select a CSV file.", "Invalid File", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    case FileFormats.FileFormat.TwoCanCsv:
+                        _Data = await Task.Run(() => FileFormats.LoadTwoCanCsv(filePath));
+                        break;
+                    case FileFormats.FileFormat.Actisense:
+                        _Data = await Task.Run(() => FileFormats.LoadActisense(filePath));
+                        break;
+                    case FileFormats.FileFormat.CanDump:
+                        _Data = await Task.Run(() => FileFormats.LoadCanDump(filePath));
+                        break;
+                    case FileFormats.FileFormat.YDWG:
+                        _Data = await Task.Run(() => FileFormats.LoadYDWGLog(filePath));
+                        break;
+                    default:
+                        MessageBox.Show("Unsupported or unknown file format.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
                 }
 
                 DataGrid.ItemsSource = _Data; // Bind parsed data to DataGrid
@@ -110,7 +94,7 @@ namespace NMEA2000Analyzer
 
                 try
                 {
-                    pgnDefinitions = await PgnDefinitions.LoadPgnDefinitionsAsync();
+                    pgnDefinitions = await LoadPgnDefinitionsAsync();
                     Enrich(pgnDefinitions);
                     _assembledData = AssembleFrames(_Data, pgnDefinitions);
                     DataGrid.ItemsSource = _assembledData;
@@ -120,46 +104,6 @@ namespace NMEA2000Analyzer
                     MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
-        }
-
-        private List<Nmea2000Record> ParseCsvFile(string filePath)
-        {
-            var records = new List<Nmea2000Record>();
-
-            using (var reader = new StreamReader(filePath))
-            {
-                string headerLine = reader.ReadLine(); // Read the header
-                if (headerLine == null) throw new Exception("File is empty.");
-
-                // Validate header format
-                var headers = headerLine.Split(',').Select(h => h.Trim()).ToArray();
-                if (!headers.Contains("Source") || !headers.Contains("Destination") || !headers.Contains("PGN") || !headers.Contains("Priority"))
-                {
-                    throw new Exception("Invalid CSV format. Required columns: Source, Destination, PGN, Priority, D1-D8.");
-                }
-
-                // Read and parse the rest of the file
-                while (!reader.EndOfStream)
-                {
-                    var line = reader.ReadLine();
-                    if (string.IsNullOrWhiteSpace(line)) continue;
-
-                    var values = line.Split(',').Select(v => v.Trim()).ToArray();
-                    if (values.Length < 12) continue; // Ensure there are enough columns (D1-D8)
-
-                    var record = new Nmea2000Record
-                    {
-                        Source = values[0],
-                        Destination = values[1],
-                        PGN = values[2],
-                        Priority = values[3],
-                        Data = string.Join(" ", values.Skip(4).Take(8)) // Combine D1-D8 as hex values with spaces
-                    };
-                    records.Add(record);
-                }
-            }
-
-            return records;
         }
         private void FilterTextBoxes_TextChanged(object sender, TextChangedEventArgs e)
         {
@@ -254,10 +198,8 @@ namespace NMEA2000Analyzer
             Dictionary<string, CanboatPgn> pgnDefinitions)
         {
             var frameData = frame.Data.Split(' ').ToArray();
-            byte firstByte = Convert.ToByte(frameData[0], 16);
 
-            // Extract sequence number (lower nibble of the first byte)
-            int sequenceNumber = firstByte & 0x0F;
+            int sequenceNumber = Convert.ToByte(frameData[0], 16) & 0x1F;
 
             // Check if this is the start of a new multi-frame message
             if (!activeMessages.ContainsKey(messageKey))
@@ -265,9 +207,9 @@ namespace NMEA2000Analyzer
                 if (sequenceNumber == 0)
                 {
                     // First frame: Extract TotalBytes from the second byte (ISO-TP header)
-                    int totalBytes = Convert.ToInt32(frameData[1], 16);
+                    int totalBytes = Convert.ToByte(frameData[1], 16);
 
-                    if (totalBytes <= 0)
+                    if (totalBytes == 0)
                     {
                         Debug.WriteLine($"Invalid TotalBytes for {messageKey}. Skipping.");
                         return; // Skip invalid messages
@@ -283,7 +225,7 @@ namespace NMEA2000Analyzer
                         Priority = frame.Priority
                     };
 
-                    //Debug.WriteLine($"Started new message for {messageKey}: TotalBytes = {totalBytes}");
+                    // Debug.WriteLine($"Started new message for {messageKey}: TotalBytes = {totalBytes}");
                 }
                 else
                 {
@@ -393,61 +335,6 @@ namespace NMEA2000Analyzer
             var statsWindow = new PgnStatistics(pgnCounts);
             statsWindow.Show();
         }
-        private List<Nmea2000Record> LoadCanLog(string filePath)
-        {
-            var records = new List<Nmea2000Record>();
-
-            // Regular expression to match the log format
-            var regex = new Regex(@"\((?<timestamp>[\d.]+)\)\s+(?<interface>\S+)\s+(?<canId>[0-9A-F]+)#(?<data>[0-9A-F]*)");
-
-            foreach (var line in System.IO.File.ReadLines(filePath))
-            {
-                var match = regex.Match(line);
-                if (!match.Success) continue;
-
-                try
-                {
-                    // Parse the timestamp
-                    var timestamp = double.Parse(match.Groups["timestamp"].Value, CultureInfo.InvariantCulture);
-                    var datetime = DateTimeOffset.FromUnixTimeSeconds((long)timestamp)
-                        .AddMilliseconds((timestamp % 1) * 1000);
-
-                    // Parse the CAN ID
-                    var canIdHex = match.Groups["canId"].Value;
-                    int canId = int.Parse(canIdHex, NumberStyles.HexNumber);
-
-                    // Extract PGN, Source, and Priority from CAN ID
-                    int source = canId & 0xFF;
-                    int pgn = (canId >> 8) & 0x1FFFF;
-                    int priority = (canId >> 26) & 0x7;
-
-                    // Parse the CAN data
-                    var data = match.Groups["data"].Value;
-                    var dataFormatted = string.Join(" ", Regex.Matches(data, "..").Select(m => $"0x{m.Value}"));
-
-                    // Create an Nmea2000Record
-                    records.Add(new Nmea2000Record
-                    {
-                        Timestamp = datetime.ToString("o"), // ISO 8601 format
-                        Source = source.ToString(),
-                        Destination = "255", // Default for broadcast
-                        PGN = pgn.ToString(),
-                        Priority = priority.ToString(),
-                        Data = dataFormatted,
-                        Description = "Unknown PGN",
-                        Type = "Unknown"
-                    });
-                }
-                catch (Exception ex)
-                {
-                    // Log or handle parse errors for individual lines
-                    Console.WriteLine($"Failed to parse line: {line}. Error: {ex.Message}");
-                }
-            }
-
-            return records;
-        }
-
         private void ClearData()
         {
             // Clear data collections
