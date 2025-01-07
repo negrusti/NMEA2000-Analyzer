@@ -10,6 +10,8 @@ jobs:
   build:
     name: Build
     runs-on: windows-latest
+    permissions:
+      contents: write
 
     steps:
       # Checkout the repository
@@ -47,6 +49,6 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag: v${{ github.run_number }}
-          name: NMEA2000 Analyzer v${{ github.run_number }}
+          tag: v${{ github.sha[:7] }}
+          name: NMEA2000 Analyzer v${{ github.sha[:7] }}
           artifacts: "artifacts/NMEA2000Analyzer.zip"
