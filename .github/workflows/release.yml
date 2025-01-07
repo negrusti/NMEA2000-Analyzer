@@ -45,10 +45,14 @@ jobs:
           name: NMEA2000 Analyzer
           path: artifacts/NMEA2000Analyzer.zip
 
+      - name: Get Short Commit SHA
+        id: vars
+        run: echo "::set-output name=short_sha::$(git rev-parse --short HEAD)"
+
       - name: Upload Release Artifact to GitHub
         uses: ncipollo/release-action@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag: v${{ github.sha[:7] }}
-          name: NMEA2000 Analyzer v${{ github.sha[:7] }}
+          tag: v${{ steps.vars.outputs.short_sha }}
+          name: NMEA2000 Analyzer v${{ steps.vars.outputs.short_sha }}
           artifacts: "artifacts/NMEA2000Analyzer.zip"
