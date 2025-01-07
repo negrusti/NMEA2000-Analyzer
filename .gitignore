@@ -1,0 +1,89 @@
+logs/
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# User-specific folders
+.vscode/
+.vs/
+_ReSharper*/
+.idea/
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+
+# IIS Express
+/IISExpress/
+
+# Web files
+node_modules/
+bower_components/
+jspm_packages/
+wwwroot/node_modules/
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/packages/
+packages/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Microsoft Azure
+*.azurePubxml
+*.publishsettings
+
+# Database files
+*.mdf
+*.ldf
+*.ndf
+
+# Entity Framework
+*.edmx.sql
+*.edmx.diagram
+
+# Rider
+.idea/
+*.sln.iml
+
+# Visual Studio Code
+.vscode/*
+
+# Windows image file caches
+Thumbs.db
+ehthumbs.db
+
+# Folder config file
+Desktop.ini
+
+# Recycle Bin used on file shares
+$RECYCLE.BIN/
+
+# MacOS files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows Installer files
+*.cab
+*.msi
+*.msm
+*.msp
+
+# Windows shortcuts
+*.lnk
+
+# End of file
