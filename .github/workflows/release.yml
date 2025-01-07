@@ -36,7 +36,7 @@ jobs:
         run: |
           mkdir artifacts
           # Compress the build output into a ZIP file
-          powershell Compress-Archive -Path "bin\Release\*" -DestinationPath "artifacts\NMEA2000Analyzer.zip"
+          powershell Compress-Archive -Path "bin\Release\net8.0-windows\*" -DestinationPath "artifacts\NMEA2000Analyzer.zip"
 
       # Upload the ZIP file as an artifact for debugging or manual download
       - name: Upload Build Artifact
