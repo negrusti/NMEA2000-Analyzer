@@ -34,14 +34,14 @@ jobs:
         run: |
           mkdir artifacts
           # Compress the build output into a ZIP file
-          powershell Compress-Archive -Path "bin\Release\*" -DestinationPath "artifacts\Release.zip"
+          powershell Compress-Archive -Path "bin\Release\*" -DestinationPath "artifacts\NMEA2000Analyzer.zip.zip"
 
       # Upload the ZIP file as an artifact for debugging or manual download
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: NMEA2000Analyzer
-          path: artifacts/Release.zip
+          name: NMEA2000 Analyzer
+          path: artifacts/NMEA2000Analyzer.zip
 
   release:
     name: Create GitHub Release
@@ -51,9 +51,15 @@ jobs:
       contents: write
 
     steps:
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: NMEA2000 Analyzer
+
       - name: Upload Release Artifact to GitHub
         uses: ncipollo/release-action@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: v${{ github.run_number }}
-          artifacts: "artifacts/Release.zip"
+          name: NMEA2000 Analyzer v${{ github.run_number }}
+          artifacts: "artifacts/NMEA2000Analyzer.zip.zip"

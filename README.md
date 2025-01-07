@@ -1,3 +1,10 @@
 # NMEA2000-Analyzer
 
-![App Screenshot](images/screenshot.png)
+Yet another NMEA2000 analyzer, using canboat project JSON for PGN definitions
+
+![App Screenshot](images/screenshot1.png)
+
+## Platform
+
+Windows only
+
