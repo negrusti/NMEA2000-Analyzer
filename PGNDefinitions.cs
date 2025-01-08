@@ -63,7 +63,12 @@ namespace NMEA2000Analyzer
             }
             catch (Exception ex)
             {
-                throw new Exception($"Failed to load PGN definitions: {ex.Message}", ex);
+                // Retrieve the stack trace and get the line number
+                var stackTrace = new System.Diagnostics.StackTrace(ex, true);
+                var frame = stackTrace.GetFrame(0); // Get the first stack frame
+                var lineNumber = frame?.GetFileLineNumber(); // Get the line number
+
+                throw new Exception($"Failed to load PGN definitions: {ex.Message} (Line: {lineNumber})", ex);
             }
         }
 
@@ -154,10 +159,11 @@ namespace NMEA2000Analyzer
             public string Description { get; set; }
         }
 
-        public static JsonObject DecodePgnData(byte[] pgnData, Canboat.Pgn pgnDefinition)
+        public static JsonObject? DecodePgnData(byte[] pgnData, Canboat.Pgn pgnDefinition)
         {
             if (pgnDefinition == null)
-                throw new ArgumentNullException(nameof(pgnDefinition));
+                return null;
+                //throw new ArgumentNullException(nameof(pgnDefinition));
 
             if (pgnData == null || pgnData.Length * 8 < pgnDefinition.Length)
                 throw new ArgumentException("PGN data is null or insufficient for decoding.");
@@ -185,20 +191,68 @@ namespace NMEA2000Analyzer
                 // Decode the value
                 object decodedValue = DecodeFieldValue(rawValue, field);
 
+                if (decodedValue is double rangedValue &&
+                    ((field.RangeMin != null && rangedValue < field.RangeMin) ||
+                    (field.RangeMax != null && rangedValue > field.RangeMax))) continue;
+
                 // Add to JSON output
-                var fieldJson = new JsonObject
+                var fieldJson = new JsonObject();
+
+                if (field.Unit == "m/s" && decodedValue is double valueInMetersPerSecond)
                 {
-                    ["Name"] = field.Name,
-                    ["Value"] = JsonValue.Create(decodedValue) // Explicitly create a JsonValue
-                };
+                    // Convert to knots and append " kts"
+                    var valueInKnots = valueInMetersPerSecond * 1.94384; // Conversion factor
+                    fieldJson[field.Name] = $"{valueInKnots:F2} kts"; // Format to 2 decimal places
+                }
+                else if (field.Unit == "rad" && decodedValue is double valueInRadians)
+                {
+                    // Convert to degrees and append "°"
+                    var valueInDegrees = valueInRadians * (180.0 / Math.PI); // Conversion formula
+                    fieldJson[field.Name] = $"{valueInDegrees:F1} deg"; // Format to 1 decimal place
+                }
+                else if (field.Unit == "K" && decodedValue is double valueInKelvin)
+                {
+                    // Convert to Celsius
+                    var valueInCelsius = valueInKelvin - 273.15; // Conversion formula
+                    fieldJson[field.Name] = $"{valueInCelsius:F1} deg C"; // Format to 1 decimal place
+                }
+                /* This is not valid for Depth
+                else if (field.Unit == "m" && decodedValue is double valueInMeters)
+                {
+                    // Convert meters to nautical miles and append "NM"
+                    var valueInNauticalMiles = valueInMeters / 1852.0; // 1 nautical mile = 1852 meters
+                    fieldJson[field.Name] = $"{valueInNauticalMiles:F2} NM";
+                }
+                */
+                else if (field.Unit == "s" && decodedValue is double valueInSeconds)
+                {
+                    // Convert seconds to H:M:S format and append "H:M:S"
+                    TimeSpan time = TimeSpan.FromSeconds(valueInSeconds);
+                    string hms = $"{(int)time.TotalHours}:{time.Minutes:D2}:{time.Seconds:D2}"; // Hours can exceed 24
+                    fieldJson[field.Name] = $"{hms} H:M:S";
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(field.Unit))
+                    {
+                        if (decodedValue is double numericValue)
+                        {
+                            // Round the numeric value to 2 decimal places and append the unit
+                            fieldJson[field.Name] = $"{numericValue:F2} {field.Unit}";
+                        }
+                        else
+                        {
+                            // Append the unit without rounding if decodedValue is not numeric
+                            fieldJson[field.Name] = $"{decodedValue} {field.Unit}";
+                        }
+                    }
+                    else
+                    {
+                        fieldJson[field.Name] = JsonValue.Create(decodedValue);
+                    }
+                }
 
-                if (!string.IsNullOrEmpty(field.Unit))
-                    fieldJson["Unit"] = field.Unit;
-
-                if (!string.IsNullOrEmpty(field.Unit))
-                    fieldJson["Unit"] = field.Unit;
-
-                jsonObject["Fields"].AsArray().Add(fieldJson);
+                jsonObject["Fields"]?.AsArray().Add(fieldJson);
             }
 
             return jsonObject;

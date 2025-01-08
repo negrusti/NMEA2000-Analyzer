@@ -146,8 +146,8 @@ namespace NMEA2000Analyzer
             public int BitStart { get; set; }
             public float Resolution { get; set; }
             public bool Signed { get; set; }
-            public float RangeMin { get; set; }
-            public float RangeMax { get; set; }
+            public float? RangeMin { get; set; }
+            public float? RangeMax { get; set; }
             public string FieldType { get; set; }
             public string LookupEnumeration { get; set; }
             public string Description { get; set; }

@@ -4,7 +4,9 @@
 			"PGN": 126975,
 			"Id": "Unknown126975",
 			"Description": "Unknown PGN",
-			"Type": "Fast"
+			"Type": "Fast",
+			"FieldCount": 0,
+			"Fields": []
 		},
 		{
 			"PGN": 130916,

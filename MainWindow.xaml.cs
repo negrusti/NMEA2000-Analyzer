@@ -508,36 +508,6 @@ namespace NMEA2000Analyzer
             aboutWindow.ShowDialog(); // Open the dialog as a modal
         }
 
-        private void DataColumn_MouseDown(object sender, MouseButtonEventArgs e)
-        {
-            // Get the clicked row
-            if (sender is TextBlock textBlock && DataGrid.SelectedItem is Nmea2000Record selectedRecord)
-            {
-                try
-                {
-                    // Convert the Data string to a byte array
-                    var dataBytes = selectedRecord.Data.Split(' ').Select(b => Convert.ToByte(b, 16)).ToArray();
-                    
-                    // Decode the PGN data
-                    var decodedJson = DecodePgnData(dataBytes, ((App)Application.Current).CanboatRootNew.PGNs.FirstOrDefault(q => q.PGN.ToString() == selectedRecord.PGN));
-
-                    // Convert the decoded output to a formatted JSON string
-                    string jsonString = JsonSerializer.Serialize(decodedJson, new JsonSerializerOptions
-                    {
-                        WriteIndented = true
-                    });
-
-                    // Open the JSON Viewer Window
-                    var jsonViewer = new JsonViewerWindow(jsonString);
-                    jsonViewer.Show();
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Failed to decode PGN data: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-            }
-        }
-
         private void DistinctCheckbox_Changed(object sender, RoutedEventArgs e)
         {
             ApplyFilters();
@@ -566,7 +536,13 @@ namespace NMEA2000Analyzer
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Failed to decode PGN data: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    // Retrieve the stack trace and get the line number
+                    var stackTrace = new System.Diagnostics.StackTrace(ex, true);
+                    var frame = stackTrace.GetFrame(0); // Get the first stack frame
+                    var fileName = frame?.GetFileName(); // Get the file name
+                    var lineNumber = frame?.GetFileLineNumber(); // Get the line number
+
+                    MessageBox.Show($"Failed to decode PGN data: {ex.Message} ({fileName}:{lineNumber})", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
