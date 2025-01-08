@@ -19,7 +19,6 @@ namespace NMEA2000Analyzer
         private List<Nmea2000Record>? _filteredData;
         // TODO: remove this
         private Dictionary<string, CanboatPgn> pgnDefinitions;
-        private JsonViewerWindow? _jsonViewerWindow;
 
         public MainWindow()
         {
@@ -97,6 +96,9 @@ namespace NMEA2000Analyzer
                         break;
                     case FileFormats.FileFormat.YDWG:
                         _Data = await Task.Run(() => FileFormats.LoadYDWGLog(filePath));
+                        break;
+                    case FileFormats.FileFormat.PCANView:
+                        _Data = await Task.Run(() => FileFormats.LoadPCANView(filePath));
                         break;
                     default:
                         MessageBox.Show("Unsupported or unknown file format.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -532,7 +534,7 @@ namespace NMEA2000Analyzer
                     });
 
                     // Open the JSON Viewer Window
-                    ShowJsonViewer(jsonString);
+                    JsonViewerTextBox.Text = jsonString;
                 }
                 catch (Exception ex)
                 {
@@ -542,34 +544,8 @@ namespace NMEA2000Analyzer
                     var fileName = frame?.GetFileName(); // Get the file name
                     var lineNumber = frame?.GetFileLineNumber(); // Get the line number
 
-                    MessageBox.Show($"Failed to decode PGN data: {ex.Message} ({fileName}:{lineNumber})", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    JsonViewerTextBox.Text = $"Failed to decode PGN data:\n{ex.Message}\n({fileName}:{lineNumber})";
                 }
-            }
-        }
-        private void ShowJsonViewer(string jsonString)
-        {
-            if (_jsonViewerWindow == null || !_jsonViewerWindow.IsLoaded)
-            {
-                // If the window is not open, create a new instance
-                _jsonViewerWindow = new JsonViewerWindow(jsonString);
-                _jsonViewerWindow.Closed += (s, e) => _jsonViewerWindow = null; // Clear reference when closed
-                
-                var screenWidth = SystemParameters.PrimaryScreenWidth;
-                var screenHeight = SystemParameters.PrimaryScreenHeight;
-                var windowWidth = screenWidth / 3;
-                var windowHeight = screenHeight;
-
-                _jsonViewerWindow.Width = windowWidth;
-                _jsonViewerWindow.Height = windowHeight;
-                _jsonViewerWindow.Left = screenWidth - windowWidth; // Position on the right
-                _jsonViewerWindow.Top = 60;
-                _jsonViewerWindow.Show();
-            }
-            else
-            {
-                // If the window is already open, update its content
-                _jsonViewerWindow.UpdateContent(jsonString);
-                _jsonViewerWindow.Activate(); // Bring it to the foreground
             }
         }
     }

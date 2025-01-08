@@ -4,9 +4,7 @@
 			"PGN": 126975,
 			"Id": "Unknown126975",
 			"Description": "Unknown PGN",
-			"Type": "Fast",
-			"FieldCount": 0,
-			"Fields": []
+			"Type": "Fast"
 		},
 		{
 			"PGN": 130916,
@@ -19,6 +17,31 @@
 			"Id": "Seatalk65384",
 			"Description": "Unknown Seatalk PGN",
 			"Type": "Fast"
+		},
+		{
+			"PGN": 60159,
+			"Id": "SAEJ1939-21",
+			"Description": "SAEJ1939-21 Request",
+			"Type": "Simple",
+			"Priority": 6,
+			"FieldCount": 1,
+			"Length": 3,
+			"Fields": [
+				{
+					"Order": 1,
+					"Id": "pgn",
+					"Name": "PGN",
+					"Description": "Requested PGN",
+					"BitLength": 24,
+					"BitOffset": 0,
+					"BitStart": 0,
+					"Resolution": 1,
+					"Signed": false,
+					"RangeMin": 0,
+					"RangeMax": 16777213,
+					"FieldType": "NUMBER"
+				}
+			]
 		}
 	]
 }

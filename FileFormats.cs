@@ -20,7 +20,8 @@ namespace NMEA2000Analyzer
             TwoCanCsv,
             Actisense,
             CanDump,
-            YDWG
+            YDWG,
+            PCANView
         }
 
         public static FileFormat DetectFileFormat(string filePath)
@@ -58,14 +59,17 @@ namespace NMEA2000Analyzer
                             return FileFormat.CanDump;
                         }
                     }
-                    else
+                    else if (Regex.IsMatch(line, @"^\d{2}:\d{2}:\d{2}\.\d{3}\s+[RT]\s+\w{8}\s+"))
                     {
                         // YDWG: Look for timestamp and raw CAN ID
-                        if (Regex.IsMatch(line, @"^\d{2}:\d{2}:\d{2}\.\d{3}\s+[RT]\s+\w{8}\s+"))
-                        {
-                            Debug.WriteLine("YDWG format detected");
-                            return FileFormat.YDWG;
-                        }
+                        Debug.WriteLine("YDWG format detected");
+                        return FileFormat.YDWG;
+                    }
+                    else if (line.StartsWith(";$FILEVERSION=") || line.StartsWith(";$STARTTIME="))
+                    {
+                        // PCAN-View: Look for PCAN-View header or message format
+                        Debug.WriteLine("PCAN-View format detected");
+                        return FileFormat.PCANView;
                     }
                 }
             }
@@ -249,6 +253,69 @@ namespace NMEA2000Analyzer
                             PGN = pgn.ToString(),
                             Source = source.ToString(),
                             Destination = destination?.ToString() ?? "255",
+                            Data = string.Join(" ", dataBytes)
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Failed to parse line: {line}. Error: {ex.Message}");
+                    }
+                }
+            }
+
+            return records;
+        }
+        public static List<Nmea2000Record> LoadPCANView(string filePath)
+        {
+            var records = new List<Nmea2000Record>();
+
+            using (var reader = new StreamReader(filePath))
+            {
+                while (!reader.EndOfStream)
+                {
+                    var line = reader.ReadLine();
+                    if (string.IsNullOrWhiteSpace(line)) continue;
+
+                    try
+                    {
+                        // Match log lines with PCAN-View format
+                        var regex = new Regex(@"^\s*(?<index>\d+)\)\s+(?<timeOffset>[\d.]+)\s+(?<direction>Rx|Tx)\s+(?<canId>[0-9A-F]{8})\s+(?<dlc>\d)\s+(?<data>.+)$");
+                        var match = regex.Match(line);
+
+                        if (!match.Success) continue;
+
+                        // Extract data
+                        string timeOffset = match.Groups["timeOffset"].Value;
+                        string direction = match.Groups["direction"].Value;
+                        string canIdHex = match.Groups["canId"].Value;
+                        int dlc = int.Parse(match.Groups["dlc"].Value);
+                        var dataBytes = match.Groups["data"].Value
+                            .Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                            .Take(dlc)
+                            .Select(b => $"0x{b.ToUpper()}")
+                            .ToList();
+
+                        // Decode CAN ID fields
+                        int canId = int.Parse(canIdHex, NumberStyles.HexNumber);
+                        int priority = (canId >> 26) & 0x7;   // Top 3 bits
+                        int pgn = (canId >> 8) & 0x1FFFF;     // Middle 18 bits
+                        int source = canId & 0xFF;            // Bottom 8 bits
+
+                        // Destination (PDU1 format)
+                        int? destination = null;
+                        if (pgn < 0xF000) // PDU1 format
+                        {
+                            destination = (canId >> 8) & 0xFF;
+                        }
+
+                        // Add the record
+                        records.Add(new Nmea2000Record
+                        {
+                            Timestamp = timeOffset,
+                            Priority = priority.ToString(),
+                            PGN = pgn.ToString(),
+                            Source = source.ToString(),
+                            Destination = destination?.ToString() ?? "255", // Default to broadcast
                             Data = string.Join(" ", dataBytes)
                         });
                     }

@@ -56,8 +56,19 @@
                 <TextBlock x:Name="TimestampRangeText" Text="No data loaded"/>
             </StatusBarItem>
         </StatusBar>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="6*"/>
+                <!-- DataGrid -->
+                <ColumnDefinition Width="5"/>
+                <!-- GridSplitter -->
+                <ColumnDefinition Width="2*"/>
+                <!-- JSON Viewer Panel -->
+            </Grid.ColumnDefinitions>
+
         <!-- DataGrid -->
-        <DataGrid AutoGenerateColumns="False" Margin="5" 
+        <DataGrid AutoGenerateColumns="False" Margin="3" 
+          Grid.Column="0"
           HorizontalAlignment="Stretch" 
           VerticalAlignment="Stretch" 
           x:Name="DataGrid" 
@@ -125,5 +136,21 @@
                 </DataGridTextColumn>
             </DataGrid.Columns>
         </DataGrid>
+            <GridSplitter Grid.Column="1"
+                          Width="3"
+                          HorizontalAlignment="Stretch"
+                          VerticalAlignment="Stretch"
+                          Background="Gray"
+                          ResizeBehavior="PreviousAndNext"/>
+            <TextBox x:Name="JsonViewerTextBox"
+                     Grid.Column="2"    
+                     Margin="3"
+                     VerticalScrollBarVisibility="Auto"
+                         HorizontalScrollBarVisibility="Auto"
+                         TextWrapping="Wrap"
+                         IsReadOnly="True"
+                         Background="White"
+                         Foreground="Black"/>
+        </Grid>            
     </DockPanel>
 </Window>

@@ -81,9 +81,24 @@ namespace NMEA2000Analyzer
 
             try
             {
-                var jsonContent = File.ReadAllText(CanboatJsonPath);
+                var CanboatJSON = File.ReadAllText(CanboatJsonPath);
+                var LocalJSON = File.ReadAllText(LocalJsonPath);
 
-                var canboatData = System.Text.Json.JsonSerializer.Deserialize<Canboat.Rootobject>(jsonContent, new JsonSerializerOptions
+                // Parse JSON strings into JObject
+                var canboatJObject = JObject.Parse(CanboatJSON);
+                var localJObject = JObject.Parse(LocalJSON);
+
+                // Merge localJObject into canboatJObject
+                canboatJObject.Merge(localJObject, new JsonMergeSettings
+                {
+                    MergeArrayHandling = MergeArrayHandling.Concat, // Options: Replace, Union, Concat, etc.
+                    MergeNullValueHandling = MergeNullValueHandling.Ignore // Ignore null values from localJson
+                });
+
+                // Serialize back to JSON string
+                var mergedJSON = canboatJObject.ToString(Formatting.Indented);
+
+                var canboatData = System.Text.Json.JsonSerializer.Deserialize<Canboat.Rootobject>(mergedJSON, new JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true
                 });
@@ -175,6 +190,9 @@ namespace NMEA2000Analyzer
                 ["Type"] = pgnDefinition.Type,
                 ["Fields"] = new JsonArray()
             };
+
+            if (pgnDefinition.Fields == null || pgnDefinition.Fields.Length == 0)
+                return jsonObject;
 
             foreach (var field in pgnDefinition.Fields)
             {
