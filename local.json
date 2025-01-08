@@ -1,0 +1,22 @@
+{
+	"PGNs": [
+		{
+			"PGN": 126975,
+			"Id": "Unknown126975",
+			"Description": "Unknown PGN",
+			"Type": "Fast"
+		},
+		{
+			"PGN": 130916,
+			"Id": "Unknown130916",
+			"Description": "Unknown PGN",
+			"Type": "Fast"
+		},
+		{
+			"PGN": 65384,
+			"Id": "Seatalk65384",
+			"Description": "Unknown Seatalk PGN",
+			"Type": "Fast"
+		}
+	]
+}

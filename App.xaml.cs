@@ -9,6 +9,7 @@ namespace NMEA2000Analyzer
     /// </summary>
     public partial class App : Application
     {
+        public Canboat.Rootobject CanboatRootNew { get; set; }
     }
 
 }

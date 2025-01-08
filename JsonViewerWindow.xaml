@@ -1,0 +1,24 @@
+﻿<Window x:Class="NMEA2000Analyzer.JsonViewerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="PGN Data"
+        SizeToContent="WidthAndHeight"
+        MinWidth="200"
+        MaxHeight="800"
+        Topmost="True">
+    <Grid>
+        <TextBox x:Name="JsonTextBox"
+                 VerticalAlignment="Stretch"
+                 HorizontalAlignment="Stretch"
+                 TextWrapping="Wrap"
+                 IsReadOnly="True"
+                 VerticalScrollBarVisibility="Auto"
+                 HorizontalScrollBarVisibility="Auto"
+                 FontFamily="Consolas"
+                 FontSize="12" 
+                 Margin="5"
+                 Padding="5"
+                 FocusVisualStyle="{x:Null}" />
+    </Grid>
+</Window>
+

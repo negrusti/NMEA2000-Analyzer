@@ -6,21 +6,34 @@ using static NMEA2000Analyzer.PgnDefinitions;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using System.Text.Json;
+using System.Windows.Input;
+using System.Text.Json.Nodes;
 
 namespace NMEA2000Analyzer
 {
     public partial class MainWindow : Window
     {
-        public MainWindow()
-        {
-            InitializeComponent();
-            Loaded += (s, e) => PopulatePresetsMenu();
-        }
 
         private List<Nmea2000Record>? _Data;
         private List<Nmea2000Record>? _assembledData;
         private List<Nmea2000Record>? _filteredData;
+        // TODO: remove this
         private Dictionary<string, CanboatPgn> pgnDefinitions;
+        private JsonViewerWindow? _jsonViewerWindow;
+
+        public MainWindow()
+        {
+            InitializeComponent();
+            Loaded += (s, e) => PopulatePresetsMenu();
+            this.Loaded += MainWindow_Loaded;
+        }
+
+        private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            // Call your async method here
+            pgnDefinitions = await LoadPgnDefinitionsAsync();
+            ((App)Application.Current).CanboatRootNew = await LoadPgnDefinitionsNewAsync();
+        }
 
         // Class to hold parsed data for the DataGrid
         public class Nmea2000Record
@@ -40,6 +53,7 @@ namespace NMEA2000Analyzer
         {
             public int TotalBytes { get; set; }
             public Dictionary<int, string[]> Frames { get; set; } = new Dictionary<int, string[]>();
+            public string? Timestamp { get; set; }
             public string Source { get; set; }
             public string Destination { get; set; }
             public string PGN { get; set; }
@@ -94,7 +108,6 @@ namespace NMEA2000Analyzer
 
                 try
                 {
-                    pgnDefinitions = await LoadPgnDefinitionsAsync();
                     Enrich(pgnDefinitions);
                     _assembledData = AssembleFrames(_Data, pgnDefinitions);
                     DataGrid.ItemsSource = _assembledData;
@@ -115,16 +128,26 @@ namespace NMEA2000Analyzer
             if (_assembledData == null) return;
 
             // Parse Include and Exclude PGNs
-            var includePGNs = ParsePGNList(IncludeFilterTextBox.Text);
-            var excludePGNs = ParsePGNList(ExcludeFilterTextBox.Text);
+            var includePGNs = ParsePGNList(IncludePGNTextBox.Text);
+            var includeSrc = ParsePGNList(IncludeSrcTextBox.Text);
+            var excludePGNs = ParsePGNList(ExcludePGNTextBox.Text);
 
             // Apply filters to the original data
             var filteredData = _assembledData.Where(record =>
             {
-                bool include = includePGNs.Count == 0 || includePGNs.Contains(record.PGN);
+                bool includePGN = includePGNs.Count == 0 || includePGNs.Contains(record.PGN);
+                bool includeSource = includeSrc.Count == 0 || includeSrc.Contains(record.Source);
                 bool exclude = excludePGNs.Contains(record.PGN);
-                return include && !exclude;
+
+                return includePGN && includeSource && !exclude;
             }).ToList();
+
+            {
+                filteredData = filteredData
+                    .GroupBy(record => record.Data)  // Group by the Data column
+                    .Select(group => group.First()) // Take the first record from each group
+                    .ToList();                      // Convert to a List<Nmea2000Record>
+            }
 
             DataGrid.ItemsSource = filteredData;
         }
@@ -222,7 +245,8 @@ namespace NMEA2000Analyzer
                         Source = frame.Source,
                         Destination = frame.Destination,
                         PGN = frame.PGN,
-                        Priority = frame.Priority
+                        Priority = frame.Priority,
+                        Timestamp = frame.Timestamp
                     };
 
                     // Debug.WriteLine($"Started new message for {messageKey}: TotalBytes = {totalBytes}");
@@ -294,7 +318,8 @@ namespace NMEA2000Analyzer
                     Priority = message.Priority,
                     Data = string.Join(" ", fullMessage),
                     Description = description,
-                    Type = type
+                    Type = type,
+                    Timestamp = message.Timestamp
                 });
 
                 // Remove the completed message from activeMessages
@@ -346,8 +371,9 @@ namespace NMEA2000Analyzer
             DataGrid.ItemsSource = null;
 
             // Optionally, clear filters if needed
-            IncludeFilterTextBox.Text = string.Empty;
-            ExcludeFilterTextBox.Text = string.Empty;
+            IncludePGNTextBox.Text = string.Empty;
+            ExcludePGNTextBox.Text = string.Empty;
+            IncludeSrcTextBox.Text = string.Empty;
         }
 
         private List<Preset> LoadPresets()
@@ -376,7 +402,7 @@ namespace NMEA2000Analyzer
         {
             if (sender is MenuItem menuItem && menuItem.Tag is string includePGNs)
             {
-                IncludeFilterTextBox.Text = includePGNs;
+                IncludePGNTextBox.Text = includePGNs;
                 ApplyFilters();
             }
         }
@@ -405,7 +431,19 @@ namespace NMEA2000Analyzer
             if (sender is MenuItem menuItem && menuItem.CommandParameter is string pgn)
             {
                 // Set the Include Filter to the selected PGN
-                IncludeFilterTextBox.Text = pgn;
+                IncludePGNTextBox.Text = pgn;
+
+                // Apply the filter
+                ApplyFilters();
+            }
+        }
+
+        private void IncludeSrcMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem menuItem && menuItem.CommandParameter is string src)
+            {
+                // Set the Include Filter to the selected PGN
+                IncludePGNTextBox.Text = src;
 
                 // Apply the filter
                 ApplyFilters();
@@ -468,6 +506,95 @@ namespace NMEA2000Analyzer
                 Owner = this // Set the owner to the main window
             };
             aboutWindow.ShowDialog(); // Open the dialog as a modal
+        }
+
+        private void DataColumn_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            // Get the clicked row
+            if (sender is TextBlock textBlock && DataGrid.SelectedItem is Nmea2000Record selectedRecord)
+            {
+                try
+                {
+                    // Convert the Data string to a byte array
+                    var dataBytes = selectedRecord.Data.Split(' ').Select(b => Convert.ToByte(b, 16)).ToArray();
+                    
+                    // Decode the PGN data
+                    var decodedJson = DecodePgnData(dataBytes, ((App)Application.Current).CanboatRootNew.PGNs.FirstOrDefault(q => q.PGN.ToString() == selectedRecord.PGN));
+
+                    // Convert the decoded output to a formatted JSON string
+                    string jsonString = JsonSerializer.Serialize(decodedJson, new JsonSerializerOptions
+                    {
+                        WriteIndented = true
+                    });
+
+                    // Open the JSON Viewer Window
+                    var jsonViewer = new JsonViewerWindow(jsonString);
+                    jsonViewer.Show();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Failed to decode PGN data: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        private void DistinctCheckbox_Changed(object sender, RoutedEventArgs e)
+        {
+            ApplyFilters();
+        }
+
+        private void DataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (DataGrid.SelectedItem is Nmea2000Record selectedRecord)
+            {
+                try
+                {
+                    // Convert the Data string to a byte array
+                    var dataBytes = selectedRecord.Data.Split(' ').Select(b => Convert.ToByte(b, 16)).ToArray();
+
+                    // Decode the PGN data
+                    var decodedJson = DecodePgnData(dataBytes, ((App)Application.Current).CanboatRootNew.PGNs.FirstOrDefault(q => q.PGN.ToString() == selectedRecord.PGN));
+
+                    // Convert the decoded output to a formatted JSON string
+                    string jsonString = JsonSerializer.Serialize(decodedJson, new JsonSerializerOptions
+                    {
+                        WriteIndented = true
+                    });
+
+                    // Open the JSON Viewer Window
+                    ShowJsonViewer(jsonString);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Failed to decode PGN data: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+        private void ShowJsonViewer(string jsonString)
+        {
+            if (_jsonViewerWindow == null || !_jsonViewerWindow.IsLoaded)
+            {
+                // If the window is not open, create a new instance
+                _jsonViewerWindow = new JsonViewerWindow(jsonString);
+                _jsonViewerWindow.Closed += (s, e) => _jsonViewerWindow = null; // Clear reference when closed
+                
+                var screenWidth = SystemParameters.PrimaryScreenWidth;
+                var screenHeight = SystemParameters.PrimaryScreenHeight;
+                var windowWidth = screenWidth / 3;
+                var windowHeight = screenHeight;
+
+                _jsonViewerWindow.Width = windowWidth;
+                _jsonViewerWindow.Height = windowHeight;
+                _jsonViewerWindow.Left = screenWidth - windowWidth; // Position on the right
+                _jsonViewerWindow.Top = 60;
+                _jsonViewerWindow.Show();
+            }
+            else
+            {
+                // If the window is already open, update its content
+                _jsonViewerWindow.UpdateContent(jsonString);
+                _jsonViewerWindow.Activate(); // Bring it to the foreground
+            }
         }
     }
 }

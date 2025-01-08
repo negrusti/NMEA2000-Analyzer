@@ -33,14 +33,23 @@
         <!-- Toolbar with Filters -->
         <StackPanel Orientation="Horizontal" DockPanel.Dock="Top" Margin="10">
             <TextBlock Text="Include PGNs:" VerticalAlignment="Center" Margin="5"/>
-            <TextBox VerticalContentAlignment="Center" Width="200" x:Name="IncludeFilterTextBox" 
+            <TextBox VerticalContentAlignment="Center" Width="300" x:Name="IncludePGNTextBox" 
                  ToolTip="Comma-separated PGNs to include" 
                  TextChanged="FilterTextBoxes_TextChanged"/>
 
             <TextBlock Text="Exclude PGNs:" VerticalAlignment="Center" Margin="5"/>
-            <TextBox VerticalContentAlignment="Center" Width="200" x:Name="ExcludeFilterTextBox" 
+            <TextBox VerticalContentAlignment="Center" Width="300" x:Name="ExcludePGNTextBox" 
                  ToolTip="Comma-separated PGNs to exclude" 
                  TextChanged="FilterTextBoxes_TextChanged"/>
+
+            <TextBlock Text="Include Src:" VerticalAlignment="Center" Margin="5"/>
+            <TextBox VerticalContentAlignment="Center" Width="100" x:Name="IncludeSrcTextBox" 
+                 ToolTip="Comma-separated Sources to include" 
+                 TextChanged="FilterTextBoxes_TextChanged"/>
+
+            <CheckBox Content="Distinct Data" x:Name="DistinctFilterCheckBox" 
+              VerticalAlignment="Center" Margin="10,0" Checked="DistinctCheckbox_Changed" 
+              Unchecked="DistinctCheckbox_Changed"/>
         </StackPanel>
         <StatusBar DockPanel.Dock="Bottom" x:Name="StatusBar" Height="30" VerticalAlignment="Center">
             <StatusBarItem>
@@ -57,12 +66,30 @@
           VerticalGridLinesBrush="#F0F0F0"
           IsReadOnly="True"
           DockPanel.Dock="Top"
-          CanUserResizeRows="False">
+          CanUserResizeRows="False"
+          SelectionChanged="DataGrid_SelectionChanged">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Seq" Binding="{Binding LogSequenceNumber}" />
                 <DataGridTextColumn Header="Timestamp" Binding="{Binding Timestamp}" />
                 <DataGridTextColumn Header="Src" Binding="{Binding Source}" />
-                <DataGridTextColumn Header="Dst" Binding="{Binding Destination}" />
+                <DataGridTemplateColumn Header="Dst">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock>
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="{Binding Destination}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Destination}" Value="255">
+                                                <Setter Property="Text" Value="Bcast" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
                 <DataGridTextColumn Header="Prio" Binding="{Binding Priority}" />
                 <DataGridTemplateColumn Header="PGN">
                     <DataGridTemplateColumn.CellTemplate>
