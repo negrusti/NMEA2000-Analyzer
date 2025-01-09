@@ -151,7 +151,7 @@ namespace NMEA2000Analyzer
             public string FieldType { get; set; }
             public string LookupEnumeration { get; set; }
             public string Description { get; set; }
-            public int Match { get; set; }
+            public int? Match { get; set; }
             public string LookupIndirectEnumeration { get; set; }
             public int LookupIndirectEnumerationFieldOrder { get; set; }
             public string Unit { get; set; }

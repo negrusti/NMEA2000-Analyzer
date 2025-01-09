@@ -32,18 +32,24 @@
 
         <!-- Toolbar with Filters -->
         <StackPanel Orientation="Horizontal" DockPanel.Dock="Top" Margin="10">
+
+            <TextBlock Text="Search PGN:" VerticalAlignment="Center" Margin="5"/>
+            <TextBox x:Name="PgnSearchTextBox" Width="60" VerticalContentAlignment="Center" TextChanged="SearchTextBox_TextChanged"/>
+            <Button Content=" &lt; " Margin="2,0,2,0" Click="SearchBackButton_Click" />
+            <Button Content=" &gt; " Margin="0" Click="SearchForwardButton_Click" />
+
             <TextBlock Text="Include PGNs:" VerticalAlignment="Center" Margin="5"/>
-            <TextBox VerticalContentAlignment="Center" Width="300" x:Name="IncludePGNTextBox" 
+            <TextBox VerticalContentAlignment="Center" Width="200" x:Name="IncludePGNTextBox" 
                  ToolTip="Comma-separated PGNs to include" 
                  TextChanged="FilterTextBoxes_TextChanged"/>
 
             <TextBlock Text="Exclude PGNs:" VerticalAlignment="Center" Margin="5"/>
-            <TextBox VerticalContentAlignment="Center" Width="300" x:Name="ExcludePGNTextBox" 
+            <TextBox VerticalContentAlignment="Center" Width="200" x:Name="ExcludePGNTextBox" 
                  ToolTip="Comma-separated PGNs to exclude" 
                  TextChanged="FilterTextBoxes_TextChanged"/>
 
             <TextBlock Text="Include Src:" VerticalAlignment="Center" Margin="5"/>
-            <TextBox VerticalContentAlignment="Center" Width="100" x:Name="IncludeSrcTextBox" 
+            <TextBox VerticalContentAlignment="Center" Width="50" x:Name="IncludeSrcTextBox" 
                  ToolTip="Comma-separated Sources to include" 
                  TextChanged="FilterTextBoxes_TextChanged"/>
 
@@ -140,7 +146,7 @@
                           Width="3"
                           HorizontalAlignment="Stretch"
                           VerticalAlignment="Stretch"
-                          Background="Gray"
+                          Background="LightGray"
                           ResizeBehavior="PreviousAndNext"/>
             <TextBox x:Name="JsonViewerTextBox"
                      Grid.Column="2"    

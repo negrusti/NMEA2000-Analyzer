@@ -1,13 +1,17 @@
-﻿using System.Windows;
-using System.Windows.Controls;
-using Microsoft.Win32;
-using System.IO;
-using static NMEA2000Analyzer.PgnDefinitions;
+﻿using Microsoft.Win32;
+using Newtonsoft.Json.Linq;
+using System.Collections.Generic;
 using System.Diagnostics;
-using System.Text.RegularExpressions;
+using System.Globalization;
+using System.IO;
+using System.Reflection;
 using System.Text.Json;
-using System.Windows.Input;
-using System.Text.Json.Nodes;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Media;
+using System.Windows.Navigation;
+using static NMEA2000Analyzer.PgnDefinitions;
 
 namespace NMEA2000Analyzer
 {
@@ -17,8 +21,6 @@ namespace NMEA2000Analyzer
         private List<Nmea2000Record>? _Data;
         private List<Nmea2000Record>? _assembledData;
         private List<Nmea2000Record>? _filteredData;
-        // TODO: remove this
-        private Dictionary<string, CanboatPgn> pgnDefinitions;
 
         public MainWindow()
         {
@@ -30,8 +32,7 @@ namespace NMEA2000Analyzer
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             // Call your async method here
-            pgnDefinitions = await LoadPgnDefinitionsAsync();
-            ((App)Application.Current).CanboatRootNew = await LoadPgnDefinitionsNewAsync();
+            ((App)Application.Current).CanboatRoot = await LoadPgnDefinitionsAsync();
         }
 
         // Class to hold parsed data for the DataGrid
@@ -78,9 +79,9 @@ namespace NMEA2000Analyzer
             {
                 ClearData();
                 string filePath = openFileDialog.FileName;
-                this.Title = $"NMEA2000 Analyzer - {System.IO.Path.GetFileName(filePath)}";
 
                 var format = FileFormats.DetectFileFormat(filePath);
+                Title = $"NMEA2000 Analyzer - {Path.GetFileName(filePath)} ({Enum.GetName(typeof(FileFormats.FileFormat), format)})";
 
                 // Parse based on detected format
                 switch (format)
@@ -110,8 +111,7 @@ namespace NMEA2000Analyzer
 
                 try
                 {
-                    Enrich(pgnDefinitions);
-                    _assembledData = AssembleFrames(_Data, pgnDefinitions);
+                    _assembledData = AssembleFrames(_Data);
                     DataGrid.ItemsSource = _assembledData;
                 }
                 catch (Exception ex)
@@ -161,66 +161,63 @@ namespace NMEA2000Analyzer
                         .Select(pgn => pgn.Trim())
                         .ToHashSet();
         }
-        private void Enrich(Dictionary<string, CanboatPgn> pgnDefinitions)
-        {
-            foreach (var record in _Data)
-            {
-                // Directly check if the PGN exists in the dictionary
-                if (pgnDefinitions.TryGetValue(record.PGN, out var pgnDefinition))
-                {
-                    record.Description = pgnDefinition.Description; // Update the description
-                    record.Type = pgnDefinition.Type;
-                }
-                else
-                {
-                    record.Description = "Unknown PGN"; // Handle missing PGNs
-                    record.Type = "Unknown";
-                }
-            }
-        }
 
-        private List<Nmea2000Record> AssembleFrames(List<Nmea2000Record> records, Dictionary<string, CanboatPgn> pgnDefinitions)
+        private List<Nmea2000Record> AssembleFrames(List<Nmea2000Record> records)
         {
             var assembledRecords = new List<Nmea2000Record>();
             var activeMessages = new Dictionary<string, FastPacketMessage>(); // Track in-progress multi-frame messages
 
+            int RowNumber = 0;
             foreach (var record in records)
             {
-                // Check if the PGN exists in the definitions
-                if (pgnDefinitions.TryGetValue(record.PGN, out var pgnDefinition))
+                int pgn = Convert.ToInt32(record.PGN);
+                bool isManufacturerSpecific = Globals.PGNsWithMfgCode.Contains(pgn);
+
+                if (Globals.UniquePGNs.TryGetValue(pgn, out Canboat.Pgn pgnDefinition))
                 {
-                    // Use the Type property to determine if it's Single or Fast
+                    record.Description = isManufacturerSpecific ? "MFG-specific PGN" : pgnDefinition.Description;
+
                     if (pgnDefinition.Type == "Fast")
                     {
                         var messageKey = $"{record.Source}-{record.Destination}-{record.PGN}";
-                        ProcessFastPacketFrame(messageKey, record, activeMessages, assembledRecords, pgnDefinitions);
+                        var assembled = ProcessFastPacketFrame(messageKey, record, activeMessages, assembledRecords);
+
+                        if (assembled != null)
+                        {
+                            assembled.LogSequenceNumber = RowNumber;
+                            assembled.Description = isManufacturerSpecific ? "MFG-specific PGN" : pgnDefinition.Description;
+                            assembledRecords.Add(assembled);
+                            RowNumber++;
+                        }
                     }
                     else
                     {
-                        // Single-frame message
-                        record.Description = pgnDefinition.Description;
+                        record.LogSequenceNumber = RowNumber;
                         record.Type = pgnDefinition.Type;
                         assembledRecords.Add(record);
+                        RowNumber++;
                     }
                 }
                 else
                 {
                     // Unknown PGN - treat as single-frame
+                    record.LogSequenceNumber = RowNumber;
                     record.Description = "Unknown PGN";
                     record.Type = "Unknown";
                     assembledRecords.Add(record);
+                    RowNumber++;
                 }
             }
 
             return assembledRecords;
         }
 
-        private void ProcessFastPacketFrame(
+
+        private static Nmea2000Record? ProcessFastPacketFrame(
             string messageKey,
             Nmea2000Record frame,
             Dictionary<string, FastPacketMessage> activeMessages,
-            List<Nmea2000Record> assembledRecords,
-            Dictionary<string, CanboatPgn> pgnDefinitions)
+            List<Nmea2000Record> assembledRecords)
         {
             var frameData = frame.Data.Split(' ').ToArray();
 
@@ -237,7 +234,7 @@ namespace NMEA2000Analyzer
                     if (totalBytes == 0)
                     {
                         Debug.WriteLine($"Invalid TotalBytes for {messageKey}. Skipping.");
-                        return; // Skip invalid messages
+                        return null; // Skip invalid messages
                     }
 
                     activeMessages[messageKey] = new FastPacketMessage
@@ -257,7 +254,7 @@ namespace NMEA2000Analyzer
                 {
                     // If the first frame hasn't been received yet, skip this frame
                     Debug.WriteLine($"First frame missing for {messageKey}. Skipping frame {sequenceNumber}.");
-                    return;
+                    return null;
                 }
             }
 
@@ -301,32 +298,22 @@ namespace NMEA2000Analyzer
 
                 //Debug.WriteLine($"Assembled message for {messageKey}: {string.Join(" ", fullMessage)}");
 
-                // Retrieve PGN details for Description and Type
-                string description = "Unknown PGN";
-                string type = "Unknown";
-
-                if (pgnDefinitions.TryGetValue(message.PGN, out var pgnDefinition))
-                {
-                    description = pgnDefinition.Description;
-                    type = pgnDefinition.Type;
-                }
+                // Remove the completed message from activeMessages
+                activeMessages.Remove(messageKey);
 
                 // Add the assembled message to the final records
-                assembledRecords.Add(new Nmea2000Record
+                return new Nmea2000Record
                 {
                     Source = message.Source,
                     Destination = message.Destination,
                     PGN = message.PGN,
                     Priority = message.Priority,
                     Data = string.Join(" ", fullMessage),
-                    Description = description,
-                    Type = type,
+                    Type = "Fast",
                     Timestamp = message.Timestamp
-                });
-
-                // Remove the completed message from activeMessages
-                activeMessages.Remove(messageKey);
+                };
             }
+            return null;
         }
 
         private void PgnStatisticsMenuItem_Click(object sender, RoutedEventArgs e)
@@ -342,17 +329,12 @@ namespace NMEA2000Analyzer
                 .GroupBy(record => record.PGN)
                 .Select(group =>
                 {
-                    string description = "Unknown PGN";
-                    if (pgnDefinitions.TryGetValue(group.Key, out var pgnDefinition))
-                    {
-                        description = pgnDefinition.Description;
-                    }
-
+                    var firstRecord = group.First();
                     return new PgnStatisticsEntry
                     {
                         PGN = group.Key,
                         Count = group.Count(),
-                        Description = description
+                        Description = firstRecord.Description ?? "Unknown"
                     };
                 })
                 .OrderByDescending(entry => entry.Count)
@@ -362,6 +344,7 @@ namespace NMEA2000Analyzer
             var statsWindow = new PgnStatistics(pgnCounts);
             statsWindow.Show();
         }
+
         private void ClearData()
         {
             // Clear data collections
@@ -525,7 +508,7 @@ namespace NMEA2000Analyzer
                     var dataBytes = selectedRecord.Data.Split(' ').Select(b => Convert.ToByte(b, 16)).ToArray();
 
                     // Decode the PGN data
-                    var decodedJson = DecodePgnData(dataBytes, ((App)Application.Current).CanboatRootNew.PGNs.FirstOrDefault(q => q.PGN.ToString() == selectedRecord.PGN));
+                    var decodedJson = DecodePgnData(dataBytes, ((App)Application.Current).CanboatRoot.PGNs.FirstOrDefault(q => q.PGN.ToString() == selectedRecord.PGN));
 
                     // Convert the decoded output to a formatted JSON string
                     string jsonString = JsonSerializer.Serialize(decodedJson, new JsonSerializerOptions
@@ -547,6 +530,59 @@ namespace NMEA2000Analyzer
                     JsonViewerTextBox.Text = $"Failed to decode PGN data:\n{ex.Message}\n({fileName}:{lineNumber})";
                 }
             }
+        }
+
+        private int _currentSearchIndex = -1;
+
+        private void SearchTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            // Perform the first search
+            SearchInDataGrid(forward: true);
+        }
+
+        private void SearchBackButton_Click(object sender, RoutedEventArgs e)
+        {
+            SearchInDataGrid(forward: false);
+        }
+
+        private void SearchForwardButton_Click(object sender, RoutedEventArgs e)
+        {
+            SearchInDataGrid(forward: true);
+        }
+
+        private void SearchInDataGrid(bool forward)
+        {
+            if (_assembledData == null || !_assembledData.Any() || string.IsNullOrWhiteSpace(PgnSearchTextBox.Text))
+            {
+                return;
+            }
+
+            string searchText = PgnSearchTextBox.Text.Trim();
+            int startIndex = forward ? _currentSearchIndex + 1 : _currentSearchIndex - 1;
+
+            // Wrap-around behavior
+            if (startIndex >= _assembledData.Count)
+                startIndex = 0;
+            else if (startIndex < 0)
+                startIndex = _assembledData.Count - 1;
+
+            for (int i = 0; i < _assembledData.Count; i++)
+            {
+                int index = (startIndex + (forward ? i : -i + _assembledData.Count)) % _assembledData.Count;
+                if (_assembledData[index].PGN != null && _assembledData[index].PGN.Contains(searchText))
+                {
+                    _currentSearchIndex = index;
+
+                    // Select and scroll into view in the DataGrid
+                    DataGrid.SelectedItem = _assembledData[index];
+                    DataGrid.ScrollIntoView(DataGrid.SelectedItem);
+
+                    return;
+                }
+            }
+
+            // If no match found
+            MessageBox.Show("No matching PGN found.", "Search Result", MessageBoxButton.OK, MessageBoxImage.Information);
         }
     }
 }

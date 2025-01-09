@@ -1,6 +1,4 @@
-﻿using System.Configuration;
-using System.Data;
-using System.Windows;
+﻿using System.Windows;
 
 namespace NMEA2000Analyzer
 {
@@ -9,7 +7,7 @@ namespace NMEA2000Analyzer
     /// </summary>
     public partial class App : Application
     {
-        public Canboat.Rootobject CanboatRootNew { get; set; }
+        public Canboat.Rootobject? CanboatRoot { get; set; }
     }
 
 }
