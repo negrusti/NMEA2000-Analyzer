@@ -1,4 +1,5 @@
 ﻿using Microsoft.Win32;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
@@ -41,6 +42,7 @@ namespace NMEA2000Analyzer
             public string Priority { get; set; }
             public string Description { get; set; } = ""; // Placeholder if not provided
             public string Data { get; set; }
+            public string? DeviceInfo { get; set; }
         }
 
         private class FastPacketMessage
@@ -110,6 +112,7 @@ namespace NMEA2000Analyzer
                 {
                     _assembledData = AssembleFrames(_Data);
                     DataGrid.ItemsSource = _assembledData;
+                    GenerateDeviceInfo(_assembledData);
                 }
                 catch (Exception ex)
                 {
@@ -342,12 +345,27 @@ namespace NMEA2000Analyzer
             statsWindow.Show();
         }
 
+        private void DevicesMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (Globals.Devices == null || !Globals.Devices.Any())
+            {
+                MessageBox.Show("No device data available.", "Device Statistics", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+
+            // Open the statistics window
+            var devicesWindow = new Devices();
+            devicesWindow.Show();
+        }
+
         private void ClearData()
         {
             // Clear data collections
             _Data?.Clear();
             _assembledData?.Clear();
             _filteredData?.Clear();
+            Globals.Devices.Clear();
 
             // Reset the DataGrid
             DataGrid.ItemsSource = null;

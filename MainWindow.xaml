@@ -27,6 +27,7 @@
             </MenuItem>
             <MenuItem Header="Statistics">
                 <MenuItem Header="PGNs" Click="PgnStatisticsMenuItem_Click" />
+                <MenuItem Header="Devices" Click="DevicesMenuItem_Click" />
             </MenuItem>
             <MenuItem Header="Presets" x:Name="Presets">
             </MenuItem>

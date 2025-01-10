@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System.Diagnostics;
+using System.IO;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -236,6 +237,8 @@ namespace NMEA2000Analyzer
             {
                 case "NUMBER":
                 case "MMSI":
+                case "TIME":
+                case "DATE":
                     double decodedNumberValue = rawValue * field.Resolution;
 
                     // Handle signed values
@@ -300,12 +303,6 @@ namespace NMEA2000Analyzer
                 case "BITLOOKUP":
                     break;
                 case "FIELDTYPE_LOOKUP":
-                    break;
-                case "TIME":
-                    break;
-                case "DATE":
-                    break;
-                case "STRING_FIX":
                     break;
                 case "STRING_LZ":
                     break;
@@ -482,6 +479,21 @@ namespace NMEA2000Analyzer
             }
 
             return (mask, matchValue);
+        }
+
+        public static void GenerateDeviceInfo(List<Nmea2000Record> records)
+        {
+            // PGN 126996: Product Information
+            var filteredRecords = records.Where(record => record.PGN == "126996").ToList();
+            foreach (var record in filteredRecords)
+            {
+                var dataBytes = record.Data.Split(' ').Select(b => Convert.ToByte(b, 16)).ToArray();
+                var JSONObject = DecodePgnData(dataBytes, ((App)Application.Current).CanboatRoot.PGNs.FirstOrDefault(q => q.PGN.ToString() == record.PGN));
+                var modelId = ((JsonArray)JSONObject["Fields"]!)
+                    .OfType<JsonObject>()
+                    .FirstOrDefault(obj => obj.ContainsKey("Model ID"))?["Model ID"]?.ToString();
+                Globals.Devices.TryAdd(Convert.ToByte(record.Source), modelId);
+            }
         }
     }
 }
