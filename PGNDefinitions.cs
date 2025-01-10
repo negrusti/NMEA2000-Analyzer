@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using System.Net.Http;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Windows;
@@ -109,31 +110,45 @@ namespace NMEA2000Analyzer
             for (int i = 0; i < pgnDefinition.Fields.Length; i++)
             {
                 var field = pgnDefinition.Fields[i];
+                object? finalValue = null;
 
                 if (field.FieldType == "RESERVED")
                     continue; // Skip reserved fields
-
+                
                 // Skip fields that belong to the repeated set, as they will be processed later
                 if (repeatedFieldStart >= 0 && i >= repeatedFieldStart && i < repeatedFieldStart + repeatedFieldCount)
                     continue;
 
-                int byteStart = field.BitOffset / 8;
-                int bitStart = field.BitOffset % 8;
-                int bitLength = field.BitLength;
+                if (field.FieldType == "STRING_FIX")
+                {
+                    var rawBytes = new byte[field.BitLength / 8];
+                    Array.Copy(pgnData, field.BitOffset / 8, rawBytes, 0, field.BitLength / 8);
+                    var filteredBytes = rawBytes.Where(b => b != 0xFF && b != 0x00).ToArray();
 
-                // Extract the bits from the raw PGN data
-                ulong rawValue = ExtractBits(pgnData, byteStart, bitStart, bitLength);
+                    // Convert the bytes to an ASCII string and trim padding characters
+                    finalValue = Encoding.ASCII.GetString(filteredBytes).TrimEnd('@', ' ');
+                }
+                else
+                {
+                    int byteStart = field.BitOffset / 8;
+                    int bitStart = field.BitOffset % 8;
+                    int bitLength = field.BitLength;
 
-                // Decode the value
-                object decodedValue = DecodeFieldValue(rawValue, field);
+                    // Extract the bits from the raw PGN data
+                    ulong rawValue = ExtractBits(pgnData, byteStart, bitStart, bitLength);
 
-                if (decodedValue is double rangedValue &&
-                    ((field.RangeMin != null && rangedValue < field.RangeMin) ||
-                     (field.RangeMax != null && rangedValue > field.RangeMax)))
-                    continue;
+                    // Decode the value
+                    object decodedValue = DecodeFieldValue(rawValue, field);
 
-                // Convert units if applicable
-                object finalValue = ApplyUnitConversion(decodedValue, field);
+                    if (decodedValue is double rangedValue &&
+                        ((field.RangeMin != null && rangedValue < field.RangeMin) ||
+                         (field.RangeMax != null && rangedValue > field.RangeMax)))
+                        continue;
+
+                    // Convert units if applicable
+                    finalValue = ApplyUnitConversion(decodedValue, field);
+
+                }
 
                 // Add to JSON output
                 var fieldJson = new JsonObject();
@@ -215,46 +230,104 @@ namespace NMEA2000Analyzer
         }
 
         // Function to decode the field value based on the field properties
-        private static object DecodeFieldValue(ulong rawValue, Canboat.Field field)
+        private static object? DecodeFieldValue(ulong rawValue, Canboat.Field field)
         {
-            if (field.FieldType == "LOOKUP" && !string.IsNullOrEmpty(field.LookupEnumeration))
+            switch (field.FieldType)
             {
-                // Find the matching LookupEnumeration
-                var lookupEnum = ((App)Application.Current).CanboatRoot.LookupEnumerations
-                    .FirstOrDefault(le => le.Name == field.LookupEnumeration);
+                case "NUMBER":
+                case "MMSI":
+                    double decodedNumberValue = rawValue * field.Resolution;
 
-                if (lookupEnum != null)
-                {
-                    // Find the matching value in the EnumValues
-                    var lookupValue = lookupEnum.EnumValues.FirstOrDefault(ev => ev.Value == (int)rawValue)?.Name;
-
-                    if (lookupValue != null)
+                    // Handle signed values
+                    if (field.Signed && field.BitLength > 1 && (rawValue & (1UL << (field.BitLength - 1))) != 0)
                     {
-                        return lookupValue; // Return the string representation
+                        long signedValue = (long)(rawValue | ~((1UL << field.BitLength) - 1));
+                        decodedNumberValue = signedValue * field.Resolution;
                     }
 
-                    return $"Unknown ({rawValue})"; // No match found
-                }
+                    return decodedNumberValue;
 
-                return $"Unknown Enumeration ({field.LookupEnumeration})"; // LookupEnumeration not found
+                case "FLOAT":
+                    double decodedFloatValue = rawValue * field.Resolution;
+
+                    // Handle signed values
+                    if (field.Signed && field.BitLength > 1 && (rawValue & (1UL << (field.BitLength - 1))) != 0)
+                    {
+                        long signedValue = (long)(rawValue | ~((1UL << field.BitLength) - 1));
+                        decodedFloatValue = signedValue * field.Resolution;
+                    }
+
+                    return decodedFloatValue;
+
+                case "DECIMAL":
+                    double decodedDecimalValue = rawValue * field.Resolution;
+
+                    // Handle signed values
+                    if (field.Signed && field.BitLength > 1 && (rawValue & (1UL << (field.BitLength - 1))) != 0)
+                    {
+                        long signedValue = (long)(rawValue | ~((1UL << field.BitLength) - 1));
+                        decodedDecimalValue = signedValue * field.Resolution;
+                    }
+
+                    return decodedDecimalValue;
+
+                case "LOOKUP":
+                    if (!string.IsNullOrEmpty(field.LookupEnumeration))
+                    {
+                        // Find the matching LookupEnumeration
+                        var lookupEnum = ((App)Application.Current).CanboatRoot.LookupEnumerations
+                            .FirstOrDefault(le => le.Name == field.LookupEnumeration);
+
+                        if (lookupEnum != null)
+                        {
+                            // Find the matching value in the EnumValues
+                            var lookupValue = lookupEnum.EnumValues.FirstOrDefault(ev => ev.Value == (int)rawValue)?.Name;
+
+                            if (lookupValue != null)
+                            {
+                                return lookupValue; // Return the string representation
+                            }
+
+                            return $"Unknown ({rawValue})"; // No match found
+                        }
+
+                        return $"Unknown Enumeration ({field.LookupEnumeration})"; // LookupEnumeration not found
+                    }
+                    return "No enumeration specified";
+
+                case "INDIRECT_LOOKUP":
+                    break;
+                case "BITLOOKUP":
+                    break;
+                case "FIELDTYPE_LOOKUP":
+                    break;
+                case "TIME":
+                    break;
+                case "DATE":
+                    break;
+                case "STRING_FIX":
+                    break;
+                case "STRING_LZ":
+                    break;
+                case "STRING_LAU":
+                    break;
+                case "BINARY":
+                    break;
+                case "RESERVED":
+                    break;
+                case "SPARE":
+                    break;
+                case "VARIABLE":
+                    break;
+                case "KEY_VALUE":
+                    break;
+                case "FIELD_INDEX":
+                    break;
+                default:
+                    throw new NotSupportedException($"Field type '{field.FieldType}' is not supported.");
             }
+            return null;
 
-            if (field.FieldType == "INDIRECT_LOOKUP" && !string.IsNullOrEmpty(field.LookupIndirectEnumeration))
-            {
-                // We need value of another field here...
-            }
-            
-            // Decode numeric value
-            double decodedValue = rawValue * field.Resolution;
-
-            // Handle signed values
-            if (field.Signed && field.BitLength > 1 && (rawValue & (1UL << (field.BitLength - 1))) != 0)
-            {
-                long signedValue = (long)(rawValue | ~((1UL << field.BitLength) - 1));
-                decodedValue = signedValue * field.Resolution;
-            }
-
-            return decodedValue;
         }
 
         private static object ApplyUnitConversion(object decodedValue, Canboat.Field field)

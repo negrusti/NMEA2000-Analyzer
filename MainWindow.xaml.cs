@@ -591,4 +591,34 @@ namespace NMEA2000Analyzer
             MessageBox.Show("No matching PGN found.", "Search Result", MessageBoxButton.OK, MessageBoxImage.Information);
         }
     }
+
+    public class HexToAsciiConverter : System.Windows.Data.IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            string hexString = value as string;
+            return hexString != null ? ConvertHexToAscii(hexString) : string.Empty;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+
+        private string ConvertHexToAscii(string hexString)
+        {
+            string[] hexValues = hexString.Split(' ');
+            char[] asciiChars = new char[hexValues.Length];
+
+            for (int i = 0; i < hexValues.Length; i++)
+            {
+                string hex = hexValues[i].Replace("0x", "");
+                int byteValue = int.Parse(hex, System.Globalization.NumberStyles.HexNumber);
+
+                asciiChars[i] = byteValue >= 32 && byteValue <= 126 ? (char)byteValue : '.';
+            }
+
+            return new string(asciiChars);
+        }
+    }
 }

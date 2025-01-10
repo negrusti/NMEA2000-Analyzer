@@ -9,6 +9,10 @@
         WindowState="Maximized"
         MinWidth="800"
         MinHeight="600">
+    <Window.Resources>
+        <!-- Register the HexToAsciiConverter -->
+        <local:HexToAsciiConverter x:Key="HexToAsciiConverter" />
+    </Window.Resources>    
     <DockPanel LastChildFill="True">
         <!-- Menu Bar -->
         <Menu DockPanel.Dock="Top">
@@ -147,7 +151,7 @@
                                 <!-- Truncate text -->
                                 <Setter Property="TextTrimming" Value="CharacterEllipsis" />
                                 <Setter Property="TextWrapping" Value="NoWrap" />
-                                <Setter Property="ToolTip" Value="{Binding Data}" />
+                                <Setter Property="ToolTip" Value="{Binding Data, Converter={StaticResource HexToAsciiConverter}}" />
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
