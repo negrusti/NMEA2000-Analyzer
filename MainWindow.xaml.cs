@@ -1,17 +1,11 @@
 ﻿using Microsoft.Win32;
-using Newtonsoft.Json.Linq;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
-using System.Reflection;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Media;
-using System.Windows.Navigation;
 using static NMEA2000Analyzer.PgnDefinitions;
+using Application = System.Windows.Application;
 
 namespace NMEA2000Analyzer
 {
@@ -71,7 +65,7 @@ namespace NMEA2000Analyzer
             // Open file picker dialog
             OpenFileDialog openFileDialog = new OpenFileDialog
             {
-                Filter = "(*.csv, *.log, *.txt)|*.csv;*.log;*.txt|All Files (*.*)|*.*",
+                Filter = "(*.csv, *.log, *.txt, *.dump)|*.csv;*.log;*.txt;*.dump|All Files (*.*)|*.*",
                 Title = "Open File"
             };
 
@@ -92,8 +86,11 @@ namespace NMEA2000Analyzer
                     case FileFormats.FileFormat.Actisense:
                         _Data = await Task.Run(() => FileFormats.LoadActisense(filePath));
                         break;
-                    case FileFormats.FileFormat.CanDump:
-                        _Data = await Task.Run(() => FileFormats.LoadCanDump(filePath));
+                    case FileFormats.FileFormat.CanDump1:
+                        _Data = await Task.Run(() => FileFormats.LoadCanDump1(filePath));
+                        break;
+                    case FileFormats.FileFormat.CanDump2:
+                        _Data = await Task.Run(() => FileFormats.LoadCanDump2(filePath));
                         break;
                     case FileFormats.FileFormat.YDWG:
                         _Data = await Task.Run(() => FileFormats.LoadYDWGLog(filePath));
@@ -130,15 +127,15 @@ namespace NMEA2000Analyzer
             if (_assembledData == null) return;
 
             // Parse Include and Exclude PGNs
-            var includePGNs = ParsePGNList(IncludePGNTextBox.Text);
-            var includeSrc = ParsePGNList(IncludeSrcTextBox.Text);
-            var excludePGNs = ParsePGNList(ExcludePGNTextBox.Text);
+            var includePGNs = ParseList(IncludePGNTextBox.Text);
+            var includeAddress = ParseList(IncludeAddressTextBox.Text);
+            var excludePGNs = ParseList(ExcludePGNTextBox.Text);
 
             // Apply filters to the original data
             var filteredData = _assembledData.Where(record =>
             {
                 bool includePGN = includePGNs.Count == 0 || includePGNs.Contains(record.PGN);
-                bool includeSource = includeSrc.Count == 0 || includeSrc.Contains(record.Source);
+                bool includeSource = includeAddress.Count == 0 || includeAddress.Contains(record.Source) || includeAddress.Contains(record.Destination);
                 bool exclude = excludePGNs.Contains(record.PGN);
 
                 return includePGN && includeSource && !exclude;
@@ -154,7 +151,7 @@ namespace NMEA2000Analyzer
             DataGrid.ItemsSource = filteredData;
         }
 
-        private HashSet<string> ParsePGNList(string input)
+        private HashSet<string> ParseList(string input)
         {
             // Split comma-separated PGNs and normalize (trim whitespace)
             return input.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
@@ -354,11 +351,12 @@ namespace NMEA2000Analyzer
 
             // Reset the DataGrid
             DataGrid.ItemsSource = null;
+            JsonViewerTextBox.Text = null;
 
             // Optionally, clear filters if needed
             IncludePGNTextBox.Text = string.Empty;
             ExcludePGNTextBox.Text = string.Empty;
-            IncludeSrcTextBox.Text = string.Empty;
+            IncludeAddressTextBox.Text = string.Empty;
         }
 
         private List<Preset> LoadPresets()
@@ -413,22 +411,22 @@ namespace NMEA2000Analyzer
 
         private void IncludePgnMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is MenuItem menuItem && menuItem.CommandParameter is string pgn)
+            if (sender is MenuItem menuItem && menuItem.CommandParameter is Nmea2000Record selectedRow)
             {
                 // Set the Include Filter to the selected PGN
-                IncludePGNTextBox.Text = pgn;
+                IncludePGNTextBox.Text = selectedRow.PGN;
 
                 // Apply the filter
                 ApplyFilters();
             }
         }
 
-        private void IncludeSrcMenuItem_Click(object sender, RoutedEventArgs e)
+        private void IncludeAddressMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is MenuItem menuItem && menuItem.CommandParameter is string src)
+            if (sender is MenuItem menuItem && menuItem.CommandParameter is Nmea2000Record selectedRow)
             {
                 // Set the Include Filter to the selected PGN
-                IncludePGNTextBox.Text = src;
+                IncludeAddressTextBox.Text = selectedRow.Source;
 
                 // Apply the filter
                 ApplyFilters();
@@ -437,12 +435,12 @@ namespace NMEA2000Analyzer
 
         private void ReferencePgnMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is MenuItem menuItem && menuItem.CommandParameter is string pgn)
+            if (sender is MenuItem menuItem && menuItem.CommandParameter is Nmea2000Record selectedRow)
             {
                 try
                 {
                     // Construct the URL
-                    var url = $"https://canboat.github.io/canboat/canboat.html#pgn-{pgn}";
+                    var url = $"https://canboat.github.io/canboat/canboat.html#pgn-{selectedRow.PGN}";
 
                     // Open the URL in the default browser
                     System.Diagnostics.Process.Start(new ProcessStartInfo
@@ -453,7 +451,7 @@ namespace NMEA2000Analyzer
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Failed to open reference URL for PGN {pgn}: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show($"Failed to open reference URL for PGN {selectedRow.PGN}: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
@@ -548,6 +546,14 @@ namespace NMEA2000Analyzer
         private void SearchForwardButton_Click(object sender, RoutedEventArgs e)
         {
             SearchInDataGrid(forward: true);
+        }
+
+        private void ClearFiltersButton_Click(object sender, RoutedEventArgs e)
+        {
+            IncludePGNTextBox.Text = string.Empty;
+            ExcludePGNTextBox.Text = string.Empty;
+            IncludeAddressTextBox.Text = string.Empty;
+            DistinctFilterCheckBox.IsChecked = false;
         }
 
         private void SearchInDataGrid(bool forward)

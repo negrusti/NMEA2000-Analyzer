@@ -19,7 +19,7 @@
                 </Style>
             </Menu.ItemContainerStyle>
             <MenuItem Header="File">
-                <MenuItem Header="Open" Click="OpenMenuItem_ClickAsync"/>
+                <MenuItem Header="Open" Click="OpenMenuItem_ClickAsync" />
             </MenuItem>
             <MenuItem Header="Statistics">
                 <MenuItem Header="PGNs" Click="PgnStatisticsMenuItem_Click" />
@@ -48,14 +48,15 @@
                  ToolTip="Comma-separated PGNs to exclude" 
                  TextChanged="FilterTextBoxes_TextChanged"/>
 
-            <TextBlock Text="Include Src:" VerticalAlignment="Center" Margin="5"/>
-            <TextBox VerticalContentAlignment="Center" Width="50" x:Name="IncludeSrcTextBox" 
+            <TextBlock Text="Include Address:" VerticalAlignment="Center" Margin="5"/>
+            <TextBox VerticalContentAlignment="Center" Width="50" x:Name="IncludeAddressTextBox" 
                  ToolTip="Comma-separated Sources to include" 
                  TextChanged="FilterTextBoxes_TextChanged"/>
 
             <CheckBox Content="Distinct Data" x:Name="DistinctFilterCheckBox" 
               VerticalAlignment="Center" Margin="10,0" Checked="DistinctCheckbox_Changed" 
               Unchecked="DistinctCheckbox_Changed"/>
+            <Button Content="Clear Filters" Padding ="5,0,5,0" Margin="2,0,2,0" Click="ClearFiltersButton_Click" />            
         </StackPanel>
         <StatusBar DockPanel.Dock="Bottom" x:Name="StatusBar" Height="30" VerticalAlignment="Center">
             <StatusBarItem>
@@ -72,91 +73,101 @@
                 <!-- JSON Viewer Panel -->
             </Grid.ColumnDefinitions>
 
-        <!-- DataGrid -->
-        <DataGrid AutoGenerateColumns="False" Margin="3" 
-          Grid.Column="0"
-          HorizontalAlignment="Stretch" 
-          VerticalAlignment="Stretch" 
-          x:Name="DataGrid" 
-          GridLinesVisibility="All"
-          HorizontalGridLinesBrush="#F0F0F0"
-          VerticalGridLinesBrush="#F0F0F0"
-          IsReadOnly="True"
-          DockPanel.Dock="Top"
-          CanUserResizeRows="False"
-          SelectionChanged="DataGrid_SelectionChanged">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="Seq" Binding="{Binding LogSequenceNumber}" />
-                <DataGridTextColumn Header="Timestamp" Binding="{Binding Timestamp}" />
-                <DataGridTextColumn Header="Src" Binding="{Binding Source}" />
-                <DataGridTemplateColumn Header="Dst">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                            <TextBlock>
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Text" Value="{Binding Destination}" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding Destination}" Value="255">
-                                                <Setter Property="Text" Value="Bcast" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Prio" Binding="{Binding Priority}" />
-                <DataGridTemplateColumn Header="PGN">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding PGN}" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <TextBlock.ContextMenu>
-                                    <ContextMenu>
-                                        <MenuItem Header="Include"
-                                          Click="IncludePgnMenuItem_Click"
-                                          CommandParameter="{Binding PGN}" />
-                                        <MenuItem Header="Open Reference"
-                                          Click="ReferencePgnMenuItem_Click"
-                                          CommandParameter="{Binding PGN}" />
-                                    </ContextMenu>
-                                </TextBlock.ContextMenu>
-                            </TextBlock>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Type" Binding="{Binding Type}" />
-                <DataGridTextColumn Header="Description" Binding="{Binding Description}" />
+            <!-- DataGrid -->
+            <DataGrid AutoGenerateColumns="False" Margin="3" 
+              Grid.Column="0"
+              HorizontalAlignment="Stretch" 
+              VerticalAlignment="Stretch" 
+              x:Name="DataGrid" 
+              GridLinesVisibility="All"
+              HorizontalGridLinesBrush="#F0F0F0"
+              VerticalGridLinesBrush="#F0F0F0"
+              IsReadOnly="True"
+              DockPanel.Dock="Top"
+              CanUserResizeRows="False"
+              SelectionChanged="DataGrid_SelectionChanged">
+                <DataGrid.Resources>
+                    <ContextMenu x:Key="rowContextMenu">
+                        <MenuItem Header="Include PGN"
+                                            Click="IncludePgnMenuItem_Click"
+                                            CommandParameter="{Binding}" />
+                        <MenuItem Header="Include Address"
+                                            Click="IncludeAddressMenuItem_Click"
+                                            CommandParameter="{Binding}" />
+                        <MenuItem Header="Copy row as CSV"
+                                            IsEnabled="False"
+                                            CommandParameter="{Binding}" />
+                        <MenuItem Header="Open Reference"
+                                            Click="ReferencePgnMenuItem_Click"                                  
+                                            CommandParameter="{Binding}" />
+                    </ContextMenu>
+                </DataGrid.Resources>
+                <DataGrid.RowStyle>
+                    <Style TargetType="{x:Type DataGridRow}">
+                        <Setter Property="ContextMenu" Value="{StaticResource rowContextMenu}"/>
+                    </Style>
+                </DataGrid.RowStyle>
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Seq" Binding="{Binding LogSequenceNumber}" />
+                    <DataGridTextColumn Header="Timestamp" Binding="{Binding Timestamp}" />
+                    <DataGridTextColumn Header="Src" Binding="{Binding Source}" />
+                    <DataGridTemplateColumn Header="Dst">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock>
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value="{Binding Destination}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Destination}" Value="255">
+                                                    <Setter Property="Text" Value="Bcast" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="Prio" Binding="{Binding Priority}" />
+                    <DataGridTemplateColumn Header="PGN">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding PGN}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="Type" Binding="{Binding Type}" />
+                    <DataGridTextColumn Header="Description" Binding="{Binding Description}" />
 
-                <DataGridTextColumn Header="Raw" Binding="{Binding Data}" Width="*">
-                    <DataGridTextColumn.ElementStyle>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="FontFamily" Value="Consolas"/>
-                            <!-- Truncate text -->
-                            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
-                            <Setter Property="TextWrapping" Value="NoWrap" />
-                            <Setter Property="ToolTip" Value="{Binding Data}" />
-                        </Style>
-                    </DataGridTextColumn.ElementStyle>
-                </DataGridTextColumn>
-            </DataGrid.Columns>
-        </DataGrid>
+                    <DataGridTextColumn Header="Raw" Binding="{Binding Data}" Width="*">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="FontFamily" Value="Consolas"/>
+                                <!-- Truncate text -->
+                                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                <Setter Property="TextWrapping" Value="NoWrap" />
+                                <Setter Property="ToolTip" Value="{Binding Data}" />
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                </DataGrid.Columns>
+            </DataGrid>
             <GridSplitter Grid.Column="1"
-                          Width="3"
-                          HorizontalAlignment="Stretch"
-                          VerticalAlignment="Stretch"
-                          Background="LightGray"
-                          ResizeBehavior="PreviousAndNext"/>
+                            Width="3"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch"
+                            Background="LightGray"
+                            ResizeBehavior="PreviousAndNext"/>
             <TextBox x:Name="JsonViewerTextBox"
-                     Grid.Column="2"    
-                     Margin="3"
-                     VerticalScrollBarVisibility="Auto"
-                         HorizontalScrollBarVisibility="Auto"
-                         TextWrapping="Wrap"
-                         IsReadOnly="True"
-                         Background="White"
-                         Foreground="Black"/>
-        </Grid>            
+                            Grid.Column="2"    
+                            Margin="3"
+                            VerticalScrollBarVisibility="Auto"
+                            HorizontalScrollBarVisibility="Auto"
+                            TextWrapping="Wrap"
+                            IsReadOnly="True"
+                            Background="White"
+                            Foreground="Black"/>
+        </Grid>
     </DockPanel>
 </Window>

@@ -26,5 +26,14 @@
 	{
 		"Name": "Time",
 		"IncludePGNs": "126992"
+	},
+	{
+		"Name": "VHF DSC",
+		"IncludePGNs": "129808,129799"
+	},
+	{
+		"Name": "Device Info",
+		"IncludePGNs": "126996,126998"
 	}
+
 ]

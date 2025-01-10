@@ -191,63 +191,6 @@ namespace NMEA2000Analyzer
             return jsonObject;
         }
 
-        // Separate function to apply unit conversions
-        private static object ApplyUnitConversion(object decodedValue, Canboat.Field field)
-        {
-            if (decodedValue is double numericValue)
-            {
-                if (field.Unit == "m/s")
-                {
-                    // Convert to knots
-                    var valueInKnots = numericValue * 1.94384; // Conversion factor
-                    return $"{valueInKnots:F2} kts"; // Format to 2 decimal places
-                }
-                else if (field.Unit == "rad")
-                {
-                    // Convert to degrees
-                    var valueInDegrees = numericValue * (180.0 / Math.PI);
-                    return $"{valueInDegrees:F1} deg"; // Format to 1 decimal place
-                }
-                else if (field.Unit == "rad/s")
-                {
-                    // Convert to degrees
-                    var valueInDegrees = numericValue * (180.0 / Math.PI);
-                    return $"{valueInDegrees:F1} deg/s"; // Format to 1 decimal place
-                }
-                else if (field.Unit == "K")
-                {
-                    // Convert to Celsius
-                    var valueInCelsius = numericValue - 273.15;
-                    return $"{valueInCelsius:F1} deg C"; // Format to 1 decimal place
-                }
-                else if (field.Unit == "s")
-                {
-                    // Convert seconds to H:M:S format
-                    TimeSpan time = TimeSpan.FromSeconds(numericValue);
-                    string hms = $"{(int)time.TotalHours}:{time.Minutes:D2}:{time.Seconds:D2}";
-                    return $"{hms}";
-                }
-                else if (field.Unit == "d")
-                {
-                    return $"{DateTime.UnixEpoch.AddDays(numericValue):yyyy-MM-dd}";
-                }
-                else if (field.Unit == "deg")
-                {
-                    return $"{(int)numericValue} deg {Math.Abs((numericValue - (int)numericValue) * 60):F4} min";
-                }
-
-                else if (!string.IsNullOrEmpty(field.Unit))
-                {
-                    // If a unit exists but no special conversion is needed
-                    return $"{numericValue:F2} {field.Unit}";
-                }
-            }
-
-            // If the value doesn't require conversion, return it as-is
-            return decodedValue;
-        }
-
-
         // Function to extract bits from the data
         private static ulong ExtractBits(byte[] data, int byteStart, int bitStart, int bitLength)
         {
@@ -311,6 +254,61 @@ namespace NMEA2000Analyzer
                 decodedValue = signedValue * field.Resolution;
             }
 
+            return decodedValue;
+        }
+
+        private static object ApplyUnitConversion(object decodedValue, Canboat.Field field)
+        {
+            if (decodedValue is double numericValue)
+            {
+                if (field.Unit == "m/s")
+                {
+                    // Convert to knots
+                    var valueInKnots = numericValue * 1.94384; // Conversion factor
+                    return $"{valueInKnots:F2} kts"; // Format to 2 decimal places
+                }
+                else if (field.Unit == "rad")
+                {
+                    // Convert to degrees
+                    var valueInDegrees = numericValue * (180.0 / Math.PI);
+                    return $"{valueInDegrees:F1} deg"; // Format to 1 decimal place
+                }
+                else if (field.Unit == "rad/s")
+                {
+                    // Convert to degrees
+                    var valueInDegrees = numericValue * (180.0 / Math.PI);
+                    return $"{valueInDegrees:F1} deg/s"; // Format to 1 decimal place
+                }
+                else if (field.Unit == "K")
+                {
+                    // Convert to Celsius
+                    var valueInCelsius = numericValue - 273.15;
+                    return $"{valueInCelsius:F1} deg C"; // Format to 1 decimal place
+                }
+                else if (field.Unit == "s")
+                {
+                    // Convert seconds to H:M:S format
+                    TimeSpan time = TimeSpan.FromSeconds(numericValue);
+                    string hms = $"{(int)time.TotalHours}:{time.Minutes:D2}:{time.Seconds:D2}";
+                    return $"{hms}";
+                }
+                else if (field.Unit == "d")
+                {
+                    return $"{DateTime.UnixEpoch.AddDays(numericValue):yyyy-MM-dd}";
+                }
+                else if (field.Unit == "deg")
+                {
+                    return $"{(int)numericValue} deg {Math.Abs((numericValue - (int)numericValue) * 60):F4} min";
+                }
+
+                else if (!string.IsNullOrEmpty(field.Unit))
+                {
+                    // If a unit exists but no special conversion is needed
+                    return $"{numericValue:F2} {field.Unit}";
+                }
+            }
+
+            // If the value doesn't require conversion, return it as-is
             return decodedValue;
         }
 

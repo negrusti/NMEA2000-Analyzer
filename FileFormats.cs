@@ -19,7 +19,8 @@ namespace NMEA2000Analyzer
             Unknown,
             TwoCanCsv,
             Actisense,
-            CanDump,
+            CanDump1,
+            CanDump2,
             YDWG,
             PCANView
         }
@@ -56,7 +57,7 @@ namespace NMEA2000Analyzer
                         if (Regex.IsMatch(line, @"^\(\d+\.\d+\)\s+can\d+\s+\w+#\w+"))
                         {
                             Debug.WriteLine("CanDump format detected");
-                            return FileFormat.CanDump;
+                            return FileFormat.CanDump1;
                         }
                     }
                     else if (Regex.IsMatch(line, @"^\d{2}:\d{2}:\d{2}\.\d{3}\s+[RT]\s+\w{8}\s+"))
@@ -70,6 +71,12 @@ namespace NMEA2000Analyzer
                         // PCAN-View: Look for PCAN-View header or message format
                         Debug.WriteLine("PCAN-View format detected");
                         return FileFormat.PCANView;
+                    }
+                    else if (Regex.IsMatch(line, @"^\s+can\d+\s+[0-9A-F]+\s+\[\d+\]\s+([0-9A-F]{2}\s+)+"))
+                    {
+                        // New format: `canX  CAN_ID  [length]  data bytes`
+                        Debug.WriteLine("New CAN format detected");
+                        return FileFormat.CanDump2; // Add this enum value to `FileFormat`
                     }
                 }
             }
@@ -121,7 +128,7 @@ namespace NMEA2000Analyzer
             return records;
         }
 
-        public static List<Nmea2000Record> LoadCanDump(string filePath)
+        public static List<Nmea2000Record> LoadCanDump1(string filePath)
         {
             var records = new List<Nmea2000Record>();
 
@@ -144,10 +151,20 @@ namespace NMEA2000Analyzer
                     var canIdHex = match.Groups["canId"].Value;
                     int canId = int.Parse(canIdHex, NumberStyles.HexNumber);
 
-                    // Extract PGN, Source, and Priority from CAN ID
-                    int source = canId & 0xFF;
-                    int pgn = (canId >> 8) & 0x1FFFF;
-                    int priority = (canId >> 26) & 0x7;
+                    int priority = (canId >> 26) & 0x7;       // Extract bits 26-28 (3 bits)
+                    int source = canId & 0xFF;               // Extract bits 0-7 (8 bits)
+                    int pgn = (canId >> 8) & 0x1FFFF;        // Extract bits 8-25 (18 bits)
+
+                    int destination;
+                    if ((pgn & 0xFF00) == 0xEF00)            // Check if it's a PDU1 (destination-specific PGN)
+                    {
+                        destination = (pgn & 0xFF);          // Extract destination (last byte of PGN)
+                        pgn &= 0x1FF00;                      // Remove destination from PGN
+                    }
+                    else
+                    {
+                        destination = 255;                   // Broadcast for PDU2 (no destination-specific PGN)
+                    }
 
                     // Parse the CAN data
                     var data = match.Groups["data"].Value;
@@ -158,7 +175,7 @@ namespace NMEA2000Analyzer
                     {
                         Timestamp = datetime.ToString("o"), // ISO 8601 format
                         Source = source.ToString(),
-                        Destination = "255", // Default for broadcast
+                        Destination = destination.ToString(),
                         PGN = pgn.ToString(),
                         Priority = priority.ToString(),
                         Data = dataFormatted,
@@ -175,6 +192,67 @@ namespace NMEA2000Analyzer
 
             return records;
         }
+
+        public static List<Nmea2000Record> LoadCanDump2(string filePath)
+        {
+            var records = new List<Nmea2000Record>();
+
+            // Regular expression to match the new log format
+            var regex = new Regex(@"(?<interface>\S+)\s+(?<canId>[0-9A-F]+)\s+\[(?<length>\d+)\]\s+(?<data>([0-9A-F]{2}\s?)+)");
+
+            foreach (var line in System.IO.File.ReadLines(filePath))
+            {
+                var match = regex.Match(line);
+                if (!match.Success) continue;
+
+                try
+                {
+                    // Parse the CAN ID
+                    var canIdHex = match.Groups["canId"].Value;
+                    int canId = int.Parse(canIdHex, NumberStyles.HexNumber);
+
+                    int priority = (canId >> 26) & 0x7;       // Extract bits 26-28 (3 bits)
+                    int source = canId & 0xFF;               // Extract bits 0-7 (8 bits)
+                    int pgn = (canId >> 8) & 0x1FFFF;        // Extract bits 8-25 (18 bits)
+
+                    int destination;
+                    if ((pgn & 0xFF00) == 0xEF00)            // Check if it's a PDU1 (destination-specific PGN)
+                    {
+                        destination = (pgn & 0xFF);          // Extract destination (last byte of PGN)
+                        pgn &= 0x1FF00;                      // Remove destination from PGN
+                    }
+                    else
+                    {
+                        destination = 255;                   // Broadcast for PDU2 (no destination-specific PGN)
+                    }
+
+                    // Parse the CAN data
+                    var data = match.Groups["data"].Value.Trim();
+                    var dataBytes = data.Split(' ')
+                                        .Where(b => !string.IsNullOrEmpty(b))
+                                        .Select(b => $"0x{b}");
+
+                    // Create an Nmea2000Record
+                    records.Add(new Nmea2000Record
+                    {
+                        Source = source.ToString(),
+                        Destination = destination.ToString(),
+                        PGN = pgn.ToString(),
+                        Priority = priority.ToString(),
+                        Data = string.Join(" ", dataBytes),
+                        Description = "Unknown PGN",
+                        Type = "Unknown"
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to parse line: {line}. Error: {ex.Message}");
+                }
+            }
+
+            return records;
+        }
+
         public static List<Nmea2000Record> LoadActisense(string filePath)
         {
             var records = new List<Nmea2000Record>();
