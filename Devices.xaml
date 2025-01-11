@@ -7,17 +7,20 @@
         mc:Ignorable="d"
         Title="Devices"
         MaxWidth="800" MaxHeight="800"
-        SizeToContent="Width">
+        SizeToContent="WidthAndHeight">
     <Grid>
-        <Grid>
-            <DataGrid x:Name="DevicesDataGrid" AutoGenerateColumns="False" IsReadOnly="True"
-          HorizontalGridLinesBrush="#F0F0F0"
-          VerticalGridLinesBrush="#F0F0F0">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="Addr" Binding="{Binding Key}" Width="Auto" />
-                    <DataGridTextColumn Header="Model" Binding="{Binding Value}" Width="Auto" />
-                </DataGrid.Columns>
-            </DataGrid>
-        </Grid>
+        <DataGrid x:Name="DevicesDataGrid" AutoGenerateColumns="False" IsReadOnly="True"
+                  HorizontalGridLinesBrush="#F0F0F0"
+                  VerticalGridLinesBrush="#F0F0F0"
+                  ItemsSource="{Binding BindableDevices}">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Addr" Binding="{Binding Key}" Width="Auto" />
+                <DataGridTextColumn Header="Model ID" Binding="{Binding Value.ModelID}" Width="Auto" />
+                <DataGridTextColumn Header="Model Version" Binding="{Binding Value.ModelVersion}" Width="Auto" />
+                <DataGridTextColumn Header="Software Version" Binding="{Binding Value.SoftwareVersionCode}" Width="Auto" />
+                <DataGridTextColumn Header="Model Serial" Binding="{Binding Value.ModelSerialCode}" Width="Auto" />
+                <DataGridTextColumn Header="Prod Code" Binding="{Binding Value.ProductCode}" Width="Auto" />
+            </DataGrid.Columns>
+        </DataGrid>
     </Grid>
 </Window>

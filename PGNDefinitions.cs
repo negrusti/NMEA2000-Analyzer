@@ -1,12 +1,15 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Windows;
+using System.Windows.Input;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using static NMEA2000Analyzer.Canboat;
 using static NMEA2000Analyzer.MainWindow;
 
 namespace NMEA2000Analyzer
@@ -57,6 +60,9 @@ namespace NMEA2000Analyzer
                 Globals.UniquePGNs = canboatData.PGNs
                     .GroupBy(item => item.PGN)  // Group by the PGN property
                     .ToDictionary(group => group.Key, group => group.First());
+
+                ComputeMatchValueAndBitmask(canboatData.PGNs);
+
 
                 return canboatData;
             }
@@ -453,12 +459,11 @@ namespace NMEA2000Analyzer
             return extractedValue;
         }
 
-        public static HashSet<int> GetPgnsWithManufacturerCode(List<Canboat.Pgn> pgnList)
+        public static Dictionary<int, int> GetPgnsWithManufacturerCode(List<Canboat.Pgn> pgnList)
         {
             return pgnList
-                .Where(pgn => pgn.Fields != null && pgn.Fields.FirstOrDefault()?.Id == "manufacturerCode")
-                .Select(pgn => pgn.PGN)
-                .ToHashSet();
+               .GroupBy(pgn => pgn.PGN)
+               .ToDictionary(group => group.Key, group => group.Count());
         }
         public static (ulong Mask, ulong MatchValue) GetBitmapMaskAndMatchValue(Canboat.Pgn pgn)
         {
@@ -489,11 +494,88 @@ namespace NMEA2000Analyzer
             {
                 var dataBytes = record.Data.Split(' ').Select(b => Convert.ToByte(b, 16)).ToArray();
                 var JSONObject = DecodePgnData(dataBytes, ((App)Application.Current).CanboatRoot.PGNs.FirstOrDefault(q => q.PGN.ToString() == record.PGN));
-                var modelId = ((JsonArray)JSONObject["Fields"]!)
-                    .OfType<JsonObject>()
-                    .FirstOrDefault(obj => obj.ContainsKey("Model ID"))?["Model ID"]?.ToString();
-                Globals.Devices.TryAdd(Convert.ToByte(record.Source), modelId);
+
+                var fields = ((JsonArray)JSONObject["Fields"]!).OfType<JsonObject>();
+                Device dev = new Device
+                {
+                    Address = Convert.ToByte(record.Source),
+                    ProductCode = fields.FirstOrDefault(obj => obj.ContainsKey("Product Code"))?["Product Code"]?.GetValue<double>(),
+                    ModelID = fields.FirstOrDefault(obj => obj.ContainsKey("Model ID"))?["Model ID"]?.GetValue<string>(),
+                    SoftwareVersionCode = fields.FirstOrDefault(obj => obj.ContainsKey("Software Version Code"))?["Software Version Code"]?.GetValue<string>(),
+                    ModelVersion = fields.FirstOrDefault(obj => obj.ContainsKey("Model Version"))?["Model Version"]?.GetValue<string>(),
+                    ModelSerialCode = fields.FirstOrDefault(obj => obj.ContainsKey("Model Serial Code"))?["Model Serial Code"]?.GetValue<string>(),
+                };
+
+                Globals.Devices.TryAdd(Convert.ToByte(record.Source), dev);
             }
+        }
+
+        public static void ComputeMatchValueAndBitmask(List<Canboat.Pgn> pgnDefinitions)
+        {
+            var tupleList = new List<(int PGN, ulong MatchValue, ulong Mask, int PGNIndex)>();
+
+            for (int i = 0; i < pgnDefinitions.Count; i++)
+            {
+                var pgnDefinition = pgnDefinitions[i];
+                ulong matchValue = 0;
+                ulong mask = 0;
+                bool condidionalPgn = false;
+
+                if (pgnDefinition.Fields == null || pgnDefinition.Fields.Length == 0)
+                    continue;
+
+                foreach (var field in pgnDefinition.Fields)
+                {
+                    if (field.Match.HasValue)
+                    {
+                        // Create a mask for this field
+                        ulong fieldMask = ((1UL << field.BitLength) - 1) << field.BitOffset;
+
+                        // Add the field's Match value to the MatchValue
+                        matchValue |= ((ulong)field.Match.Value << field.BitOffset);
+
+                        // Add the field's mask to the overall mask
+                        mask |= fieldMask;
+                        condidionalPgn = true;
+                    }
+                }
+
+                if (condidionalPgn)
+                {
+                    // Add to the dictionary
+                    tupleList.Add((Convert.ToInt32(pgnDefinitions[i].PGN), matchValue, mask, i));
+                    Debug.WriteLine($"Matching value: {matchValue.ToString("X16")} Mask: {mask.ToString("X16")} PGN: {pgnDefinitions[i].PGN} {pgnDefinitions[i].Description}");
+                }
+                Globals.InitializePGNLookup(tupleList);
+            }
+        }
+
+        public static int? MatchDataAgainstLookup(byte[] dataBytes, int pgn)
+        {
+            if (dataBytes.Length < 8)
+            {
+                var paddedBytes = new byte[8];
+                Array.Copy(dataBytes, paddedBytes, dataBytes.Length);
+                dataBytes = paddedBytes;
+            }
+
+            // Convert the first 8 bytes to ulong
+            ulong data = BitConverter.ToUInt64(dataBytes, 0);
+
+            // Iterate through the dictionary
+            foreach (var matcher in Globals.PGNListLookup[pgn])
+            {
+                ulong matchValue = matcher.Item1;
+                ulong mask = matcher.Item2;
+
+                // Apply the mask and check against the match value
+                if ((data & mask) == matchValue)
+                {
+                    return matcher.Item3; // Return the matching PGN Index
+                }
+            }
+
+            return null; // No match found
         }
     }
 }

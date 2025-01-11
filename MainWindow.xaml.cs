@@ -1,10 +1,16 @@
 ﻿using Microsoft.Win32;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
+using static NMEA2000Analyzer.MainWindow;
 using static NMEA2000Analyzer.PgnDefinitions;
 using Application = System.Windows.Application;
 
@@ -43,6 +49,7 @@ namespace NMEA2000Analyzer
             public string Description { get; set; } = ""; // Placeholder if not provided
             public string Data { get; set; }
             public string? DeviceInfo { get; set; }
+            public int? PGNListIndex { get; set; }
         }
 
         private class FastPacketMessage
@@ -60,6 +67,16 @@ namespace NMEA2000Analyzer
         {
             public string Name { get; set; }
             public string IncludePGNs { get; set; }
+        }
+
+        public class Device
+        {
+            public int Address { get; set; }
+            public double? ProductCode { get; set; }
+            public string? ModelID { get; set; }
+            public string? SoftwareVersionCode { get; set; }
+            public string? ModelVersion { get; set; }
+            public string? ModelSerialCode { get; set; }
         }
 
         private async void OpenMenuItem_ClickAsync(object sender, RoutedEventArgs e)
@@ -113,6 +130,7 @@ namespace NMEA2000Analyzer
                     _assembledData = AssembleFrames(_Data);
                     DataGrid.ItemsSource = _assembledData;
                     GenerateDeviceInfo(_assembledData);
+                    UpdateSrcDevices(_assembledData);
                 }
                 catch (Exception ex)
                 {
@@ -138,7 +156,9 @@ namespace NMEA2000Analyzer
             var filteredData = _assembledData.Where(record =>
             {
                 bool includePGN = includePGNs.Count == 0 || includePGNs.Contains(record.PGN);
-                bool includeSource = includeAddress.Count == 0 || includeAddress.Contains(record.Source) || includeAddress.Contains(record.Destination);
+                bool includeSource = includeAddress.Count == 0
+                    || includeAddress.Contains(record.Source)
+                    || includeAddress.Contains(record.Destination);
                 bool exclude = excludePGNs.Contains(record.PGN);
 
                 return includePGN && includeSource && !exclude;
@@ -161,7 +181,7 @@ namespace NMEA2000Analyzer
                         .Select(pgn => pgn.Trim())
                         .ToHashSet();
         }
-
+        
         private List<Nmea2000Record> AssembleFrames(List<Nmea2000Record> records)
         {
             var assembledRecords = new List<Nmea2000Record>();
@@ -171,12 +191,9 @@ namespace NMEA2000Analyzer
             foreach (var record in records)
             {
                 int pgn = Convert.ToInt32(record.PGN);
-                bool isManufacturerSpecific = Globals.PGNsWithMfgCode.Contains(pgn);
 
                 if (Globals.UniquePGNs.TryGetValue(pgn, out Canboat.Pgn pgnDefinition))
                 {
-                    record.Description = isManufacturerSpecific ? "MFG-specific PGN" : pgnDefinition.Description;
-
                     if (pgnDefinition.Type == "Fast")
                     {
                         var messageKey = $"{record.Source}-{record.Destination}-{record.PGN}";
@@ -185,13 +202,51 @@ namespace NMEA2000Analyzer
                         if (assembled != null)
                         {
                             assembled.LogSequenceNumber = RowNumber;
-                            assembled.Description = isManufacturerSpecific ? "MFG-specific PGN" : pgnDefinition.Description;
+                            byte[] byteArray = assembled.Data
+                                .Split(' ')                         // Split by spaces
+                                .Select(hex => Convert.ToByte(hex, 16)) // Convert each "0xXX" to a byte
+                                .ToArray();
+
+                            int? defIndex = MatchDataAgainstLookup(byteArray, pgn);
+                            if (defIndex != null)
+                            {
+                                assembled.Description = ((App)Application.Current).CanboatRoot.PGNs[defIndex ?? 0].Description;
+                                assembled.PGNListIndex = defIndex;
+                            }
+                            else if (Globals.PGNListLookup.Contains(pgn))
+                            {
+                                assembled.Description = "No pattern match";
+                            }
+                            else
+                            {
+                                assembled.Description = pgnDefinition.Description;
+                            }
                             assembledRecords.Add(assembled);
                             RowNumber++;
                         }
                     }
                     else
                     {
+                        byte[] byteArray = record.Data
+                            .Split(' ')                         // Split by spaces
+                            .Select(hex => Convert.ToByte(hex, 16)) // Convert each "0xXX" to a byte
+                            .ToArray();
+
+                        int? defIndex = MatchDataAgainstLookup(byteArray, pgn);
+                        if (defIndex != null)
+                        {
+                            record.Description = ((App)Application.Current).CanboatRoot.PGNs[defIndex ?? 0].Description;
+                            record.PGNListIndex = defIndex;
+                        }
+                        else if (Globals.PGNListLookup.Contains(pgn))
+                        {
+                            record.Description = "No pattern match";
+                        }
+                        else
+                        {
+                            record.Description = pgnDefinition.Description;
+                        }
+
                         record.LogSequenceNumber = RowNumber;
                         record.Type = pgnDefinition.Type;
                         assembledRecords.Add(record);
@@ -367,7 +422,7 @@ namespace NMEA2000Analyzer
             _filteredData?.Clear();
             Globals.Devices.Clear();
 
-            // Reset the DataGrid
+            // Reset the DataGrid and data view
             DataGrid.ItemsSource = null;
             JsonViewerTextBox.Text = null;
 
@@ -410,7 +465,7 @@ namespace NMEA2000Analyzer
 
         private void PopulatePresetsMenu()
         {
-            var presets = LoadPresets(); // Load presets from the JSON file
+            var presets = LoadPresets();
 
             // Sort presets alphabetically by Name
             var sortedPresets = presets.OrderBy(p => p.Name).ToList();
@@ -473,6 +528,8 @@ namespace NMEA2000Analyzer
                 }
             }
         }
+        
+        // Timestamp range in the footer bar 
         private void UpdateTimestampRange()
         {
             if (_Data == null || !_Data.Any())
@@ -523,8 +580,21 @@ namespace NMEA2000Analyzer
                     // Convert the Data string to a byte array
                     var dataBytes = selectedRecord.Data.Split(' ').Select(b => Convert.ToByte(b, 16)).ToArray();
 
+                    JsonObject decodedJson;
+                    
                     // Decode the PGN data
-                    var decodedJson = DecodePgnData(dataBytes, ((App)Application.Current).CanboatRoot.PGNs.FirstOrDefault(q => q.PGN.ToString() == selectedRecord.PGN));
+                    if (selectedRecord.PGNListIndex.HasValue)
+                    {
+                        decodedJson = DecodePgnData(dataBytes, ((App)Application.Current).CanboatRoot.PGNs[selectedRecord.PGNListIndex ?? 0]);
+                    }
+                    else if (selectedRecord.Description == "No pattern match")
+                    {
+                        decodedJson = new JsonObject();
+                    }
+                    else
+                    {
+                        decodedJson = DecodePgnData(dataBytes, ((App)Application.Current).CanboatRoot.PGNs.FirstOrDefault(q => q.PGN.ToString() == selectedRecord.PGN));
+                    }
 
                     // Convert the decoded output to a formatted JSON string
                     string jsonString = JsonSerializer.Serialize(decodedJson, new JsonSerializerOptions
@@ -576,7 +646,8 @@ namespace NMEA2000Analyzer
 
         private void SearchInDataGrid(bool forward)
         {
-            if (_assembledData == null || !_assembledData.Any() || string.IsNullOrWhiteSpace(PgnSearchTextBox.Text))
+            if (_assembledData == null || !_assembledData.Any() ||
+                !Regex.IsMatch(PgnSearchTextBox.Text ?? string.Empty, @"^\d{5,6}$"))
             {
                 return;
             }
@@ -607,6 +678,68 @@ namespace NMEA2000Analyzer
 
             // If no match found
             MessageBox.Show("No matching PGN found.", "Search Result", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        // Enriches DataGrid with device information if available
+        public void UpdateSrcDevices(List<Nmea2000Record> data)
+        {
+            foreach (var record in data)
+            {
+                Globals.Devices.TryGetValue(Convert.ToByte(record.Source), out var result);
+                if (result != null)
+                {
+                    // Raymarine product codes are not really informative, use ModelVersion instead
+                    if (Regex.IsMatch(result.ModelID, @"^[A-Z]\d{5}$"))
+                    {
+                        record.DeviceInfo = result.ModelVersion;
+                    }
+                    else
+                    {
+                        record.DeviceInfo = result.ModelID;
+                    }
+                }
+            }
+        }
+        private void CopyDataMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            // Find the DataGrid that triggered the context menu
+            if (sender is MenuItem menuItem &&
+                menuItem.DataContext is Nmea2000Record selectedItem)
+            {
+                // Get the value of the "Data" property
+                string? dataValue = selectedItem.Data;
+
+                if (!string.IsNullOrEmpty(dataValue))
+                {
+                    // Copy the value to the clipboard
+                    Clipboard.SetText(dataValue);
+                }
+            }
+        }
+
+        private void CopyRowAsCsvMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem menuItem && menuItem.DataContext is Nmea2000Record selectedItem)
+            {
+                var properties = typeof(Nmea2000Record).GetProperties();
+                var csvValues = new List<string>
+                    {
+                        selectedItem.ToString() // Add the Key first
+                    };
+
+                // Add each property value from the class
+                foreach (var property in properties)
+                {
+                    var value = property.GetValue(selectedItem)?.ToString() ?? string.Empty;
+                    csvValues.Add(value);
+                }
+
+                // Create a CSV string
+                string csvRow = string.Join(",", csvValues);
+
+                // Copy the CSV string to the clipboard
+                Clipboard.SetText(csvRow);
+            }
         }
     }
 

@@ -50,16 +50,27 @@
 		},
 		{
 			"PGN": 61183,
-			"Id": "Unknown61183",
-			"Description": "Address Claim",
+			"Id": "AddressClaimResponse",
+			"Description": "Address Claim Response",
 			"Type": "Simple",
 			"Fields": [
 				{
 					"Order": 1,
+					"Id": "manufacturerSerial",
+					"Name": "Manufacturer Serial",
+					"BitLength": 21,
+					"BitOffset": 0,
+					"BitStart": 0,
+					"Resolution": 1,
+					"Signed": false,
+					"FieldType": "NUMBER"
+				},
+				{
+					"Order": 2,
 					"Id": "manufacturerCode",
 					"Name": "Manufacturer Code",
 					"BitLength": 11,
-					"BitOffset": 0,
+					"BitOffset": 21,
 					"BitStart": 0,
 					"Resolution": 1,
 					"Signed": false,
@@ -67,32 +78,6 @@
 					"RangeMax": 2045,
 					"FieldType": "LOOKUP",
 					"LookupEnumeration": "MANUFACTURER_CODE"
-				},
-				{
-					"Order": 2,
-					"Id": "reserved",
-					"Name": "Reserved",
-					"BitLength": 2,
-					"BitOffset": 11,
-					"BitStart": 3,
-					"Resolution": 1,
-					"FieldType": "RESERVED"
-				},
-				{
-					"Order": 3,
-					"Id": "industryCode",
-					"Name": "Industry Code",
-					"Description": "Marine Industry",
-					"BitLength": 3,
-					"BitOffset": 13,
-					"BitStart": 5,
-					"Match": 4,
-					"Resolution": 1,
-					"Signed": false,
-					"RangeMin": 0,
-					"RangeMax": 6,
-					"FieldType": "LOOKUP",
-					"LookupEnumeration": "INDUSTRY_CODE"
 				}
 			]
 		},
@@ -222,6 +207,12 @@
 					"LookupEnumeration": "INDUSTRY_CODE"
 				}
 			]
+		},
+		{
+			"PGN": 126471,
+			"Id": "Unknown126471",
+			"Description": "MFG-Specific PGN (Custom)",
+			"Type": "Fast"
 		},
 		{
 			"PGN": 126719,

@@ -99,9 +99,9 @@
                         <MenuItem Header="Include Address"
                                             Click="IncludeAddressMenuItem_Click"
                                             CommandParameter="{Binding}" />
-                        <MenuItem Header="Copy row as CSV"
-                                            IsEnabled="False"
+                        <MenuItem Header="Copy row as CSV" Click="CopyRowAsCsvMenuItem_Click"
                                             CommandParameter="{Binding}" />
+                        <MenuItem Header="Copy Data" Click="CopyDataMenuItem_Click" CommandParameter="{Binding}" />
                         <MenuItem Header="Open Reference"
                                             Click="ReferencePgnMenuItem_Click"                                  
                                             CommandParameter="{Binding}" />
@@ -116,6 +116,7 @@
                     <DataGridTextColumn Header="Seq" Binding="{Binding LogSequenceNumber}" />
                     <DataGridTextColumn Header="Timestamp" Binding="{Binding Timestamp}" />
                     <DataGridTextColumn Header="Src" Binding="{Binding Source}" />
+                    <DataGridTextColumn Header="Device" Binding="{Binding DeviceInfo}" />
                     <DataGridTemplateColumn Header="Dst">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>

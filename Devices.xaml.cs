@@ -1,4 +1,6 @@
-﻿using System.Windows;
+﻿using System.Collections.ObjectModel;
+using System.Windows;
+using static NMEA2000Analyzer.MainWindow;
 namespace NMEA2000Analyzer
 {
     /// <summary>
@@ -6,10 +8,19 @@ namespace NMEA2000Analyzer
     /// </summary>
     public partial class Devices : Window
     {
+
+        public ObservableCollection<KeyValuePair<int, Device>> BindableDevices { get; }
+            = new ObservableCollection<KeyValuePair<int, Device>>();
+
         public Devices()
         {
             InitializeComponent();
-            DevicesDataGrid.ItemsSource = Globals.Devices;
+            DataContext = this;
+            BindableDevices.Clear();
+            foreach (var kvp in Globals.Devices)
+            {
+                BindableDevices.Add(kvp);
+            }
         }
     }
 }
