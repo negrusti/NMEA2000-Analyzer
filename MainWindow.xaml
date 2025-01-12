@@ -102,9 +102,13 @@
                         <MenuItem Header="Copy row as CSV" Click="CopyRowAsCsvMenuItem_Click"
                                             CommandParameter="{Binding}" />
                         <MenuItem Header="Copy Data" Click="CopyDataMenuItem_Click" CommandParameter="{Binding}" />
-                        <MenuItem Header="Open Reference"
+                        <MenuItem Header="Open PGN Reference"
                                             Click="ReferencePgnMenuItem_Click"                                  
                                             CommandParameter="{Binding}" />
+                        <MenuItem Header="Google Device"
+                                            Click="GoogleDeviceMenuItem_Click"                                  
+                                            CommandParameter="{Binding}" />
+
                     </ContextMenu>
                 </DataGrid.Resources>
                 <DataGrid.RowStyle>

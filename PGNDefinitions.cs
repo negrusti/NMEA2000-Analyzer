@@ -1,15 +1,11 @@
-﻿using System;
-using System.Diagnostics;
+﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System.IO;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Windows;
-using System.Windows.Input;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using static NMEA2000Analyzer.Canboat;
 using static NMEA2000Analyzer.MainWindow;
 
 namespace NMEA2000Analyzer
@@ -19,7 +15,7 @@ namespace NMEA2000Analyzer
         private const string CanboatJsonUrl = "https://raw.githubusercontent.com/canboat/canboat/master/docs/canboat.json";
         private static readonly string CanboatJsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "canboat.json");
         private static readonly string LocalJsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "local.json");
-        private static readonly string CustomJsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "custom.json");
+
         public static async Task<Canboat.Rootobject> LoadPgnDefinitionsAsync()
         {
             if (!File.Exists(CanboatJsonPath))
@@ -134,6 +130,24 @@ namespace NMEA2000Analyzer
 
                     // Convert the bytes to an ASCII string and trim padding characters
                     finalValue = Encoding.ASCII.GetString(filteredBytes).TrimEnd('@', ' ');
+                }
+                else if (field.FieldType == "INDIRECT_LOOKUP")
+                {
+
+                    int byteStart = field.BitOffset / 8;
+                    int bitStart = field.BitOffset % 8;
+                    int bitLength = field.BitLength;
+
+                    int rawValue = (int)ExtractBits(pgnData, byteStart, bitStart, bitLength);
+
+                    var indirectField = pgnDefinition.Fields[field.LookupIndirectEnumerationFieldOrder - 1];
+
+                    byteStart = indirectField.BitOffset / 8;
+                    bitStart = indirectField.BitOffset % 8;
+                    bitLength = indirectField.BitLength;
+
+                    int rawValueIndirectField = (int)ExtractBits(pgnData, byteStart, bitStart, bitLength);
+                    finalValue = LookupIndirect(field.LookupIndirectEnumeration, rawValueIndirectField, rawValue);
                 }
                 else
                 {
@@ -281,28 +295,7 @@ namespace NMEA2000Analyzer
                     return decodedDecimalValue;
 
                 case "LOOKUP":
-                    if (!string.IsNullOrEmpty(field.LookupEnumeration))
-                    {
-                        // Find the matching LookupEnumeration
-                        var lookupEnum = ((App)Application.Current).CanboatRoot.LookupEnumerations
-                            .FirstOrDefault(le => le.Name == field.LookupEnumeration);
-
-                        if (lookupEnum != null)
-                        {
-                            // Find the matching value in the EnumValues
-                            var lookupValue = lookupEnum.EnumValues.FirstOrDefault(ev => ev.Value == (int)rawValue)?.Name;
-
-                            if (lookupValue != null)
-                            {
-                                return lookupValue; // Return the string representation
-                            }
-
-                            return $"Unknown ({rawValue})"; // No match found
-                        }
-
-                        return $"Unknown Enumeration ({field.LookupEnumeration})"; // LookupEnumeration not found
-                    }
-                    return "No enumeration specified";
+                    return Lookup(field.LookupEnumeration, (int)rawValue);
 
                 case "INDIRECT_LOOKUP":
                     break;
@@ -331,6 +324,51 @@ namespace NMEA2000Analyzer
             }
             return null;
 
+        }
+
+        public static string Lookup(string enumeration, int value)
+        {
+            // Find the matching LookupEnumeration
+            var lookupEnum = ((App)Application.Current).CanboatRoot.LookupEnumerations
+                .FirstOrDefault(le => le.Name == enumeration);
+
+            if (lookupEnum != null)
+            {
+                // Find the matching value in the EnumValues
+                var lookupValue = lookupEnum.EnumValues.FirstOrDefault(ev => ev.Value == value)?.Name;
+
+                if (lookupValue != null)
+                {
+                    return lookupValue; // Return the string representation
+                }
+
+                return $"Unknown ({value})"; // No match found
+            }
+
+            return $"Unknown Enumeration ({enumeration})"; // LookupEnumeration not found
+
+        }
+        public static string LookupIndirect(string enumeration, int value1, int value2)
+        {
+            var lookupEnum = ((App)Application.Current).CanboatRoot.LookupIndirectEnumerations
+                .FirstOrDefault(le => le.Name == enumeration);
+
+            if (lookupEnum != null)
+            {
+
+                var match = lookupEnum.EnumValues
+                .FirstOrDefault(ev => ev.Value1 == value1 && ev.Value2 == value2);
+
+                if (match != null)
+                {
+                    return match.Name;
+                }
+
+                // Return a default message if no match is found
+                return $"Unknown ({value1} {value2})";
+            }
+            
+            return $"Unknown Enumeration ({enumeration})"; // LookupEnumeration not found
         }
 
         private static object ApplyUnitConversion(object decodedValue, Canboat.Field field)
@@ -508,8 +546,29 @@ namespace NMEA2000Analyzer
 
                 Globals.Devices.TryAdd(Convert.ToByte(record.Source), dev);
             }
-        }
 
+            /*
+            // PGN 60928: ISO Address Claim
+            filteredRecords = records.Where(record => record.PGN == "60928").ToList();
+            foreach (var record in filteredRecords)
+            {
+                var dataBytes = record.Data.Split(' ').Select(b => Convert.ToByte(b, 16)).ToArray();
+                var JSONObject = DecodePgnData(dataBytes, ((App)Application.Current).CanboatRoot.PGNs.FirstOrDefault(q => q.PGN.ToString() == record.PGN));
+
+                var fields = ((JsonArray)JSONObject["Fields"]!).OfType<JsonObject>();
+
+                Device dev = new Device
+                {
+                    Address = Convert.ToByte(record.Source),
+                    MfgCode = fields.FirstOrDefault(obj => obj.ContainsKey("Manufacturer Code"))?["Manufacturer Code"]?.GetValue<string>(),
+                    DeviceClass = fields.FirstOrDefault(obj => obj.ContainsKey("Device Class"))?["Device Class"]?.GetValue<string>(),
+                    DeviceFunction = fields.FirstOrDefault(obj => obj.ContainsKey("Device Function"))?["Device Function"]?.GetValue<string>()
+                };
+                
+                Globals.Devices.TryAdd(Convert.ToByte(record.Source), dev);
+            }
+            */
+        }
         public static void ComputeMatchValueAndBitmask(List<Canboat.Pgn> pgnDefinitions)
         {
             var tupleList = new List<(int PGN, ulong MatchValue, ulong Mask, int PGNIndex)>();
@@ -544,7 +603,7 @@ namespace NMEA2000Analyzer
                 {
                     // Add to the dictionary
                     tupleList.Add((Convert.ToInt32(pgnDefinitions[i].PGN), matchValue, mask, i));
-                    Debug.WriteLine($"Matching value: {matchValue.ToString("X16")} Mask: {mask.ToString("X16")} PGN: {pgnDefinitions[i].PGN} {pgnDefinitions[i].Description}");
+                    // Debug.WriteLine($"Matching value: {matchValue.ToString("X16")} Mask: {mask.ToString("X16")} PGN: {pgnDefinitions[i].PGN} {pgnDefinitions[i].Description}");
                 }
                 Globals.InitializePGNLookup(tupleList);
             }

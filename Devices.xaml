@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:NMEA2000Analyzer"
         mc:Ignorable="d"
         Title="Devices"
-        MaxWidth="800" MaxHeight="800"
+        MaxWidth="1000" MaxHeight="800"
         SizeToContent="WidthAndHeight">
     <Grid>
         <DataGrid x:Name="DevicesDataGrid" AutoGenerateColumns="False" IsReadOnly="True"
@@ -15,8 +15,10 @@
                   ItemsSource="{Binding BindableDevices}">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Addr" Binding="{Binding Key}" Width="Auto" />
+                <DataGridTextColumn Header="Manufacturer" Binding="{Binding Value.MfgCode}" Width="Auto" />
                 <DataGridTextColumn Header="Model ID" Binding="{Binding Value.ModelID}" Width="Auto" />
                 <DataGridTextColumn Header="Model Version" Binding="{Binding Value.ModelVersion}" Width="Auto" />
+                <DataGridTextColumn Header="Device Function" Binding="{Binding Value.DeviceFunction}" Width="Auto" />
                 <DataGridTextColumn Header="Software Version" Binding="{Binding Value.SoftwareVersionCode}" Width="Auto" />
                 <DataGridTextColumn Header="Model Serial" Binding="{Binding Value.ModelSerialCode}" Width="Auto" />
                 <DataGridTextColumn Header="Prod Code" Binding="{Binding Value.ProductCode}" Width="Auto" />

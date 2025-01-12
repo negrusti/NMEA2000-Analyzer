@@ -1,16 +1,11 @@
 ﻿using Microsoft.Win32;
-using System.Collections;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
-using static NMEA2000Analyzer.MainWindow;
 using static NMEA2000Analyzer.PgnDefinitions;
 using Application = System.Windows.Application;
 
@@ -72,11 +67,16 @@ namespace NMEA2000Analyzer
         public class Device
         {
             public int Address { get; set; }
-            public double? ProductCode { get; set; }
-            public string? ModelID { get; set; }
-            public string? SoftwareVersionCode { get; set; }
-            public string? ModelVersion { get; set; }
-            public string? ModelSerialCode { get; set; }
+            public double? ProductCode { get; set; }            // From Product Information PGN
+            public string? ModelID { get; set; }                // From Product Information PGN
+            public string? SoftwareVersionCode { get; set; }    // From Product Information PGN
+            public string? ModelVersion { get; set; }           // From Product Information PGN
+            public string? ModelSerialCode { get; set; }        // From Product Information PGN
+            public string? MfgCode { get; set; }                // From Address Claim PGN
+            public string? DeviceClass { get; set; }            // From Address Claim PGN
+            public string? DeviceFunction { get; set; }         // From Address Claim PGN
+
+
         }
 
         private async void OpenMenuItem_ClickAsync(object sender, RoutedEventArgs e)
@@ -528,7 +528,30 @@ namespace NMEA2000Analyzer
                 }
             }
         }
-        
+
+        private void GoogleDeviceMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem menuItem && menuItem.CommandParameter is Nmea2000Record selectedRow)
+            {
+                try
+                {
+                    // Construct the URL
+                    var url = $"https://www.google.com/search?q={selectedRow.DeviceInfo}";
+
+                    // Open the URL in the default browser
+                    System.Diagnostics.Process.Start(new ProcessStartInfo
+                    {
+                        FileName = url,
+                        UseShellExecute = true
+                    });
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Failed to open the browser: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
         // Timestamp range in the footer bar 
         private void UpdateTimestampRange()
         {
