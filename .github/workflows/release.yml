@@ -48,9 +48,7 @@ jobs:
       - name: Extract AssemblyVersion
         id: extract_version
         run: |
-          # Load the .csproj file as XML
-          [xml]$csproj = Get-Content ./YourProject.csproj
-          # Extract the AssemblyVersion element
+          [xml]$csproj = Get-Content ./NMEA2000Analyzer.csproj
           $version = $csproj.Project.PropertyGroup.AssemblyVersion
           if (-not $version) {
               $version = $csproj.Project.PropertyGroup.Version
