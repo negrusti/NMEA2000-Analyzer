@@ -45,6 +45,19 @@ jobs:
           name: NMEA2000 Analyzer
           path: artifacts/NMEA2000Analyzer.zip
 
+      - name: Extract AssemblyVersion
+        id: extract_version
+        run: |
+          # Load the .csproj file as XML
+          [xml]$csproj = Get-Content ./YourProject.csproj
+          # Extract the AssemblyVersion element
+          $version = $csproj.Project.PropertyGroup.AssemblyVersion
+          if (-not $version) {
+              $version = $csproj.Project.PropertyGroup.Version
+          }
+          Write-Host "Extracted version: $version"
+          echo "version=$version" >> $env:GITHUB_ENV
+
       - name: Get Short Commit SHA
         id: vars
         run: echo "::set-output name=short_sha::$(git rev-parse --short HEAD)"
@@ -53,6 +66,6 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag: v${{ steps.vars.outputs.short_sha }}
-          name: NMEA2000 Analyzer v${{ steps.vars.outputs.short_sha }}
+          tag: v${{ env.version }}
+          name: NMEA2000 Analyzer v${{ env.version }}
           artifacts: "artifacts/NMEA2000Analyzer.zip"

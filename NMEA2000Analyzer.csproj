@@ -8,15 +8,36 @@
     <UseWPF>true</UseWPF>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <SignAssembly>False</SignAssembly>
+    <AssemblyVersion>1.1.*</AssemblyVersion>
+    <FileVersion>1.1.*</FileVersion>
+    <Version />
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DebugType>full</DebugType>
+    <Deterministic>False</Deterministic>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <DebugType>full</DebugType>
+    <ShouldCreateLogs>True</ShouldCreateLogs>
+    <AdvancedSettingsExpanded>True</AdvancedSettingsExpanded>
+    <UpdateAssemblyVersion>False</UpdateAssemblyVersion>
+    <UpdateAssemblyFileVersion>False</UpdateAssemblyFileVersion>
+    <UpdateAssemblyInfoVersion>False</UpdateAssemblyInfoVersion>
+    <UpdatePackageVersion>False</UpdatePackageVersion>
+    <AssemblyInfoVersionType>SettingsVersion</AssemblyInfoVersionType>
+    <InheritWinAppVersionFrom>None</InheritWinAppVersionFrom>
+    <PrimaryVersionType>AssemblyVersionAttribute</PrimaryVersionType>
+    <Deterministic>False</Deterministic>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="NewFolder\**" />
+    <EmbeddedResource Remove="NewFolder\**" />
+    <None Remove="NewFolder\**" />
+    <Page Remove="NewFolder\**" />
+  </ItemGroup>
 
   <ItemGroup>
     <None Remove="custom.json" />
@@ -45,7 +66,6 @@
 
   <ItemGroup>
     <Folder Include="images\" />
-    <Folder Include="NewFolder\" />
   </ItemGroup>
 
   <ItemGroup>

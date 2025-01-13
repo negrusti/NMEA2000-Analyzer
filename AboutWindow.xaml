@@ -12,7 +12,7 @@
                     https://github.com/negrusti/NMEA2000-Analyzer/
                 </Hyperlink>
             </TextBlock>
-            <TextBlock Text="Version 1.0.0" HorizontalAlignment="Center" Margin="0,5"/>
+            <TextBlock x:Name="versionTextBlock" HorizontalAlignment="Center" Margin="0,5"/>
             <TextBlock Text="© 2025 Grigory Morozov" HorizontalAlignment="Center" Margin="0,5"/>
             <Button Content="Close" Width="80" HorizontalAlignment="Center" Margin="0,20,0,0" Click="CloseButton_Click" />
         </StackPanel>
