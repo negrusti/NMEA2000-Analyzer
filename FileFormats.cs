@@ -1,12 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using System.Windows;
 using static NMEA2000Analyzer.MainWindow;
 
@@ -22,6 +18,7 @@ namespace NMEA2000Analyzer
             CanDump1,
             CanDump2,
             YDWG,
+            YDBinary,
             PCANView
         }
 
@@ -29,6 +26,12 @@ namespace NMEA2000Analyzer
         {
             try
             {
+                if (IsBinaryYDFormat(filePath))
+                {
+                    Debug.WriteLine("Binary CAN format detected");
+                    return FileFormat.YDBinary;
+                }
+
                 var lines = File.ReadLines(filePath).Take(10).ToList(); // Read the first few lines
 
                 foreach (var line in lines)
@@ -407,5 +410,110 @@ namespace NMEA2000Analyzer
             return records;
         }
 
+        private static bool IsBinaryYDFormat(string filePath)
+        {
+            try
+            {
+                using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+                using (var reader = new BinaryReader(fs))
+                {
+                    if (fs.Length < 16) return false; // File must be at least one record (16 bytes) long
+
+                    byte[] firstRecord = reader.ReadBytes(16);
+
+                    if (firstRecord.Length < 16) return false;
+
+                    // Check if position 4-7 (Message Identifier) is 0xFFFFFFFF (Service Record)
+                    uint messageId = BitConverter.ToUInt32(firstRecord, 4);
+                    if (messageId != 0xFFFFFFFF)
+                        return false;
+
+                    // Check if data field (position 8-15) contains "YDVR v05"
+                    string dataString = Encoding.ASCII.GetString(firstRecord, 8, 8).TrimEnd('\0');
+                    return dataString.StartsWith("YDVR v05");
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public static List<Nmea2000Record> LoadYDBinary(string filePath)
+        {
+            var records = new List<Nmea2000Record>();
+
+            try
+            {
+                using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+                using (var reader = new BinaryReader(fs))
+                {
+                    while (reader.BaseStream.Position < reader.BaseStream.Length)
+                    {
+                        byte[] recordBytes = reader.ReadBytes(16);
+                        if (recordBytes.Length < 16) break; // Ensure full record read
+
+                        // Extract fields from the binary record
+                        ushort header = BitConverter.ToUInt16(recordBytes, 0);
+                        ushort timeInMs = BitConverter.ToUInt16(recordBytes, 2);
+                        uint messageId = BitConverter.ToUInt32(recordBytes, 4);
+                        byte[] data = recordBytes.Skip(8).Take(8).ToArray();
+
+                        // Decode header fields
+                        bool is11BitId = (header & 0x8000) != 0;
+                        bool isTx = (header & 0x4000) != 0;
+                        int dataLength = ((header >> 12) & 0x07) + 1; // Values 0-7 map to 1-8 bytes
+                        int interfaceId = (header & 0x0800) != 0 ? 1 : 0;
+                        int timestampMinutes = header & 0x03FF; // 10-bit timestamp in minutes
+
+                        // Convert timestamp
+                        string timestamp = $"{timestampMinutes:D4}:{timeInMs:D5}"; // Example format: "0345:01234"
+
+                        // Extract PGN, Source, Destination
+                        uint pgn;
+                        int source, destination, priority;
+
+                        if (is11BitId)
+                        {
+                            // 11-bit identifier case (usually not PGN-based)
+                            pgn = messageId & 0x07FF;
+                            source = -1;
+                            destination = -1;
+                            priority = -1;
+                        }
+                        else
+                        {
+                            // 29-bit identifier
+                            priority = (int)((messageId >> 26) & 0x07);
+                            pgn = (messageId >> 8) & 0x1FFFF; // Extract PGN (middle 18 bits)
+                            destination = (int)((messageId >> 8) & 0xFF);
+                            source = (int)(messageId & 0xFF);
+                        }
+
+                        // Format data bytes as a space-separated hex string
+                        string dataHex = string.Join(" ", data.Take(dataLength).Select(b => $"0x{b:X2}"));
+
+                        // Create the record
+                        var record = new Nmea2000Record
+                        {
+                            Timestamp = timestamp,
+                            Priority = priority.ToString(),
+                            PGN = pgn.ToString(),
+                            Source = source.ToString(),
+                            Destination = destination.ToString(),
+                            Data = dataHex
+                        };
+
+                        records.Add(record);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to load binary CAN file: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+
+            return records;
+        }
     }
 }

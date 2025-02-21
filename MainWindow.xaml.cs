@@ -84,7 +84,7 @@ namespace NMEA2000Analyzer
             // Open file picker dialog
             OpenFileDialog openFileDialog = new OpenFileDialog
             {
-                Filter = "(*.csv, *.log, *.txt, *.dump)|*.csv;*.log;*.txt;*.dump|All Files (*.*)|*.*",
+                Filter = "(*.csv, *.can, *.log, *.txt, *.dump)|*.csv;*.can;*.log;*.txt;*.dump|All Files (*.*)|*.*",
                 Title = "Open File"
             };
 
@@ -116,6 +116,9 @@ namespace NMEA2000Analyzer
                         break;
                     case FileFormats.FileFormat.PCANView:
                         _Data = await Task.Run(() => FileFormats.LoadPCANView(filePath));
+                        break;
+                    case FileFormats.FileFormat.YDBinary:
+                        _Data = await Task.Run(() => FileFormats.LoadYDBinary(filePath));
                         break;
                     default:
                         MessageBox.Show("Unsupported or unknown file format.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
