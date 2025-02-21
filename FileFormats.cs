@@ -19,6 +19,7 @@ namespace NMEA2000Analyzer
             CanDump2,
             YDWG,
             YDBinary,
+            YDCsv,
             PCANView
         }
 
@@ -26,11 +27,13 @@ namespace NMEA2000Analyzer
         {
             try
             {
+                /*
                 if (IsBinaryYDFormat(filePath))
                 {
                     Debug.WriteLine("Binary CAN format detected");
                     return FileFormat.YDBinary;
                 }
+                */
 
                 var lines = File.ReadLines(filePath).Take(10).ToList(); // Read the first few lines
 
@@ -45,6 +48,12 @@ namespace NMEA2000Analyzer
                         {
                             Debug.WriteLine("TwoCanCSV format detected");
                             return FileFormat.TwoCanCsv;
+                        }
+
+                        if (line.StartsWith("Time,CAN,Dir,Bit,ID(hex),DLC"))
+                        {
+                            Debug.WriteLine("Yacht Devices CSV format detected");
+                            return FileFormat.YDCsv;
                         }
 
                         // Actisense: Look for timestamp and structured data
@@ -490,6 +499,9 @@ namespace NMEA2000Analyzer
                             source = (int)(messageId & 0xFF);
                         }
 
+                        if (pgn == 126996)
+                            Debug.WriteLine($"Data Length: {dataLength}");
+                        
                         // Format data bytes as a space-separated hex string
                         string dataHex = string.Join(" ", data.Take(dataLength).Select(b => $"0x{b:X2}"));
 
@@ -515,5 +527,75 @@ namespace NMEA2000Analyzer
 
             return records;
         }
+
+        public static List<Nmea2000Record> LoadYDCsv(string filePath)
+        {
+            var records = new List<Nmea2000Record>();
+
+            using (var reader = new StreamReader(filePath))
+            {
+                string? headerLine = reader.ReadLine(); // Read the header
+                if (headerLine == null) throw new Exception("File is empty.");
+
+                // Validate header format
+                var headers = headerLine.Split(',').Select(h => h.Trim()).ToArray();
+                if (!headers.SequenceEqual(new[] { "Time", "CAN", "Dir", "Bit", "ID(hex)", "DLC", "D0", "D1", "D2", "D3", "D4", "D5", "D6", "D7" }))
+                {
+                    throw new Exception("Invalid CSV format. Expected columns: Time, CAN, Dir, Bit, ID(hex), DLC, D0-D7.");
+                }
+
+                // Read and parse the rest of the file
+                while (!reader.EndOfStream)
+                {
+                    var line = reader.ReadLine();
+                    if (string.IsNullOrWhiteSpace(line)) continue;
+
+                    var values = line.Split(',').Select(v => v.Trim()).ToArray();
+                    if (values.Length < 7) continue; // Ensure there are enough columns
+
+                    // Extract fields
+                    string timestamp = values[0];
+                    string canInterface = values[1];
+                    string direction = values[2];
+                    int bitType = int.Parse(values[3]); // 11-bit or 29-bit identifier
+                    uint canId = uint.Parse(values[4], System.Globalization.NumberStyles.HexNumber);
+                    int dlc = int.Parse(values[5]);
+
+                    // Ensure DLC is within valid range (1-8)
+                    if (dlc < 1 || dlc > 8) continue;
+
+                    // Extract data bytes
+                    string data = string.Join(" ", values.Skip(6).Take(dlc).Select(d => $"0x{d.ToUpper()}"));
+
+                    // Decode CAN ID
+                    int priority = -1, source = -1, destination = -1;
+                    uint pgn = canId; // Default if no 29-bit conversion is needed
+
+                    if (bitType == 29)
+                    {
+                        priority = (int)((canId >> 26) & 0x07);
+                        pgn = (canId >> 8) & 0x1FFFF; // PGN is in bits 9-26
+                        destination = (int)((canId >> 8) & 0xFF);
+                        source = (int)(canId & 0xFF);
+                    }
+
+                    // Create the record
+                    var record = new Nmea2000Record
+                    {
+                        Timestamp = timestamp,
+                        Priority = priority >= 0 ? priority.ToString() : "-",
+                        PGN = pgn.ToString(),
+                        Source = source >= 0 ? source.ToString() : "-",
+                        Destination = destination >= 0 ? destination.ToString() : "-",
+                        Data = data
+                    };
+                    records.Add(record);
+                }
+            }
+
+            return records;
+        }
+
+
     }
 }

@@ -1,6 +1,18 @@
 {
 	"PGNs": [
 		{
+			"PGN": 65096,
+			"Id": "WheelSpeedDistance",
+			"Description": "Wheel-based Speed and Distance",
+			"Type": "Single"
+		},
+		{
+			"PGN": 65130,
+			"Id": "EngineFuelLube",
+			"Description": "Engine Fuel/Lube Systems",
+			"Type": "Single"
+		},
+		{
 			"PGN": 126975,
 			"Id": "Unknown126975",
 			"Description": "MFG-Specific PGN (Custom)",

@@ -50,6 +50,7 @@ namespace NMEA2000Analyzer
         private class FastPacketMessage
         {
             public int TotalBytes { get; set; }
+            public int ReceivedByteCount { get; set; }
             public Dictionary<int, string[]> Frames { get; set; } = new Dictionary<int, string[]>();
             public string? Timestamp { get; set; }
             public string Source { get; set; }
@@ -84,7 +85,7 @@ namespace NMEA2000Analyzer
             // Open file picker dialog
             OpenFileDialog openFileDialog = new OpenFileDialog
             {
-                Filter = "(*.csv, *.can, *.log, *.txt, *.dump)|*.csv;*.can;*.log;*.txt;*.dump|All Files (*.*)|*.*",
+                Filter = "(*.csv, *.log, *.txt, *.dump)|*.csv;*.log;*.txt;*.dump|All Files (*.*)|*.*",
                 Title = "Open File"
             };
 
@@ -117,8 +118,8 @@ namespace NMEA2000Analyzer
                     case FileFormats.FileFormat.PCANView:
                         _Data = await Task.Run(() => FileFormats.LoadPCANView(filePath));
                         break;
-                    case FileFormats.FileFormat.YDBinary:
-                        _Data = await Task.Run(() => FileFormats.LoadYDBinary(filePath));
+                    case FileFormats.FileFormat.YDCsv:
+                        _Data = await Task.Run(() => FileFormats.LoadYDCsv(filePath));
                         break;
                     default:
                         MessageBox.Show("Unsupported or unknown file format.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -154,6 +155,13 @@ namespace NMEA2000Analyzer
             var includePGNs = ParseList(IncludePGNTextBox.Text);
             var includeAddress = ParseList(IncludeAddressTextBox.Text);
             var excludePGNs = ParseList(ExcludePGNTextBox.Text);
+
+            // Reset to original data when all filters are cleared
+            if (includePGNs.Count == 0 && includeAddress.Count == 0 && excludePGNs.Count == 0)
+            {
+                DataGrid.ItemsSource = _assembledData;  // Restore original data
+                return;
+            }
 
             // Apply filters to the original data
             var filteredData = _assembledData.Where(record =>
@@ -334,6 +342,7 @@ namespace NMEA2000Analyzer
                 }
 
                 message.Frames[sequenceNumber] = framePayload;
+                message.ReceivedByteCount += framePayload.Length;
                 //Debug.WriteLine($"Added frame {sequenceNumber} to {messageKey}: {string.Join(" ", framePayload)}");
             }
             else
@@ -341,9 +350,10 @@ namespace NMEA2000Analyzer
                 Debug.WriteLine($"Duplicate frame {sequenceNumber} for {messageKey}. Ignoring.");
             }
 
+            //Debug.WriteLine($"Message {messageKey}, TotalBytes = {message.TotalBytes}");
+
             // Calculate the total number of bytes received so far
             int receivedBytes = message.Frames.Values.Sum(f => f.Length);
-            //Debug.WriteLine($"Message {messageKey}: ReceivedBytes = {receivedBytes}, TotalBytes = {message.TotalBytes}");
 
             // Check if the message is complete
             if (message.TotalBytes > 0 && receivedBytes >= message.TotalBytes)
@@ -429,7 +439,6 @@ namespace NMEA2000Analyzer
             DataGrid.ItemsSource = null;
             JsonViewerTextBox.Text = null;
 
-            // Optionally, clear filters if needed
             IncludePGNTextBox.Text = string.Empty;
             ExcludePGNTextBox.Text = string.Empty;
             IncludeAddressTextBox.Text = string.Empty;
