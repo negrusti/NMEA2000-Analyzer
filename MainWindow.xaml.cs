@@ -159,7 +159,7 @@ namespace NMEA2000Analyzer
             // Reset to original data when all filters are cleared
             if (includePGNs.Count == 0 && includeAddress.Count == 0 && excludePGNs.Count == 0)
             {
-                DataGrid.ItemsSource = _assembledData;  // Restore original data
+                DataGrid.ItemsSource = _assembledData;
                 return;
             }
 
@@ -175,6 +175,7 @@ namespace NMEA2000Analyzer
                 return includePGN && includeSource && !exclude;
             }).ToList();
 
+            if (DistinctFilterCheckBox.IsChecked == true)
             {
                 filteredData = filteredData
                     .GroupBy(record => record.Data)  // Group by the Data column
