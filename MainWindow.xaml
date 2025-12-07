@@ -22,8 +22,10 @@
                     <!-- Adjust padding -->
                 </Style>
             </Menu.ItemContainerStyle>
-            <MenuItem Header="File">
+            <MenuItem Header="File" x:Name="FileMenu">
                 <MenuItem Header="Open" Click="OpenMenuItem_ClickAsync" />
+                <MenuItem x:Name="RecordMenuItem" Header="Record" Click="RecordMenuItem_ClickAsync" />
+                <Separator x:Name="RecentFilesSeparator" Visibility="Collapsed" />
             </MenuItem>
             <MenuItem Header="Statistics">
                 <MenuItem Header="PGNs" Click="PgnStatisticsMenuItem_Click" />

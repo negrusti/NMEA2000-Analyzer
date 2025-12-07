@@ -17,11 +17,15 @@ namespace NMEA2000Analyzer
         private List<Nmea2000Record>? _Data;
         private List<Nmea2000Record>? _assembledData;
         private List<Nmea2000Record>? _filteredData;
+        private bool _isRecording = false;
 
         public MainWindow()
         {
             InitializeComponent();
-            Loaded += (s, e) => PopulatePresetsMenu();
+            Loaded += (s, e) => {
+                PopulatePresetsMenu();
+                PopulateRecentFilesMenu();
+            };
             this.Loaded += MainWindow_Loaded;
         }
 
@@ -63,6 +67,7 @@ namespace NMEA2000Analyzer
         {
             public string Name { get; set; }
             public string IncludePGNs { get; set; }
+            public string ExcludePGNs { get; set; }
         }
 
         public class Device
@@ -80,24 +85,20 @@ namespace NMEA2000Analyzer
 
         }
 
-        private async void OpenMenuItem_ClickAsync(object sender, RoutedEventArgs e)
+
+        private async Task LoadFileAsync(string filePath)
         {
-            // Open file picker dialog
-            OpenFileDialog openFileDialog = new OpenFileDialog
+            ClearData();
+
+            RecentFilesManager.RegisterFileOpen(filePath);
+            PopulateRecentFilesMenu();
+
+            var format = FileFormats.DetectFileFormat(filePath);
+            Title = $"NMEA2000 Analyzer - {Path.GetFileName(filePath)} " +
+                    $"({Enum.GetName(typeof(FileFormats.FileFormat), format)})";
+
+            try
             {
-                Filter = "(*.csv, *.log, *.txt, *.dump)|*.csv;*.log;*.txt;*.dump|All Files (*.*)|*.*",
-                Title = "Open File"
-            };
-
-            if (openFileDialog.ShowDialog() == true)
-            {
-                ClearData();
-                string filePath = openFileDialog.FileName;
-
-                var format = FileFormats.DetectFileFormat(filePath);
-                Title = $"NMEA2000 Analyzer - {Path.GetFileName(filePath)} ({Enum.GetName(typeof(FileFormats.FileFormat), format)})";
-
-                // Parse based on detected format
                 switch (format)
                 {
                     case FileFormats.FileFormat.TwoCanCsv:
@@ -122,26 +123,107 @@ namespace NMEA2000Analyzer
                         _Data = await Task.Run(() => FileFormats.LoadYDCsv(filePath));
                         break;
                     default:
-                        MessageBox.Show("Unsupported or unknown file format.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        MessageBox.Show("Unsupported or unknown file format.", "Error",
+                                        MessageBoxButton.OK, MessageBoxImage.Error);
                         return;
                 }
 
-                DataGrid.ItemsSource = _Data; // Bind parsed data to DataGrid
+                DataGrid.ItemsSource = _Data;
                 UpdateTimestampRange();
 
-                try
-                {
-                    _assembledData = AssembleFrames(_Data);
-                    DataGrid.ItemsSource = _assembledData;
-                    GenerateDeviceInfo(_assembledData);
-                    UpdateSrcDevices(_assembledData);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                _assembledData = AssembleFrames(_Data);
+                DataGrid.ItemsSource = _assembledData;
+
+                GenerateDeviceInfo(_assembledData);
+                UpdateSrcDevices(_assembledData);
+
+                // If you have a recent-files menu, refresh it here:
+                // PopulateRecentFilesMenu();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Error",
+                                MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
+
+        private async void OpenMenuItem_ClickAsync(object sender, RoutedEventArgs e)
+        {
+            var openFileDialog = new OpenFileDialog
+            {
+                Filter = "(*.csv, *.log, *.txt, *.dump, *.trc)|*.csv;*.log;*.txt;*.dump;*.trc|All Files (*.*)|*.*",
+                Title = "Open File"
+            };
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                string filePath = openFileDialog.FileName;
+                await LoadFileAsync(filePath);
+            }
+        }
+
+        private void PopulateRecentFilesMenu()
+        {
+            var recentFiles = RecentFilesManager.Load();
+
+            // Find the index of the anchor separator
+            int sepIndex = FileMenu.Items.IndexOf(RecentFilesSeparator);
+            if (sepIndex < 0)
+                return; // nothing to do if separator not found
+
+            // Remove any items AFTER the separator (previous recent items)
+            for (int i = FileMenu.Items.Count - 1; i > sepIndex; i--)
+            {
+                FileMenu.Items.RemoveAt(i);
+            }
+
+            if (recentFiles.Count == 0)
+            {
+                // No recent files → hide the separator
+                RecentFilesSeparator.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            // We have recent files → ensure separator is visible
+            RecentFilesSeparator.Visibility = Visibility.Visible;
+
+            foreach (var entry in recentFiles)
+            {
+                var mi = new MenuItem
+                {
+                    Header = System.IO.Path.GetFileName(entry.FilePath),
+                    Tag = entry.FilePath,
+                    ToolTip = entry.FilePath
+                };
+                mi.Click += RecentFileMenuItem_Click;
+                FileMenu.Items.Add(mi);
+            }
+        }
+
+        private async void RecentFileMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem mi && mi.Tag is string path)
+            {
+                await LoadFileAsync(path);
+            }
+        }
+
+        private async void RecordMenuItem_ClickAsync(object sender, RoutedEventArgs e)
+        {
+            if (!_isRecording)
+            {
+                RecordMenuItem.Header = "Stop recording";
+                _isRecording = true;
+            }
+            else
+            {
+                RecordMenuItem.Header = "Record";
+                _isRecording = false;
+            }
+            PCAN.InitCan();
+        }
+
         private void FilterTextBoxes_TextChanged(object sender, TextChangedEventArgs e)
         {
             ApplyFilters();
@@ -469,10 +551,18 @@ namespace NMEA2000Analyzer
 
         private void PresetsItem_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is MenuItem menuItem && menuItem.Tag is string includePGNs)
+            if (sender is MenuItem menuItem &&
+                menuItem.Tag is ValueTuple<string, string> tag)
             {
-                IncludePGNTextBox.Text = includePGNs;
+                var (includePGNs, excludePGNs) = tag;
+
+                IncludePGNTextBox.Text = includePGNs ?? string.Empty;
+                ExcludePGNTextBox.Text = excludePGNs ?? string.Empty;
                 ApplyFilters();
+            }
+            else
+            {
+                Debug.WriteLine("Invalid menuItem");
             }
         }
 
@@ -488,7 +578,7 @@ namespace NMEA2000Analyzer
                 var menuItem = new MenuItem
                 {
                     Header = preset.Name,
-                    Tag = preset.IncludePGNs // Store the PGN list in the Tag property
+                    Tag = (preset.IncludePGNs, preset.ExcludePGNs) // Store the PGN list in the Tag property
                 };
                 menuItem.Click += PresetsItem_Click;
                 Presets.Items.Add(menuItem); // Add the menu item to the PresetsMenu

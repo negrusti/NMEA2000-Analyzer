@@ -13,6 +13,54 @@
 			"Type": "Single"
 		},
 		{
+			"PGN": 126243,
+			"Id": "Unknown126243",
+			"Description": "MFG-Specific PGN (Custom)",
+			"Type": "Fast",
+			"Fields": [
+				{
+					"Order": 1,
+					"Id": "manufacturerCode",
+					"Name": "Manufacturer Code",
+					"BitLength": 11,
+					"BitOffset": 0,
+					"BitStart": 0,
+					"Resolution": 1,
+					"Signed": false,
+					"RangeMin": 0,
+					"RangeMax": 2045,
+					"FieldType": "LOOKUP",
+					"LookupEnumeration": "MANUFACTURER_CODE"
+				},
+				{
+					"Order": 2,
+					"Id": "reserved",
+					"Name": "Reserved",
+					"BitLength": 2,
+					"BitOffset": 11,
+					"BitStart": 3,
+					"Resolution": 1,
+					"FieldType": "RESERVED"
+				},
+				{
+					"Order": 3,
+					"Id": "industryCode",
+					"Name": "Industry Code",
+					"Description": "Marine Industry",
+					"BitLength": 3,
+					"BitOffset": 13,
+					"BitStart": 5,
+					"Match": 4,
+					"Resolution": 1,
+					"Signed": false,
+					"RangeMin": 0,
+					"RangeMax": 6,
+					"FieldType": "LOOKUP",
+					"LookupEnumeration": "INDUSTRY_CODE"
+				}
+			]
+		},
+		{
 			"PGN": 126975,
 			"Id": "Unknown126975",
 			"Description": "MFG-Specific PGN (Custom)",
@@ -229,6 +277,42 @@
 		{
 			"PGN": 126719,
 			"Id": "Unknown126719",
+			"Description": "MFG-Specific PGN (Custom)",
+			"Type": "Fast"
+		},
+		{
+			"PGN": 126323,
+			"Id": "Unknown126323",
+			"Description": "MFG-Specific PGN (Custom)",
+			"Type": "Fast"
+		},
+		{
+			"PGN": 126722,
+			"Id": "Unknown126722",
+			"Description": "MFG-Specific PGN (Custom)",
+			"Type": "Fast"
+		},
+		{
+			"PGN": 126318,
+			"Id": "Unknown126318",
+			"Description": "MFG-Specific PGN (Custom)",
+			"Type": "Fast"
+		},
+		{
+			"PGN": 126319,
+			"Id": "Unknown126319",
+			"Description": "MFG-Specific PGN (Custom)",
+			"Type": "Fast"
+		},
+		{
+			"PGN": 126320,
+			"Id": "Unknown126320",
+			"Description": "MFG-Specific PGN (Custom)",
+			"Type": "Fast"
+		},
+		{
+			"PGN": 126466,
+			"Id": "Unknown126466",
 			"Description": "MFG-Specific PGN (Custom)",
 			"Type": "Fast"
 		}
