@@ -55,28 +55,28 @@ namespace NMEA2000Analyzer
         public class Lookupenumeration
         {
             public string Name { get; set; }
-            public int MaxValue { get; set; }
+            public uint MaxValue { get; set; }
             public Enumvalue[] EnumValues { get; set; }
         }
 
         public class Enumvalue
         {
             public string Name { get; set; }
-            public int Value { get; set; }
+            public uint Value { get; set; }
         }
 
         public class Lookupindirectenumeration
         {
             public string Name { get; set; }
-            public int MaxValue { get; set; }
+            public uint MaxValue { get; set; }
             public Enumvalue1[] EnumValues { get; set; }
         }
 
         public class Enumvalue1
         {
             public string Name { get; set; }
-            public int Value1 { get; set; }
-            public int Value2 { get; set; }
+            public uint Value1 { get; set; }
+            public uint Value2 { get; set; }
         }
 
         public class Lookupbitenumeration

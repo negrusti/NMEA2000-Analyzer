@@ -213,15 +213,28 @@ namespace NMEA2000Analyzer
         {
             if (!_isRecording)
             {
+                PCAN.InitCan(true);
                 RecordMenuItem.Header = "Stop recording";
                 _isRecording = true;
             }
             else
             {
+                PCAN.InitCan(false);
                 RecordMenuItem.Header = "Record";
                 _isRecording = false;
+
+                _Data = PCAN.LoadCapture();
+                UpdateTimestampRange();
+
+                _assembledData = AssembleFrames(_Data);
+                DataGrid.ItemsSource = _assembledData;
+
+                GenerateDeviceInfo(_assembledData);
+                UpdateSrcDevices(_assembledData);
+
             }
-            PCAN.InitCan();
+
+
         }
 
         private void FilterTextBoxes_TextChanged(object sender, TextChangedEventArgs e)
