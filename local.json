@@ -196,6 +196,12 @@
 			"Type": "Fast"
 		},
 		{
+			"PGN": 65311,
+			"Id": "MagnetciVariationRaymarine",
+			"Description": "Magnetic Variation (Raymarine)",
+			"Type": "Simple"
+		},
+		{
 			"PGN": 60159,
 			"Id": "SAEJ1939-21",
 			"Description": "SAEJ1939-21 Request",
