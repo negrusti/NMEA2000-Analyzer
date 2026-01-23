@@ -17,21 +17,36 @@ namespace NMEA2000Analyzer
         private static readonly Worker _worker = new Worker(PcanChannel.Usb01, Bitrate.Pcan250);
         private static List<Nmea2000Record>? capture;
         
-        public static void InitCan(Boolean start)
+        public static bool StartCapture()
         {
-            if ((start))
+            try
             {
                 if (capture == null)
-                { 
+                {
                     capture = new List<Nmea2000Record>();
                 }
                 _worker.MessageAvailable += OnMessageAvailable;
                 _worker.Start();
                 Debug.WriteLine("Worker started successfully.");
+                return (true);
             }
-            else
+            catch (PcanBasicException)
+            {
+                return (false);
+            }
+            catch (DllNotFoundException)
+            {
+                return (false);
+            }
+        }
+        public static void StopCapture()
+        {
+            try
             {
                 _worker.Stop();
+            }
+            catch (PcanBasicException e)
+            {
             }
         }
 
