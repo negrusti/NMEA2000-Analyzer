@@ -17,8 +17,7 @@ namespace NMEA2000Analyzer
         private List<Nmea2000Record>? _Data;
         private List<Nmea2000Record>? _assembledData;
         private List<Nmea2000Record>? _filteredData;
-        private bool _isRecording = false;
-
+        
         public MainWindow()
         {
             InitializeComponent();
@@ -211,18 +210,18 @@ namespace NMEA2000Analyzer
 
         private async void RecordMenuItem_ClickAsync(object sender, RoutedEventArgs e)
         {
-            if (!_isRecording)
+            if (PCAN.StartCapture())
             {
-                PCAN.InitCan(true);
-                RecordMenuItem.Header = "Stop recording";
-                _isRecording = true;
-            }
-            else
-            {
-                PCAN.InitCan(false);
-                RecordMenuItem.Header = "Record";
-                _isRecording = false;
+                // Pause here to allow packet to capture.
+                System.Windows.MessageBox.Show(
+                                "Capture Started.  Press OK to stop",
+                                "Capturing Data...",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Information
+                                );
 
+                PCAN.StopCapture();
+                
                 _Data = PCAN.LoadCapture();
                 UpdateTimestampRange();
 
@@ -233,7 +232,15 @@ namespace NMEA2000Analyzer
                 UpdateSrcDevices(_assembledData);
 
             }
-
+            else 
+            {
+                System.Windows.MessageBox.Show(
+                                "PCAN dongle not plugged in or driver not installed",
+                                "Error:",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Error
+                                );
+            }
 
         }
 
