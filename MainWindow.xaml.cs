@@ -212,6 +212,8 @@ namespace NMEA2000Analyzer
         {
             if (PCAN.StartCapture())
             {
+                ClearData();
+
                 // Pause here to allow packet to capture.
                 System.Windows.MessageBox.Show(
                                 "Capture Started.  Press OK to stop",

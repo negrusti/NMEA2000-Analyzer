@@ -23,3 +23,7 @@ Custom definitions can be set in local.json
 ## Presets
 
 You can define your own presets in presets.json
+
+## Live capture
+
+Supported with Canable.io boards from AliExpress using PCAN driver
