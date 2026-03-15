@@ -208,15 +208,46 @@ namespace NMEA2000Analyzer
             }
         }
 
-        private async void RecordMenuItem_ClickAsync(object sender, RoutedEventArgs e)
+        private void SaveAsMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (_Data == null || _Data.Count == 0)
+            {
+                MessageBox.Show("No packets are loaded to save.", "Save As",
+                                MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var saveFileDialog = new SaveFileDialog
+            {
+                Filter = "CanDump log (*.log)|*.log|Text files (*.txt)|*.txt|All Files (*.*)|*.*",
+                DefaultExt = ".log",
+                AddExtension = true,
+                FileName = $"nmea2000-export-{DateTime.Now:yyyyMMdd-HHmmss}.log",
+                Title = "Save packets as"
+            };
+
+            if (saveFileDialog.ShowDialog() != true)
+                return;
+
+            try
+            {
+                FileFormats.SaveCanDump(saveFileDialog.FileName, _Data);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to save file: {ex.Message}", "Error",
+                                MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void RecordMenuItem_ClickAsync(object sender, RoutedEventArgs e)
         {
             if (PCAN.StartCapture())
             {
                 ClearData();
 
-                // Pause here to allow packet to capture.
                 System.Windows.MessageBox.Show(
-                                "Capture Started.  Press OK to stop",
+                                "Capture started. Press OK to stop.",
                                 "Capturing Data...",
                                 MessageBoxButton.OK,
                                 MessageBoxImage.Information

@@ -2,10 +2,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
+using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 using System.Windows;
 using static NMEA2000Analyzer.MainWindow;
@@ -15,16 +15,34 @@ namespace NMEA2000Analyzer
     class PCAN
     {
         private static readonly Worker _worker = new Worker(PcanChannel.Usb01, Bitrate.Pcan250);
+        private static readonly object _captureLock = new object();
         private static List<Nmea2000Record>? capture;
+        private static StreamWriter? _captureWriter;
         
-        public static bool StartCapture()
+        public static bool StartCapture(string? captureFilePath = null)
         {
             try
             {
-                if (capture == null)
+                capture = new List<Nmea2000Record>();
+
+                _captureWriter?.Dispose();
+                _captureWriter = null;
+
+                if (!string.IsNullOrWhiteSpace(captureFilePath))
                 {
-                    capture = new List<Nmea2000Record>();
+                    var directory = Path.GetDirectoryName(captureFilePath);
+                    if (!string.IsNullOrWhiteSpace(directory))
+                    {
+                        Directory.CreateDirectory(directory);
+                    }
+
+                    _captureWriter = new StreamWriter(captureFilePath, append: false, Encoding.UTF8)
+                    {
+                        AutoFlush = true
+                    };
                 }
+
+                _worker.MessageAvailable -= OnMessageAvailable;
                 _worker.MessageAvailable += OnMessageAvailable;
                 _worker.Start();
                 Debug.WriteLine("Worker started successfully.");
@@ -32,10 +50,20 @@ namespace NMEA2000Analyzer
             }
             catch (PcanBasicException)
             {
+                _captureWriter?.Dispose();
+                _captureWriter = null;
                 return (false);
             }
             catch (DllNotFoundException)
             {
+                _captureWriter?.Dispose();
+                _captureWriter = null;
+                return (false);
+            }
+            catch (IOException)
+            {
+                _captureWriter?.Dispose();
+                _captureWriter = null;
                 return (false);
             }
         }
@@ -45,14 +73,20 @@ namespace NMEA2000Analyzer
             {
                 _worker.Stop();
             }
-            catch (PcanBasicException e)
+            catch (PcanBasicException)
             {
+            }
+            finally
+            {
+                _worker.MessageAvailable -= OnMessageAvailable;
+                _captureWriter?.Dispose();
+                _captureWriter = null;
             }
         }
 
         public static List<Nmea2000Record> LoadCapture()
         {
-            return (capture);
+            return capture ?? new List<Nmea2000Record>();
         }
 
         private static void OnMessageAvailable(object? sender, MessageAvailableEventArgs e)
@@ -78,10 +112,10 @@ namespace NMEA2000Analyzer
                 }
 
                 // Format data bytes as a space-separated hex string
-                byte[] data = msg.Data;
+                byte[] data = msg.Data.Take(msg.DLC).ToArray();
                 string dataHex = string.Join(" ", data.Select(b => $"0x{b:X2}"));
 
-                capture.Add(new Nmea2000Record
+                var record = new Nmea2000Record
                 {
                     Timestamp = now.ToString("ss.ffffff"),
                     Source = source.ToString(),
@@ -89,9 +123,23 @@ namespace NMEA2000Analyzer
                     PGN = pgn.ToString(),
                     Priority = priority.ToString(),
                     Data = dataHex,
-                });
+                };
+
+                lock (_captureLock)
+                {
+                    capture?.Add(record);
+                    _captureWriter?.WriteLine(FormatCanDumpRecord(msg.ID, data));
+                }
                 // Debug.WriteLine($"TS: {timestamp}, Src: {source}, Len: {msg.DLC}, PGN: {pgn}");
             }
+        }
+
+        private static string FormatCanDumpRecord(uint canId, byte[] data)
+        {
+            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
+            var timestampText = timestamp.ToString("F3", CultureInfo.InvariantCulture);
+            var dataText = string.Concat(data.Select(b => b.ToString("X2", CultureInfo.InvariantCulture)));
+            return $"({timestampText}) can0 {canId:X8}#{dataText}";
         }
 
     }
