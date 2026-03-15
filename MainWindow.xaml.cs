@@ -208,40 +208,46 @@ namespace NMEA2000Analyzer
             }
         }
 
-        private void RecordMenuItem_ClickAsync(object sender, RoutedEventArgs e)
+        private void SaveAsMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            StartLiveCapture();
-        }
+            if (_Data == null || _Data.Count == 0)
+            {
+                MessageBox.Show("No packets are loaded to save.", "Save As",
+                                MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
 
-        private void RecordToFileMenuItem_ClickAsync(object sender, RoutedEventArgs e)
-        {
             var saveFileDialog = new SaveFileDialog
             {
                 Filter = "CanDump log (*.log)|*.log|Text files (*.txt)|*.txt|All Files (*.*)|*.*",
                 DefaultExt = ".log",
                 AddExtension = true,
-                FileName = $"nmea2000-capture-{DateTime.Now:yyyyMMdd-HHmmss}.log",
-                Title = "Save live capture"
+                FileName = $"nmea2000-export-{DateTime.Now:yyyyMMdd-HHmmss}.log",
+                Title = "Save packets as"
             };
 
-            if (saveFileDialog.ShowDialog() == true)
+            if (saveFileDialog.ShowDialog() != true)
+                return;
+
+            try
             {
-                StartLiveCapture(saveFileDialog.FileName);
+                FileFormats.SaveCanDump(saveFileDialog.FileName, _Data);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to save file: {ex.Message}", "Error",
+                                MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        private void StartLiveCapture(string? captureFilePath = null)
+        private void RecordMenuItem_ClickAsync(object sender, RoutedEventArgs e)
         {
-            if (PCAN.StartCapture(captureFilePath))
+            if (PCAN.StartCapture())
             {
                 ClearData();
 
-                var captureMessage = captureFilePath == null
-                    ? "Capture started. Press OK to stop."
-                    : $"Capture started and is being saved to:\n{captureFilePath}\n\nPress OK to stop.";
-
                 System.Windows.MessageBox.Show(
-                                captureMessage,
+                                "Capture started. Press OK to stop.",
                                 "Capturing Data...",
                                 MessageBoxButton.OK,
                                 MessageBoxImage.Information
@@ -262,9 +268,7 @@ namespace NMEA2000Analyzer
             else 
             {
                 System.Windows.MessageBox.Show(
-                                captureFilePath == null
-                                    ? "PCAN dongle not plugged in, driver not installed, or capture file could not be opened"
-                                    : "PCAN dongle not plugged in, driver not installed, or capture file could not be opened for writing",
+                                "PCAN dongle not plugged in or driver not installed",
                                 "Error:",
                                 MessageBoxButton.OK,
                                 MessageBoxImage.Error

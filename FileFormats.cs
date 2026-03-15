@@ -100,6 +100,46 @@ namespace NMEA2000Analyzer
             return FileFormat.Unknown; // Default to unknown format
         }
 
+        public static void SaveCanDump(string filePath, IEnumerable<Nmea2000Record> records)
+        {
+            using var writer = new StreamWriter(filePath, false, Encoding.UTF8);
+
+            foreach (var record in records)
+            {
+                writer.WriteLine(ToCanDumpLine(record));
+            }
+        }
+
+        private static string ToCanDumpLine(Nmea2000Record record)
+        {
+            int priority = int.TryParse(record.Priority, out var parsedPriority) ? parsedPriority : 0;
+            int source = int.TryParse(record.Source, out var parsedSource) ? parsedSource : 0;
+            int destination = int.TryParse(record.Destination, out var parsedDestination) ? parsedDestination : 255;
+            int pgn = int.TryParse(record.PGN, out var parsedPgn) ? parsedPgn : 0;
+
+            int encodedPgn = pgn;
+            if ((pgn & 0xFF00) == 0xEF00 && destination != 255)
+            {
+                encodedPgn = (pgn & 0x1FF00) | (destination & 0xFF);
+            }
+
+            uint canId = ((uint)(priority & 0x7) << 26)
+                       | ((uint)(encodedPgn & 0x1FFFF) << 8)
+                       | (uint)(source & 0xFF);
+
+            string data = record.Data ?? string.Empty;
+            var dataHex = Regex.Matches(data, @"(?:0x)?([0-9A-Fa-f]{2})")
+                               .Select(m => m.Groups[1].Value.ToUpperInvariant());
+
+            string timestampText = "0.000000";
+            if (!string.IsNullOrWhiteSpace(record.Timestamp))
+            {
+                timestampText = record.Timestamp;
+            }
+
+            return $"({timestampText}) can0 {canId:X8}#{string.Concat(dataHex)}";
+        }
+
         public static List<Nmea2000Record> LoadTwoCanCsv(string filePath)
         {
             var records = new List<Nmea2000Record>();

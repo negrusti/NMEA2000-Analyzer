@@ -24,8 +24,8 @@
             </Menu.ItemContainerStyle>
             <MenuItem Header="File" x:Name="FileMenu">
                 <MenuItem Header="Open" Click="OpenMenuItem_ClickAsync" />
+                <MenuItem Header="Save As" Click="SaveAsMenuItem_Click" />
                 <MenuItem x:Name="RecordMenuItem" Header="PCAN Capture" Click="RecordMenuItem_ClickAsync" />
-                <MenuItem x:Name="RecordToFileMenuItem" Header="PCAN Capture to File" Click="RecordToFileMenuItem_ClickAsync" />
                 <Separator x:Name="RecentFilesSeparator" Visibility="Collapsed" />
             </MenuItem>
             <MenuItem Header="Statistics">
