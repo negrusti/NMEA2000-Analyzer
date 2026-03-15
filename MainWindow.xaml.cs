@@ -208,15 +208,40 @@ namespace NMEA2000Analyzer
             }
         }
 
-        private async void RecordMenuItem_ClickAsync(object sender, RoutedEventArgs e)
+        private void RecordMenuItem_ClickAsync(object sender, RoutedEventArgs e)
         {
-            if (PCAN.StartCapture())
+            StartLiveCapture();
+        }
+
+        private void RecordToFileMenuItem_ClickAsync(object sender, RoutedEventArgs e)
+        {
+            var saveFileDialog = new SaveFileDialog
+            {
+                Filter = "CanDump log (*.log)|*.log|Text files (*.txt)|*.txt|All Files (*.*)|*.*",
+                DefaultExt = ".log",
+                AddExtension = true,
+                FileName = $"nmea2000-capture-{DateTime.Now:yyyyMMdd-HHmmss}.log",
+                Title = "Save live capture"
+            };
+
+            if (saveFileDialog.ShowDialog() == true)
+            {
+                StartLiveCapture(saveFileDialog.FileName);
+            }
+        }
+
+        private void StartLiveCapture(string? captureFilePath = null)
+        {
+            if (PCAN.StartCapture(captureFilePath))
             {
                 ClearData();
 
-                // Pause here to allow packet to capture.
+                var captureMessage = captureFilePath == null
+                    ? "Capture started. Press OK to stop."
+                    : $"Capture started and is being saved to:\n{captureFilePath}\n\nPress OK to stop.";
+
                 System.Windows.MessageBox.Show(
-                                "Capture Started.  Press OK to stop",
+                                captureMessage,
                                 "Capturing Data...",
                                 MessageBoxButton.OK,
                                 MessageBoxImage.Information
@@ -237,7 +262,9 @@ namespace NMEA2000Analyzer
             else 
             {
                 System.Windows.MessageBox.Show(
-                                "PCAN dongle not plugged in or driver not installed",
+                                captureFilePath == null
+                                    ? "PCAN dongle not plugged in, driver not installed, or capture file could not be opened"
+                                    : "PCAN dongle not plugged in, driver not installed, or capture file could not be opened for writing",
                                 "Error:",
                                 MessageBoxButton.OK,
                                 MessageBoxImage.Error
