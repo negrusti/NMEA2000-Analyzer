@@ -89,9 +89,6 @@ namespace NMEA2000Analyzer
         {
             ClearData();
 
-            RecentFilesManager.RegisterFileOpen(filePath);
-            PopulateRecentFilesMenu();
-
             var format = FileFormats.DetectFileFormat(filePath);
             Title = $"NMEA2000 Analyzer - {Path.GetFileName(filePath)} " +
                     $"({Enum.GetName(typeof(FileFormats.FileFormat), format)})";
@@ -136,8 +133,8 @@ namespace NMEA2000Analyzer
                 GenerateDeviceInfo(_assembledData);
                 UpdateSrcDevices(_assembledData);
 
-                // If you have a recent-files menu, refresh it here:
-                // PopulateRecentFilesMenu();
+                RecentFilesManager.RegisterFileOpen(filePath);
+                PopulateRecentFilesMenu();
             }
             catch (Exception ex)
             {
