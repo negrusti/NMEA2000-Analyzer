@@ -25,19 +25,23 @@ namespace NMEA2000Analyzer
 
             try
             {
-                var CanboatJSON = File.ReadAllText(CanboatJsonPath);
-                var LocalJSON = File.ReadAllText(LocalJsonPath);
+                var canboatJson = File.ReadAllText(CanboatJsonPath);
 
                 // Parse JSON strings into JObject
-                var canboatJObject = JObject.Parse(CanboatJSON);
-                var localJObject = JObject.Parse(LocalJSON);
+                var canboatJObject = JObject.Parse(canboatJson);
 
-                // Merge localJObject into canboatJObject
-                canboatJObject.Merge(localJObject, new JsonMergeSettings
+                if (File.Exists(LocalJsonPath))
                 {
-                    MergeArrayHandling = MergeArrayHandling.Concat, // Options: Replace, Union, Concat, etc.
-                    MergeNullValueHandling = MergeNullValueHandling.Ignore // Ignore null values from localJson
-                });
+                    var localJson = File.ReadAllText(LocalJsonPath);
+                    var localJObject = JObject.Parse(localJson);
+
+                    // Merge local definitions into the upstream data when present.
+                    canboatJObject.Merge(localJObject, new JsonMergeSettings
+                    {
+                        MergeArrayHandling = MergeArrayHandling.Concat,
+                        MergeNullValueHandling = MergeNullValueHandling.Ignore
+                    });
+                }
 
                 // Serialize back to JSON string
                 var mergedJSON = canboatJObject.ToString(Formatting.Indented);
@@ -531,10 +535,17 @@ namespace NMEA2000Analyzer
             foreach (var record in filteredRecords)
             {
                 var dataBytes = record.Data.Split(' ').Select(b => Convert.ToByte(b, 16)).ToArray();
-                var JSONObject = DecodePgnData(dataBytes, ((App)Application.Current).CanboatRoot.PGNs.FirstOrDefault(q => q.PGN.ToString() == record.PGN));
+                var pgnDefinition = ((App)Application.Current).CanboatRoot.PGNs
+                    .FirstOrDefault(q => q.PGN.ToString() == record.PGN);
+                var jsonObject = pgnDefinition == null ? null : DecodePgnData(dataBytes, pgnDefinition);
 
-                var fields = ((JsonArray)JSONObject["Fields"]!).OfType<JsonObject>();
-                Device dev = new Device
+                if (jsonObject?["Fields"] is not JsonArray fieldsArray)
+                {
+                    continue;
+                }
+
+                var fields = fieldsArray.OfType<JsonObject>().ToList();
+                var dev = new Device
                 {
                     Address = Convert.ToByte(record.Source),
                     ProductCode = fields.FirstOrDefault(obj => obj.ContainsKey("Product Code"))?["Product Code"]?.GetValue<double>(),
