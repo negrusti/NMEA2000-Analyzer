@@ -23,7 +23,7 @@ namespace NMEA2000Analyzer
         private static readonly string FilePath =
             Path.Combine(BaseFolder, "recent-files.json");
 
-        private static List<RecentFileEntry> _cache;
+        private static List<RecentFileEntry>? _cache;
 
         public static List<RecentFileEntry> Load()
         {
@@ -45,6 +45,22 @@ namespace NMEA2000Analyzer
             catch
             {
                 _cache = new List<RecentFileEntry>();
+            }
+
+            var prunedCache = _cache
+                .Where(entry => !string.IsNullOrWhiteSpace(entry.FilePath) && File.Exists(entry.FilePath))
+                .OrderByDescending(entry => entry.LastOpened)
+                .Take(MaxRecentFiles)
+                .ToList();
+
+            if (prunedCache.Count != _cache.Count)
+            {
+                _cache = prunedCache;
+                Save();
+            }
+            else
+            {
+                _cache = prunedCache;
             }
 
             return _cache;
