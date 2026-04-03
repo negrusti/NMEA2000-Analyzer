@@ -53,8 +53,10 @@ namespace NMEA2000Analyzer
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            // Call your async method here
-            ((App)Application.Current).CanboatRoot = await LoadPgnDefinitionsAsync();
+            if (((App)Application.Current).CanboatRoot == null)
+            {
+                ((App)Application.Current).CanboatRoot = await LoadPgnDefinitionsAsync();
+            }
         }
 
         // Class to hold parsed data for the DataGrid
@@ -151,49 +153,15 @@ namespace NMEA2000Analyzer
         {
             ClearData();
 
-            var format = FileFormats.DetectFileFormat(filePath);
-            Title = $"NMEA2000 Analyzer - {Path.GetFileName(filePath)} " +
-                    $"({Enum.GetName(typeof(FileFormats.FileFormat), format)})";
-
             try
             {
-                switch (format)
-                {
-                    case FileFormats.FileFormat.TwoCanCsv:
-                        _Data = await Task.Run(() => FileFormats.LoadTwoCanCsv(filePath));
-                        break;
-                    case FileFormats.FileFormat.Actisense:
-                        _Data = await Task.Run(() => FileFormats.LoadActisense(filePath));
-                        break;
-                    case FileFormats.FileFormat.CanDump1:
-                        _Data = await Task.Run(() => FileFormats.LoadCanDump1(filePath));
-                        break;
-                    case FileFormats.FileFormat.CanDump2:
-                        _Data = await Task.Run(() => FileFormats.LoadCanDump2(filePath));
-                        break;
-                    case FileFormats.FileFormat.YDWG:
-                        _Data = await Task.Run(() => FileFormats.LoadYDWGLog(filePath));
-                        break;
-                    case FileFormats.FileFormat.PCANView:
-                        _Data = await Task.Run(() => FileFormats.LoadPCANView(filePath));
-                        break;
-                    case FileFormats.FileFormat.YDCsv:
-                        _Data = await Task.Run(() => FileFormats.LoadYDCsv(filePath));
-                        break;
-                    default:
-                        MessageBox.Show("Unsupported or unknown file format.", "Error",
-                                        MessageBoxButton.OK, MessageBoxImage.Error);
-                        return;
-                }
+                var result = await CaptureLoadService.LoadAsync(filePath);
+                _Data = result.RawRecords;
+                _assembledData = result.AssembledRecords;
+                Title = $"NMEA2000 Analyzer - {Path.GetFileName(filePath)} " +
+                        $"({Enum.GetName(typeof(FileFormats.FileFormat), result.Format)})";
 
                 UpdateTimestampRange();
-                EnrichUnassembledRecords(_Data);
-
-                _assembledData = AssembleFrames(_Data);
-
-                GenerateDeviceInfo(_assembledData);
-                UpdateSrcDevices(_Data);
-                UpdateSrcDevices(_assembledData);
                 RefreshGridView();
 
                 RecentFilesManager.RegisterFileOpen(filePath);
@@ -435,7 +403,7 @@ namespace NMEA2000Analyzer
                         .ToHashSet();
         }
         
-        private List<Nmea2000Record> AssembleFrames(List<Nmea2000Record> records)
+        internal static List<Nmea2000Record> AssembleFrames(List<Nmea2000Record> records)
         {
             var assembledRecords = new List<Nmea2000Record>();
             var activeMessages = new Dictionary<string, FastPacketMessage>(); // Track in-progress multi-frame messages
@@ -769,7 +737,7 @@ namespace NMEA2000Analyzer
             return $"({timestamp:F6}) can0 {canId:X8}#{data}";
         }
 
-        private void EnrichUnassembledRecords(List<Nmea2000Record>? records)
+        internal static void EnrichUnassembledRecords(List<Nmea2000Record>? records)
         {
             if (records == null)
             {
@@ -1255,7 +1223,7 @@ namespace NMEA2000Analyzer
         }
 
         // Enriches DataGrid with device information if available
-        public void UpdateSrcDevices(List<Nmea2000Record> data)
+        internal static void UpdateSrcDevices(List<Nmea2000Record> data)
         {
             foreach (var record in data)
             {
@@ -1263,7 +1231,7 @@ namespace NMEA2000Analyzer
                 if (result != null)
                 {
                     // Raymarine product codes are not really informative, use ModelVersion instead
-                    if (Regex.IsMatch(result.ModelID, @"^[A-Z]\d{5}$"))
+                    if (!string.IsNullOrWhiteSpace(result.ModelID) && Regex.IsMatch(result.ModelID, @"^[A-Z]\d{5}$"))
                     {
                         record.DeviceInfo = result.ModelVersion;
                     }
