@@ -4,8 +4,16 @@
         Title="PGN Statistics" Height="400" Width="600">
     <Grid>
         <DataGrid x:Name="PgnStatisticsDataGrid" AutoGenerateColumns="False" IsReadOnly="True"
+          SelectionMode="Extended"
+          SelectionUnit="FullRow"
           HorizontalGridLinesBrush="#F0F0F0"
           VerticalGridLinesBrush="#F0F0F0">
+            <DataGrid.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="Include" Click="IncludeMenuItem_Click" />
+                    <MenuItem Header="Exclude" Click="ExcludeMenuItem_Click" />
+                </ContextMenu>
+            </DataGrid.ContextMenu>
             <DataGrid.Columns>
                 <DataGridTextColumn Header="PGN" Binding="{Binding PGN}" Width="*" />
                 <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="2*" />

@@ -28,6 +28,7 @@ You can define your own presets in `presets.json`.
 ## Live capture
 
 Supported with CANable-compatible boards using the PCAN driver.
+Saved captures are exported in candump format.
 
 ## Views
 
@@ -38,7 +39,7 @@ The main grid can switch between:
 
 ## Export
 
-`File -> Save as candump` exports the full unassembled capture in candump format.
+`File -> Save` exports the full unassembled capture in candump format.
 
 ## Command line
 

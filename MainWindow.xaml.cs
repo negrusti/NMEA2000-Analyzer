@@ -226,7 +226,7 @@ namespace NMEA2000Analyzer
         {
             if (_Data == null || _Data.Count == 0)
             {
-                MessageBox.Show("No unassembled data available to export.", "Save as candump", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("No unassembled data available to export.", "Save", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
@@ -235,7 +235,7 @@ namespace NMEA2000Analyzer
                 Filter = "candump files (*.log)|*.log|Text files (*.txt)|*.txt|All files (*.*)|*.*",
                 DefaultExt = ".log",
                 FileName = "export.log",
-                Title = "Save as candump"
+                Title = "Save"
             };
 
             if (saveFileDialog.ShowDialog() != true)
@@ -263,7 +263,7 @@ namespace NMEA2000Analyzer
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Failed to save candump file: {ex.Message}", "Save as candump", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Failed to save candump file: {ex.Message}", "Save", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -651,8 +651,29 @@ namespace NMEA2000Analyzer
                 .ToList();
 
             // Open the statistics window
-            var statsWindow = new PgnStatistics(pgnCounts);
+            var statsWindow = new PgnStatistics(pgnCounts)
+            {
+                Owner = this
+            };
             statsWindow.Show();
+        }
+
+        public void IncludePgns(IEnumerable<string> pgns)
+        {
+            var mergedPgns = ParseList(IncludePGNTextBox.Text);
+            mergedPgns.UnionWith(pgns.Where(pgn => !string.IsNullOrWhiteSpace(pgn)));
+
+            IncludePGNTextBox.Text = string.Join(", ", mergedPgns.OrderBy(pgn => pgn, StringComparer.Ordinal));
+            RefreshFilterView();
+        }
+
+        public void ExcludePgns(IEnumerable<string> pgns)
+        {
+            var mergedPgns = ParseList(ExcludePGNTextBox.Text);
+            mergedPgns.UnionWith(pgns.Where(pgn => !string.IsNullOrWhiteSpace(pgn)));
+
+            ExcludePGNTextBox.Text = string.Join(", ", mergedPgns.OrderBy(pgn => pgn, StringComparer.Ordinal));
+            RefreshFilterView();
         }
 
         private void DevicesMenuItem_Click(object sender, RoutedEventArgs e)
