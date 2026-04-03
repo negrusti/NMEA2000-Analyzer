@@ -9,10 +9,6 @@
         WindowState="Maximized"
         MinWidth="800"
         MinHeight="600">
-    <Window.Resources>
-        <!-- Register the HexToAsciiConverter -->
-        <local:HexToAsciiConverter x:Key="HexToAsciiConverter" />
-    </Window.Resources>    
     <DockPanel LastChildFill="True">
         <!-- Menu Bar -->
         <Menu DockPanel.Dock="Top">
@@ -98,6 +94,10 @@
               HorizontalAlignment="Stretch" 
               VerticalAlignment="Stretch" 
               x:Name="DataGrid" 
+              EnableRowVirtualization="True"
+              EnableColumnVirtualization="True"
+              VirtualizingPanel.IsVirtualizing="True"
+              VirtualizingPanel.VirtualizationMode="Recycling"
               GridLinesVisibility="All"
               HorizontalGridLinesBrush="#F0F0F0"
               VerticalGridLinesBrush="#F0F0F0"
@@ -135,32 +135,9 @@
                     <DataGridTextColumn Header="Timestamp" Binding="{Binding Timestamp}" />
                     <DataGridTextColumn Header="Src" Binding="{Binding Source}" />
                     <DataGridTextColumn Header="Device" Binding="{Binding DeviceInfo}" />
-                    <DataGridTemplateColumn Header="Dst">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <TextBlock>
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Text" Value="{Binding Destination}" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding Destination}" Value="255">
-                                                    <Setter Property="Text" Value="Bcast" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="Dst" Binding="{Binding DestinationDisplay}" />
                     <DataGridTextColumn Header="Prio" Binding="{Binding Priority}" />
-                    <DataGridTemplateColumn Header="PGN">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding PGN}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="PGN" Binding="{Binding PGN}" />
                     <DataGridTextColumn Header="Type" Binding="{Binding Type}" />
                     <DataGridTextColumn Header="Description" Binding="{Binding Description}" />
 
@@ -171,7 +148,7 @@
                                 <!-- Truncate text -->
                                 <Setter Property="TextTrimming" Value="CharacterEllipsis" />
                                 <Setter Property="TextWrapping" Value="NoWrap" />
-                                <Setter Property="ToolTip" Value="{Binding Data, Converter={StaticResource HexToAsciiConverter}}" />
+                                <Setter Property="ToolTip" Value="{Binding AsciiData}" />
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>

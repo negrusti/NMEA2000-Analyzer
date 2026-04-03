@@ -1,4 +1,5 @@
 ﻿using Microsoft.Win32;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -7,6 +8,8 @@ using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Threading;
 using static NMEA2000Analyzer.PgnDefinitions;
 using Application = System.Windows.Application;
 
@@ -17,8 +20,14 @@ namespace NMEA2000Analyzer
 
         private List<Nmea2000Record>? _Data;
         private List<Nmea2000Record>? _assembledData;
-        private List<Nmea2000Record>? _filteredData;
+        private ICollectionView? _dataGridView;
         private PacketViewMode _currentPacketView = PacketViewMode.Assembled;
+        private readonly DispatcherTimer _filterDebounceTimer;
+        private readonly HashSet<string> _distinctDataSeen = new HashSet<string>();
+        private HashSet<string> _includePGNs = new HashSet<string>();
+        private HashSet<string> _includeAddresses = new HashSet<string>();
+        private HashSet<string> _excludePGNs = new HashSet<string>();
+        private bool _distinctFilterEnabled;
 
         private enum PacketViewMode
         {
@@ -29,6 +38,11 @@ namespace NMEA2000Analyzer
         public MainWindow()
         {
             InitializeComponent();
+            _filterDebounceTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(200)
+            };
+            _filterDebounceTimer.Tick += FilterDebounceTimer_Tick;
             Loaded += (s, e) => {
                 PopulatePresetsMenu();
                 PopulateRecentFilesMenu();
@@ -45,6 +59,9 @@ namespace NMEA2000Analyzer
         // Class to hold parsed data for the DataGrid
         public class Nmea2000Record
         {
+            private string _data = string.Empty;
+            private string? _asciiData;
+
             public int LogSequenceNumber { get; set; }
             public string? Timestamp { get; set; }
             public string Source { get; set; }
@@ -53,9 +70,40 @@ namespace NMEA2000Analyzer
             public string Type { get; set; }
             public string Priority { get; set; }
             public string Description { get; set; } = ""; // Placeholder if not provided
-            public string Data { get; set; }
+            public string Data
+            {
+                get => _data;
+                set
+                {
+                    _data = value ?? string.Empty;
+                    _asciiData = null;
+                }
+            }
             public string? DeviceInfo { get; set; }
             public int? PGNListIndex { get; set; }
+            public string DestinationDisplay => Destination == "255" ? "Bcast" : Destination;
+
+            public string AsciiData => _asciiData ??= ConvertHexToAscii(_data);
+
+            private static string ConvertHexToAscii(string hexString)
+            {
+                if (string.IsNullOrWhiteSpace(hexString))
+                {
+                    return string.Empty;
+                }
+
+                var hexValues = hexString.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var asciiChars = new char[hexValues.Length];
+
+                for (var i = 0; i < hexValues.Length; i++)
+                {
+                    var hex = hexValues[i].Replace("0x", "", StringComparison.OrdinalIgnoreCase);
+                    var byteValue = int.Parse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+                    asciiChars[i] = byteValue is >= 32 and <= 126 ? (char)byteValue : '.';
+                }
+
+                return new string(asciiChars);
+            }
         }
 
         private class FastPacketMessage
@@ -92,6 +140,11 @@ namespace NMEA2000Analyzer
 
         }
 
+
+        public Task LoadFileFromCommandLineAsync(string filePath)
+        {
+            return LoadFileAsync(filePath);
+        }
 
         private async Task LoadFileAsync(string filePath)
         {
@@ -301,49 +354,76 @@ namespace NMEA2000Analyzer
 
         private void FilterTextBoxes_TextChanged(object sender, TextChangedEventArgs e)
         {
-            ApplyFilters();
+            ScheduleFilterRefresh();
         }
 
-        private void ApplyFilters()
+        private void FilterDebounceTimer_Tick(object? sender, EventArgs e)
+        {
+            _filterDebounceTimer.Stop();
+            RefreshFilterView();
+        }
+
+        private void ScheduleFilterRefresh()
+        {
+            _filterDebounceTimer.Stop();
+            _filterDebounceTimer.Start();
+        }
+
+        private void RefreshFilterView()
         {
             var sourceData = GetActiveBaseData();
-            if (sourceData == null) return;
-
-            // Parse Include and Exclude PGNs
-            var includePGNs = ParseList(IncludePGNTextBox.Text);
-            var includeAddress = ParseList(IncludeAddressTextBox.Text);
-            var excludePGNs = ParseList(ExcludePGNTextBox.Text);
-
-            // Reset to original data when all filters are cleared
-            if (includePGNs.Count == 0 && includeAddress.Count == 0 && excludePGNs.Count == 0)
+            if (sourceData == null)
             {
-                _filteredData = null;
-                DataGrid.ItemsSource = sourceData;
                 return;
             }
 
-            // Apply filters to the original data
-            var filteredData = sourceData.Where(record =>
+            if (!ReferenceEquals(DataGrid.ItemsSource, sourceData))
             {
-                bool includePGN = includePGNs.Count == 0 || includePGNs.Contains(record.PGN);
-                bool includeSource = includeAddress.Count == 0
-                    || includeAddress.Contains(record.Source)
-                    || includeAddress.Contains(record.Destination);
-                bool exclude = excludePGNs.Contains(record.PGN);
-
-                return includePGN && includeSource && !exclude;
-            }).ToList();
-
-            if (DistinctFilterCheckBox.IsChecked == true)
-            {
-                filteredData = filteredData
-                    .GroupBy(record => record.Data)  // Group by the Data column
-                    .Select(group => group.First()) // Take the first record from each group
-                    .ToList();                      // Convert to a List<Nmea2000Record>
+                DataGrid.ItemsSource = sourceData;
+                _dataGridView = CollectionViewSource.GetDefaultView(sourceData);
+                if (_dataGridView != null)
+                {
+                    _dataGridView.Filter = FilterRecord;
+                }
             }
 
-            _filteredData = filteredData;
-            DataGrid.ItemsSource = _filteredData;
+            if (_dataGridView == null)
+            {
+                return;
+            }
+
+            _includePGNs = ParseList(IncludePGNTextBox.Text);
+            _includeAddresses = ParseList(IncludeAddressTextBox.Text);
+            _excludePGNs = ParseList(ExcludePGNTextBox.Text);
+            _distinctFilterEnabled = DistinctFilterCheckBox.IsChecked == true;
+            _distinctDataSeen.Clear();
+            _dataGridView.Refresh();
+        }
+
+        private bool FilterRecord(object obj)
+        {
+            if (obj is not Nmea2000Record record)
+            {
+                return false;
+            }
+
+            var includePGN = _includePGNs.Count == 0 || _includePGNs.Contains(record.PGN);
+            var includeSource = _includeAddresses.Count == 0
+                || _includeAddresses.Contains(record.Source)
+                || _includeAddresses.Contains(record.Destination);
+            var exclude = _excludePGNs.Contains(record.PGN);
+
+            if (!includePGN || !includeSource || exclude)
+            {
+                return false;
+            }
+
+            if (_distinctFilterEnabled)
+            {
+                return _distinctDataSeen.Add(record.Data);
+            }
+
+            return true;
         }
 
         private HashSet<string> ParseList(string input)
@@ -593,7 +673,13 @@ namespace NMEA2000Analyzer
             // Clear data collections
             _Data?.Clear();
             _assembledData?.Clear();
-            _filteredData?.Clear();
+            _filterDebounceTimer.Stop();
+            _dataGridView = null;
+            _distinctDataSeen.Clear();
+            _includePGNs.Clear();
+            _includeAddresses.Clear();
+            _excludePGNs.Clear();
+            _distinctFilterEnabled = false;
             Globals.Devices.Clear();
 
             // Reset the DataGrid and data view
@@ -689,7 +775,7 @@ namespace NMEA2000Analyzer
 
         private void RefreshGridView()
         {
-            ApplyFilters();
+            RefreshFilterView();
         }
 
         private void SetPacketView(PacketViewMode packetViewMode)
@@ -741,7 +827,7 @@ namespace NMEA2000Analyzer
 
                 IncludePGNTextBox.Text = includePGNs ?? string.Empty;
                 ExcludePGNTextBox.Text = excludePGNs ?? string.Empty;
-                ApplyFilters();
+                RefreshFilterView();
             }
             else
             {
@@ -776,7 +862,7 @@ namespace NMEA2000Analyzer
                 IncludePGNTextBox.Text = selectedRow.PGN;
 
                 // Apply the filter
-                ApplyFilters();
+                RefreshFilterView();
             }
         }
 
@@ -788,7 +874,7 @@ namespace NMEA2000Analyzer
                 IncludeAddressTextBox.Text = selectedRow.Source;
 
                 // Apply the filter
-                ApplyFilters();
+                RefreshFilterView();
             }
         }
 
@@ -877,7 +963,7 @@ namespace NMEA2000Analyzer
 
         private void DistinctCheckbox_Changed(object sender, RoutedEventArgs e)
         {
-            ApplyFilters();
+            RefreshFilterView();
         }
 
         private void DataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -1052,33 +1138,4 @@ namespace NMEA2000Analyzer
         }
     }
 
-    public class HexToAsciiConverter : System.Windows.Data.IValueConverter
-    {
-        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
-        {
-            string hexString = value as string;
-            return hexString != null ? ConvertHexToAscii(hexString) : string.Empty;
-        }
-
-        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
-        {
-            throw new NotImplementedException();
-        }
-
-        private string ConvertHexToAscii(string hexString)
-        {
-            string[] hexValues = hexString.Split(' ');
-            char[] asciiChars = new char[hexValues.Length];
-
-            for (int i = 0; i < hexValues.Length; i++)
-            {
-                string hex = hexValues[i].Replace("0x", "");
-                int byteValue = int.Parse(hex, System.Globalization.NumberStyles.HexNumber);
-
-                asciiChars[i] = byteValue >= 32 && byteValue <= 126 ? (char)byteValue : '.';
-            }
-
-            return new string(asciiChars);
-        }
-    }
 }
