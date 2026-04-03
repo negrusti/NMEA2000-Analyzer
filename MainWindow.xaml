@@ -24,12 +24,24 @@
             </Menu.ItemContainerStyle>
             <MenuItem Header="File" x:Name="FileMenu">
                 <MenuItem Header="Open" Click="OpenMenuItem_ClickAsync" />
+                <MenuItem Header="Save as candump" Click="SaveAsCandumpMenuItem_Click" />
                 <MenuItem x:Name="RecordMenuItem" Header="PCAN Capture" Click="RecordMenuItem_ClickAsync" />
                 <Separator x:Name="RecentFilesSeparator" Visibility="Collapsed" />
             </MenuItem>
             <MenuItem Header="Statistics">
                 <MenuItem Header="PGNs" Click="PgnStatisticsMenuItem_Click" />
                 <MenuItem Header="Devices" Click="DevicesMenuItem_Click" />
+            </MenuItem>
+            <MenuItem Header="View">
+                <MenuItem x:Name="AssembledViewMenuItem"
+                          Header="Assembled"
+                          IsCheckable="True"
+                          IsChecked="True"
+                          Click="AssembledViewMenuItem_Click" />
+                <MenuItem x:Name="UnassembledViewMenuItem"
+                          Header="Unassembled"
+                          IsCheckable="True"
+                          Click="UnassembledViewMenuItem_Click" />
             </MenuItem>
             <MenuItem Header="Presets" x:Name="Presets">
             </MenuItem>

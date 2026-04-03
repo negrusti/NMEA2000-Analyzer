@@ -1,5 +1,6 @@
 ﻿using Microsoft.Win32;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -17,6 +18,13 @@ namespace NMEA2000Analyzer
         private List<Nmea2000Record>? _Data;
         private List<Nmea2000Record>? _assembledData;
         private List<Nmea2000Record>? _filteredData;
+        private PacketViewMode _currentPacketView = PacketViewMode.Assembled;
+
+        private enum PacketViewMode
+        {
+            Assembled,
+            Unassembled
+        }
         
         public MainWindow()
         {
@@ -124,14 +132,15 @@ namespace NMEA2000Analyzer
                         return;
                 }
 
-                DataGrid.ItemsSource = _Data;
                 UpdateTimestampRange();
+                EnrichUnassembledRecords(_Data);
 
                 _assembledData = AssembleFrames(_Data);
-                DataGrid.ItemsSource = _assembledData;
 
                 GenerateDeviceInfo(_assembledData);
+                UpdateSrcDevices(_Data);
                 UpdateSrcDevices(_assembledData);
+                RefreshGridView();
 
                 RecentFilesManager.RegisterFileOpen(filePath);
                 PopulateRecentFilesMenu();
@@ -156,6 +165,51 @@ namespace NMEA2000Analyzer
             {
                 string filePath = openFileDialog.FileName;
                 await LoadFileAsync(filePath);
+            }
+        }
+
+        private void SaveAsCandumpMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (_Data == null || _Data.Count == 0)
+            {
+                MessageBox.Show("No unassembled data available to export.", "Save as candump", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var saveFileDialog = new SaveFileDialog
+            {
+                Filter = "candump files (*.log)|*.log|Text files (*.txt)|*.txt|All files (*.*)|*.*",
+                DefaultExt = ".log",
+                FileName = "export.log",
+                Title = "Save as candump"
+            };
+
+            if (saveFileDialog.ShowDialog() != true)
+            {
+                return;
+            }
+
+            try
+            {
+                using var writer = new StreamWriter(saveFileDialog.FileName);
+
+                for (var exportIndex = 0; exportIndex < _Data.Count; exportIndex++)
+                {
+                    var record = _Data[exportIndex];
+                    var data = ParseRecordData(record.Data);
+                    if (data.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    var timestamp = GetCandumpTimestamp(record, exportIndex);
+                    var canId = BuildCanId(record);
+                    writer.WriteLine(FormatCandumpLine(timestamp, canId, data));
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to save candump file: {ex.Message}", "Save as candump", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -223,12 +277,14 @@ namespace NMEA2000Analyzer
                 
                 _Data = PCAN.LoadCapture();
                 UpdateTimestampRange();
+                EnrichUnassembledRecords(_Data);
 
                 _assembledData = AssembleFrames(_Data);
-                DataGrid.ItemsSource = _assembledData;
 
                 GenerateDeviceInfo(_assembledData);
+                UpdateSrcDevices(_Data);
                 UpdateSrcDevices(_assembledData);
+                RefreshGridView();
 
             }
             else 
@@ -250,7 +306,8 @@ namespace NMEA2000Analyzer
 
         private void ApplyFilters()
         {
-            if (_assembledData == null) return;
+            var sourceData = GetActiveBaseData();
+            if (sourceData == null) return;
 
             // Parse Include and Exclude PGNs
             var includePGNs = ParseList(IncludePGNTextBox.Text);
@@ -260,12 +317,13 @@ namespace NMEA2000Analyzer
             // Reset to original data when all filters are cleared
             if (includePGNs.Count == 0 && includeAddress.Count == 0 && excludePGNs.Count == 0)
             {
-                DataGrid.ItemsSource = _assembledData;
+                _filteredData = null;
+                DataGrid.ItemsSource = sourceData;
                 return;
             }
 
             // Apply filters to the original data
-            var filteredData = _assembledData.Where(record =>
+            var filteredData = sourceData.Where(record =>
             {
                 bool includePGN = includePGNs.Count == 0 || includePGNs.Contains(record.PGN);
                 bool includeSource = includeAddress.Count == 0
@@ -284,7 +342,8 @@ namespace NMEA2000Analyzer
                     .ToList();                      // Convert to a List<Nmea2000Record>
             }
 
-            DataGrid.ItemsSource = filteredData;
+            _filteredData = filteredData;
+            DataGrid.ItemsSource = _filteredData;
         }
 
         private HashSet<string> ParseList(string input)
@@ -544,6 +603,111 @@ namespace NMEA2000Analyzer
             IncludePGNTextBox.Text = string.Empty;
             ExcludePGNTextBox.Text = string.Empty;
             IncludeAddressTextBox.Text = string.Empty;
+        }
+
+        private List<Nmea2000Record>? GetActiveBaseData()
+        {
+            return _currentPacketView == PacketViewMode.Assembled ? _assembledData : _Data;
+        }
+
+        private static byte[] ParseRecordData(string data)
+        {
+            return data.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Select(hex => Convert.ToByte(hex, 16))
+                .ToArray();
+        }
+
+        private static uint BuildCanId(Nmea2000Record record)
+        {
+            var priority = int.TryParse(record.Priority, out var parsedPriority) ? parsedPriority : 0;
+            var pgn = int.TryParse(record.PGN, out var parsedPgn) ? parsedPgn : 0;
+            var source = int.TryParse(record.Source, out var parsedSource) ? parsedSource : 0;
+            var destination = int.TryParse(record.Destination, out var parsedDestination) ? parsedDestination : 255;
+
+            if (pgn < 0xF000)
+            {
+                pgn |= destination & 0xFF;
+            }
+
+            return (uint)((priority << 26) | (pgn << 8) | source);
+        }
+
+        private static double GetCandumpTimestamp(Nmea2000Record record, int exportIndex)
+        {
+            if (!string.IsNullOrWhiteSpace(record.Timestamp))
+            {
+                if (double.TryParse(record.Timestamp, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds))
+                {
+                    return seconds;
+                }
+
+                if (DateTimeOffset.TryParse(record.Timestamp, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var timestamp))
+                {
+                    return timestamp.ToUnixTimeMilliseconds() / 1000.0;
+                }
+
+                if (TimeSpan.TryParse(record.Timestamp, CultureInfo.InvariantCulture, out var timeSpan))
+                {
+                    return timeSpan.TotalSeconds;
+                }
+            }
+
+            return exportIndex * 0.001;
+        }
+
+        private static string FormatCandumpLine(double timestamp, uint canId, IEnumerable<byte> payload)
+        {
+            var data = string.Concat(payload.Select(value => $"{value:X2}"));
+            return $"({timestamp:F6}) can0 {canId:X8}#{data}";
+        }
+
+        private void EnrichUnassembledRecords(List<Nmea2000Record>? records)
+        {
+            if (records == null)
+            {
+                return;
+            }
+
+            var rowNumber = 0;
+            foreach (var record in records)
+            {
+                record.LogSequenceNumber = rowNumber++;
+
+                if (!int.TryParse(record.PGN, out var pgn) ||
+                    !Globals.UniquePGNs.TryGetValue(pgn, out var pgnDefinition))
+                {
+                    record.Description = "Unknown PGN";
+                    record.Type = "Unknown";
+                    continue;
+                }
+
+                record.Type = pgnDefinition.Type;
+                record.Description = pgnDefinition.Description;
+                record.PGNListIndex = null;
+            }
+        }
+
+        private void RefreshGridView()
+        {
+            ApplyFilters();
+        }
+
+        private void SetPacketView(PacketViewMode packetViewMode)
+        {
+            _currentPacketView = packetViewMode;
+            AssembledViewMenuItem.IsChecked = packetViewMode == PacketViewMode.Assembled;
+            UnassembledViewMenuItem.IsChecked = packetViewMode == PacketViewMode.Unassembled;
+            RefreshGridView();
+        }
+
+        private void AssembledViewMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            SetPacketView(PacketViewMode.Assembled);
+        }
+
+        private void UnassembledViewMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            SetPacketView(PacketViewMode.Unassembled);
         }
 
         private List<Preset> LoadPresets()
