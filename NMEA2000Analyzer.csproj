@@ -8,8 +8,8 @@
     <UseWPF>true</UseWPF>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <SignAssembly>False</SignAssembly>
-    <AssemblyVersion>1.3.3</AssemblyVersion>
-    <FileVersion>1.3.3</FileVersion>
+    <AssemblyVersion>1.3.4</AssemblyVersion>
+    <FileVersion>1.3.4</FileVersion>
     <Version />
   </PropertyGroup>
 
@@ -33,6 +33,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="CandumpGenerator\**" />
+    <EmbeddedResource Remove="CandumpGenerator\**" />
+    <None Remove="CandumpGenerator\**" />
+    <Page Remove="CandumpGenerator\**" />
     <Compile Remove="NewFolder\**" />
     <EmbeddedResource Remove="NewFolder\**" />
     <None Remove="NewFolder\**" />

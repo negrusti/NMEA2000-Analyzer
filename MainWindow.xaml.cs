@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
@@ -991,14 +992,7 @@ namespace NMEA2000Analyzer
                         decodedJson = DecodePgnData(dataBytes, ((App)Application.Current).CanboatRoot.PGNs.FirstOrDefault(q => q.PGN.ToString() == selectedRecord.PGN));
                     }
 
-                    // Convert the decoded output to a formatted JSON string
-                    string jsonString = JsonSerializer.Serialize(decodedJson, new JsonSerializerOptions
-                    {
-                        WriteIndented = true
-                    });
-
-                    // Open the JSON Viewer Window
-                    JsonViewerTextBox.Text = jsonString;
+                    JsonViewerTextBox.Text = FormatDecodedYaml(decodedJson);
                 }
                 catch (Exception ex)
                 {
@@ -1011,6 +1005,170 @@ namespace NMEA2000Analyzer
                     JsonViewerTextBox.Text = $"Failed to decode PGN data:\n{ex.Message}\n({fileName}:{lineNumber})";
                 }
             }
+        }
+
+        private static string FormatDecodedYaml(JsonObject? decodedJson)
+        {
+            if (decodedJson == null)
+            {
+                return string.Empty;
+            }
+
+            var builder = new StringBuilder();
+
+            foreach (var property in decodedJson)
+            {
+                AppendYamlProperty(builder, property.Key, property.Value, 0);
+            }
+
+            return builder.ToString().TrimEnd();
+        }
+
+        private static void AppendYamlProperty(StringBuilder builder, string key, JsonNode? value, int indentLevel)
+        {
+            var indent = new string(' ', indentLevel * 2);
+
+            switch (value)
+            {
+                case null:
+                    builder.AppendLine($"{indent}{key}: null");
+                    break;
+                case JsonValue jsonValue:
+                    builder.AppendLine($"{indent}{key}: {FormatYamlScalar(jsonValue)}");
+                    break;
+                case JsonObject jsonObject:
+                    builder.AppendLine($"{indent}{key}:");
+                    foreach (var property in jsonObject)
+                    {
+                        AppendYamlProperty(builder, property.Key, property.Value, indentLevel + 1);
+                    }
+                    break;
+                case JsonArray jsonArray:
+                    AppendYamlArray(builder, key, jsonArray, indentLevel);
+                    break;
+            }
+        }
+
+        private static void AppendYamlArray(StringBuilder builder, string key, JsonArray jsonArray, int indentLevel)
+        {
+            var indent = new string(' ', indentLevel * 2);
+
+            if (jsonArray.Count == 0)
+            {
+                builder.AppendLine($"{indent}{key}: []");
+                return;
+            }
+
+            if (TryFlattenFieldArray(jsonArray, out var flattenedLines))
+            {
+                builder.AppendLine($"{indent}{key}:");
+                foreach (var line in flattenedLines)
+                {
+                    builder.AppendLine($"{indent}  {line}");
+                }
+                return;
+            }
+
+            builder.AppendLine($"{indent}{key}:");
+            foreach (var item in jsonArray)
+            {
+                AppendYamlArrayItem(builder, item, indentLevel + 1);
+            }
+        }
+
+        private static void AppendYamlArrayItem(StringBuilder builder, JsonNode? item, int indentLevel)
+        {
+            var indent = new string(' ', indentLevel * 2);
+
+            switch (item)
+            {
+                case null:
+                    builder.AppendLine($"{indent}- null");
+                    break;
+                case JsonValue jsonValue:
+                    builder.AppendLine($"{indent}- {FormatYamlScalar(jsonValue)}");
+                    break;
+                case JsonObject jsonObject:
+                    var properties = jsonObject.ToList();
+                    if (properties.Count == 0)
+                    {
+                        builder.AppendLine($"{indent}- {{}}");
+                        return;
+                    }
+
+                    builder.AppendLine($"{indent}- {properties[0].Key}: {FormatYamlNodeInline(properties[0].Value)}");
+                    for (var i = 1; i < properties.Count; i++)
+                    {
+                        AppendYamlProperty(builder, properties[i].Key, properties[i].Value, indentLevel + 1);
+                    }
+                    break;
+                case JsonArray jsonArray:
+                    builder.AppendLine($"{indent}-");
+                    foreach (var child in jsonArray)
+                    {
+                        AppendYamlArrayItem(builder, child, indentLevel + 1);
+                    }
+                    break;
+            }
+        }
+
+        private static bool TryFlattenFieldArray(JsonArray jsonArray, out List<string> flattenedLines)
+        {
+            flattenedLines = new List<string>();
+
+            foreach (var item in jsonArray)
+            {
+                if (item is not JsonObject jsonObject || jsonObject.Count != 1)
+                {
+                    flattenedLines.Clear();
+                    return false;
+                }
+
+                var property = jsonObject.First();
+                flattenedLines.Add($"{property.Key}: {FormatYamlNodeInline(property.Value)}");
+            }
+
+            return true;
+        }
+
+        private static string FormatYamlNodeInline(JsonNode? value)
+        {
+            return value switch
+            {
+                null => "null",
+                JsonValue jsonValue => FormatYamlScalar(jsonValue),
+                JsonObject or JsonArray => JsonSerializer.Serialize(value),
+                _ => string.Empty
+            };
+        }
+
+        private static string FormatYamlScalar(JsonValue value)
+        {
+            if (value.TryGetValue<string>(out var stringValue))
+            {
+                return NeedsYamlQuotes(stringValue)
+                    ? $"\"{stringValue.Replace("\"", "\\\"")}\""
+                    : stringValue;
+            }
+
+            return value.ToJsonString();
+        }
+
+        private static bool NeedsYamlQuotes(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return true;
+            }
+
+            if (value.Equals("null", StringComparison.OrdinalIgnoreCase) ||
+                value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+                value.Equals("false", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return value.Any(ch => char.IsWhiteSpace(ch) || ch is ':' or '#' or '-' or '"' or '\'' or '[' or ']' or '{' or '}');
         }
 
         private int _currentSearchIndex = -1;

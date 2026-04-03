@@ -263,6 +263,9 @@ namespace NMEA2000Analyzer
                 case "MMSI":
                 case "TIME":
                 case "DATE":
+                case "PGN":
+                case "DURATION":
+                case "FIELD_INDEX":
                     double decodedNumberValue = rawValue * field.Resolution;
 
                     // Handle signed values
@@ -320,8 +323,6 @@ namespace NMEA2000Analyzer
                 case "VARIABLE":
                     break;
                 case "KEY_VALUE":
-                    break;
-                case "FIELD_INDEX":
                     break;
                 default:
                     throw new NotSupportedException($"Field type '{field.FieldType}' is not supported.");
