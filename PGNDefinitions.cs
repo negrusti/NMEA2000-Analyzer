@@ -106,6 +106,7 @@ namespace NMEA2000Analyzer
                 ["Type"] = pgnDefinition.Type,
                 ["Fields"] = new JsonArray()
             };
+            var warnings = new JsonArray();
 
             if (pgnDefinition.Fields == null || pgnDefinition.Fields.Length == 0)
                 return jsonObject;
@@ -126,53 +127,59 @@ namespace NMEA2000Analyzer
                 if (repeatedFieldStart >= 0 && i >= repeatedFieldStart && i < repeatedFieldStart + repeatedFieldCount)
                     continue;
 
-                if (field.FieldType == "STRING_FIX")
+                try
                 {
-                    var rawBytes = new byte[field.BitLength / 8];
-                    Array.Copy(pgnData, field.BitOffset / 8, rawBytes, 0, field.BitLength / 8);
-                    var filteredBytes = rawBytes.Where(b => b != 0xFF && b != 0x00).ToArray();
+                    if (field.FieldType == "STRING_FIX")
+                    {
+                        var rawBytes = new byte[field.BitLength / 8];
+                        Array.Copy(pgnData, field.BitOffset / 8, rawBytes, 0, field.BitLength / 8);
+                        var filteredBytes = rawBytes.Where(b => b != 0xFF && b != 0x00).ToArray();
 
-                    // Convert the bytes to an ASCII string and trim padding characters
-                    finalValue = Encoding.ASCII.GetString(filteredBytes).TrimEnd('@', ' ');
+                        // Convert the bytes to an ASCII string and trim padding characters
+                        finalValue = Encoding.ASCII.GetString(filteredBytes).TrimEnd('@', ' ');
+                    }
+                    else if (field.FieldType == "INDIRECT_LOOKUP")
+                    {
+                        int byteStart = field.BitOffset / 8;
+                        int bitStart = field.BitOffset % 8;
+                        int bitLength = field.BitLength;
+
+                        int rawValue = (int)ExtractBits(pgnData, byteStart, bitStart, bitLength);
+
+                        var indirectField = pgnDefinition.Fields[field.LookupIndirectEnumerationFieldOrder - 1];
+
+                        byteStart = indirectField.BitOffset / 8;
+                        bitStart = indirectField.BitOffset % 8;
+                        bitLength = indirectField.BitLength;
+
+                        int rawValueIndirectField = (int)ExtractBits(pgnData, byteStart, bitStart, bitLength);
+                        finalValue = LookupIndirect(field.LookupIndirectEnumeration, rawValueIndirectField, rawValue);
+                    }
+                    else
+                    {
+                        int byteStart = field.BitOffset / 8;
+                        int bitStart = field.BitOffset % 8;
+                        int bitLength = field.BitLength;
+
+                        // Extract the bits from the raw PGN data
+                        ulong rawValue = ExtractBits(pgnData, byteStart, bitStart, bitLength);
+
+                        // Decode the value
+                        object? decodedValue = DecodeFieldValue(rawValue, field);
+
+                        if (decodedValue is double rangedValue &&
+                            ((field.RangeMin != null && rangedValue < field.RangeMin) ||
+                             (field.RangeMax != null && rangedValue > field.RangeMax)))
+                            continue;
+
+                        // Convert units if applicable
+                        finalValue = decodedValue == null ? null : ApplyUnitConversion(decodedValue, field);
+                    }
                 }
-                else if (field.FieldType == "INDIRECT_LOOKUP")
+                catch (Exception ex)
                 {
-
-                    int byteStart = field.BitOffset / 8;
-                    int bitStart = field.BitOffset % 8;
-                    int bitLength = field.BitLength;
-
-                    int rawValue = (int)ExtractBits(pgnData, byteStart, bitStart, bitLength);
-
-                    var indirectField = pgnDefinition.Fields[field.LookupIndirectEnumerationFieldOrder - 1];
-
-                    byteStart = indirectField.BitOffset / 8;
-                    bitStart = indirectField.BitOffset % 8;
-                    bitLength = indirectField.BitLength;
-
-                    int rawValueIndirectField = (int)ExtractBits(pgnData, byteStart, bitStart, bitLength);
-                    finalValue = LookupIndirect(field.LookupIndirectEnumeration, rawValueIndirectField, rawValue);
-                }
-                else
-                {
-                    int byteStart = field.BitOffset / 8;
-                    int bitStart = field.BitOffset % 8;
-                    int bitLength = field.BitLength;
-
-                    // Extract the bits from the raw PGN data
-                    ulong rawValue = ExtractBits(pgnData, byteStart, bitStart, bitLength);
-
-                    // Decode the value
-                    object decodedValue = DecodeFieldValue(rawValue, field);
-
-                    if (decodedValue is double rangedValue &&
-                        ((field.RangeMin != null && rangedValue < field.RangeMin) ||
-                         (field.RangeMax != null && rangedValue > field.RangeMax)))
-                        continue;
-
-                    // Convert units if applicable
-                    finalValue = ApplyUnitConversion(decodedValue, field);
-
+                    AddDecodeWarning(warnings, $"Field '{field.Name}' skipped: {ex.Message}");
+                    finalValue = "<decode error>";
                 }
 
                 // Add to JSON output
@@ -184,51 +191,115 @@ namespace NMEA2000Analyzer
             // Handle repeated field sets
             if (repeatedFieldCount > 0 && repeatedFieldStart >= 0)
             {
-                var repeatedFieldsArray = new JsonArray();
+                var repeatedFields = pgnDefinition.Fields
+                    .Skip(repeatedFieldStart)
+                    .Take(repeatedFieldCount)
+                    .ToArray();
 
-                // Determine the number of repetitions from the count field
-                var countField = pgnDefinition.Fields[pgnDefinition.RepeatingFieldSet1CountField - 1];
-                int byteStart = countField.BitOffset / 8;
-                int bitStart = countField.BitOffset % 8;
-                int bitLength = countField.BitLength;
-
-                ulong repetitionCount = ExtractBits(pgnData, byteStart, bitStart, bitLength);
-
-                for (int i = 0; i < (int)repetitionCount; i++)
+                if (UsesUnsupportedRepeatedLayout(repeatedFields))
                 {
-                    var repeatedFieldSet = new JsonObject();
+                    AddDecodeWarning(warnings, "Repeated field set uses variable or unsupported field types; repeated values were not fully decoded.");
+                }
+                else
+                {
+                    var repeatedFieldsArray = new JsonArray();
 
-                    for (int j = 0; j < repeatedFieldCount; j++)
+                    try
                     {
-                        var field = pgnDefinition.Fields[repeatedFieldStart + j];
+                        // Determine the number of repetitions from the count field
+                        var countField = pgnDefinition.Fields[pgnDefinition.RepeatingFieldSet1CountField - 1];
+                        int byteStart = countField.BitOffset / 8;
+                        int bitStart = countField.BitOffset % 8;
+                        int bitLength = countField.BitLength;
 
-                        int repeatBitOffset = field.BitOffset + (i * field.BitLength);
-                        int repeatByteStart = repeatBitOffset / 8;
-                        int repeatBitStart = repeatBitOffset % 8;
-                        int repeatBitLength = field.BitLength;
+                        ulong repetitionCount = ExtractBits(pgnData, byteStart, bitStart, bitLength);
 
-                        ulong rawValue = ExtractBits(pgnData, repeatByteStart, repeatBitStart, repeatBitLength);
-                        object decodedValue = DecodeFieldValue(rawValue, field);
+                        for (int i = 0; i < (int)repetitionCount; i++)
+                        {
+                            var repeatedFieldSet = new JsonObject();
 
-                        if (decodedValue is double rangedValue &&
-                            ((field.RangeMin != null && rangedValue < field.RangeMin) ||
-                             (field.RangeMax != null && rangedValue > field.RangeMax)))
-                            continue;
+                            for (int j = 0; j < repeatedFieldCount; j++)
+                            {
+                                var field = pgnDefinition.Fields[repeatedFieldStart + j];
 
-                        // Convert units if applicable
-                        object finalValue = ApplyUnitConversion(decodedValue, field);
+                                try
+                                {
+                                    int repeatBitOffset = field.BitOffset + (i * field.BitLength);
+                                    int repeatByteStart = repeatBitOffset / 8;
+                                    int repeatBitStart = repeatBitOffset % 8;
+                                    int repeatBitLength = field.BitLength;
 
-                        repeatedFieldSet[field.Name] = JsonValue.Create(finalValue);
+                                    ulong rawValue = ExtractBits(pgnData, repeatByteStart, repeatBitStart, repeatBitLength);
+                                    object? decodedValue = DecodeFieldValue(rawValue, field);
+
+                                    if (decodedValue is double rangedValue &&
+                                        ((field.RangeMin != null && rangedValue < field.RangeMin) ||
+                                         (field.RangeMax != null && rangedValue > field.RangeMax)))
+                                        continue;
+
+                                    object? repeatedFinalValue = decodedValue == null ? null : ApplyUnitConversion(decodedValue, field);
+                                    repeatedFieldSet[field.Name] = JsonValue.Create(repeatedFinalValue);
+                                }
+                                catch (Exception ex)
+                                {
+                                    AddDecodeWarning(warnings, $"Repeated field '{field.Name}' in item {i + 1} skipped: {ex.Message}");
+                                    repeatedFieldSet[field.Name] = "<decode error>";
+                                }
+                            }
+
+                            if (repeatedFieldSet.Count > 0)
+                                repeatedFieldsArray.Add(repeatedFieldSet);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        AddDecodeWarning(warnings, $"Repeated field set could not be decoded: {ex.Message}");
                     }
 
-                    if (repeatedFieldSet.Count > 0)
-                        repeatedFieldsArray.Add(repeatedFieldSet);
+                    if (repeatedFieldsArray.Count > 0)
+                    {
+                        jsonObject["RepeatedFields"] = repeatedFieldsArray;
+                    }
                 }
+            }
 
-                jsonObject["RepeatedFields"] = repeatedFieldsArray;
+            if (warnings.Count > 0)
+            {
+                jsonObject["Warnings"] = warnings;
             }
 
             return jsonObject;
+        }
+
+        private static bool UsesUnsupportedRepeatedLayout(IEnumerable<Canboat.Field> repeatedFields)
+        {
+            foreach (var field in repeatedFields)
+            {
+                if (field.BitLength <= 0)
+                {
+                    return true;
+                }
+
+                switch (field.FieldType)
+                {
+                    case "VARIABLE":
+                    case "KEY_VALUE":
+                    case "STRING_LZ":
+                    case "STRING_LAU":
+                    case "BINARY":
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static void AddDecodeWarning(JsonArray warnings, string warning)
+        {
+            if (!warnings.Any(node => string.Equals(node?.GetValue<string>(), warning, StringComparison.Ordinal)))
+            {
+                warnings.Add(warning);
+            }
         }
 
         // Function to extract bits from the data

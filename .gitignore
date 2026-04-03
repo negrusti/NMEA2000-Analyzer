@@ -51,6 +51,7 @@ artifacts/
 *.mdf
 *.ldf
 *.ndf
+*.tmp
 
 # Entity Framework
 *.edmx.sql

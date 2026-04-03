@@ -84,11 +84,11 @@ namespace NMEA2000Analyzer
                         Debug.WriteLine("PCAN-View format detected");
                         return FileFormat.PCANView;
                     }
-                    else if (Regex.IsMatch(line, @"^\s+can\d+\s+[0-9A-F]+\s+\[\d+\]\s+([0-9A-F]{2}\s+)+"))
+                    else if (Regex.IsMatch(line, @"^\s*(\((?<timestamp>[\d.]+)\)\s+)?can\d+\s+[0-9A-F]+\s+\[\d+\]\s+([0-9A-F]{2}\s*)+$"))
                     {
-                        // New format: `canX  CAN_ID  [length]  data bytes`
-                        Debug.WriteLine("New CAN format detected");
-                        return FileFormat.CanDump2; // Add this enum value to `FileFormat`
+                        // candump log format: optional timestamp + interface + CAN ID + [length] + data bytes
+                        Debug.WriteLine("CanDump spaced-byte format detected");
+                        return FileFormat.CanDump2;
                     }
                 }
             }
@@ -209,8 +209,8 @@ namespace NMEA2000Analyzer
         {
             var records = new List<Nmea2000Record>();
 
-            // Regular expression to match the new log format
-            var regex = new Regex(@"(?<interface>\S+)\s+(?<canId>[0-9A-F]+)\s+\[(?<length>\d+)\]\s+(?<data>([0-9A-F]{2}\s?)+)");
+            // candump log format with spaced bytes, with or without a leading timestamp.
+            var regex = new Regex(@"^\s*(\((?<timestamp>[\d.]+)\)\s+)?(?<interface>\S+)\s+(?<canId>[0-9A-F]+)\s+\[(?<length>\d+)\]\s+(?<data>([0-9A-F]{2}\s*)+)$");
 
             foreach (var line in System.IO.File.ReadLines(filePath))
             {
@@ -219,6 +219,15 @@ namespace NMEA2000Analyzer
 
                 try
                 {
+                    string? formattedTimestamp = null;
+                    if (match.Groups["timestamp"].Success)
+                    {
+                        var timestamp = double.Parse(match.Groups["timestamp"].Value, CultureInfo.InvariantCulture);
+                        var datetime = DateTimeOffset.FromUnixTimeSeconds((long)timestamp)
+                            .AddMilliseconds((timestamp % 1) * 1000);
+                        formattedTimestamp = datetime.ToString("o");
+                    }
+
                     // Parse the CAN ID
                     var canIdHex = match.Groups["canId"].Value;
                     int canId = int.Parse(canIdHex, NumberStyles.HexNumber);
@@ -247,6 +256,7 @@ namespace NMEA2000Analyzer
                     // Create an Nmea2000Record
                     records.Add(new Nmea2000Record
                     {
+                        Timestamp = formattedTimestamp,
                         Source = source.ToString(),
                         Destination = destination.ToString(),
                         PGN = pgn.ToString(),
