@@ -10,6 +10,9 @@ namespace NMEA2000Analyzer
 {
     class FileFormats
     {
+        private const int LoadPercentStart = 5;
+        private const int LoadPercentEnd = 75;
+
         public enum FileFormat
         {
             Unknown,
@@ -100,12 +103,14 @@ namespace NMEA2000Analyzer
             return FileFormat.Unknown; // Default to unknown format
         }
 
-        public static List<Nmea2000Record> LoadTwoCanCsv(string filePath)
+        public static List<Nmea2000Record> LoadTwoCanCsv(string filePath, IProgress<FileLoadProgress>? progress = null)
         {
             var records = new List<Nmea2000Record>(EstimateRecordCapacity(filePath, 56));
 
             using (var reader = new StreamReader(filePath))
             {
+                var fileLength = reader.BaseStream.Length;
+                var lastReportedPercent = -1;
                 string? headerLine = reader.ReadLine(); // Read the header
                 if (headerLine == null) throw new Exception("File is empty.");
 
@@ -121,6 +126,7 @@ namespace NMEA2000Analyzer
                 {
                     var line = reader.ReadLine();
                     if (string.IsNullOrWhiteSpace(line)) continue;
+                    ReportReadProgress(progress, "Loading TwoCan CSV records...", reader.BaseStream.Position, fileLength, ref lastReportedPercent);
 
                     var values = line.Split(',').Select(v => v.Trim()).ToArray();
                     if (values.Length < 12) continue; // Ensure there are enough columns (D1-D8)
@@ -138,15 +144,26 @@ namespace NMEA2000Analyzer
             return records;
         }
 
-        public static List<Nmea2000Record> LoadCanDump1(string filePath)
+        public static List<Nmea2000Record> LoadCanDump1(string filePath, IProgress<FileLoadProgress>? progress = null)
         {
             var records = new List<Nmea2000Record>(EstimateRecordCapacity(filePath, 36));
 
             // Regular expression to match the log format
             var regex = new Regex(@"\((?<timestamp>[\d.]+)\)\s+(?<interface>\S+)\s+(?<canId>[0-9A-F]+)#(?<data>[0-9A-F]*)");
 
-            foreach (var line in System.IO.File.ReadLines(filePath))
+            using var reader = new StreamReader(filePath);
+            var fileLength = reader.BaseStream.Length;
+            var lastReportedPercent = -1;
+
+            while (!reader.EndOfStream)
             {
+                var line = reader.ReadLine();
+                if (line == null)
+                {
+                    break;
+                }
+
+                ReportReadProgress(progress, "Loading candump records...", reader.BaseStream.Position, fileLength, ref lastReportedPercent);
                 var match = regex.Match(line);
                 if (!match.Success) continue;
 
@@ -175,15 +192,26 @@ namespace NMEA2000Analyzer
             return records;
         }
 
-        public static List<Nmea2000Record> LoadCanDump2(string filePath)
+        public static List<Nmea2000Record> LoadCanDump2(string filePath, IProgress<FileLoadProgress>? progress = null)
         {
             var records = new List<Nmea2000Record>(EstimateRecordCapacity(filePath, 52));
 
             // candump log format with spaced bytes, with or without a leading timestamp.
             var regex = new Regex(@"^\s*(\((?<timestamp>[\d.]+)\)\s+)?(?<interface>\S+)\s+(?<canId>[0-9A-F]+)\s+\[(?<length>\d+)\]\s+(?<data>([0-9A-F]{2}\s*)+)$");
 
-            foreach (var line in System.IO.File.ReadLines(filePath))
+            using var reader = new StreamReader(filePath);
+            var fileLength = reader.BaseStream.Length;
+            var lastReportedPercent = -1;
+
+            while (!reader.EndOfStream)
             {
+                var line = reader.ReadLine();
+                if (line == null)
+                {
+                    break;
+                }
+
+                ReportReadProgress(progress, "Loading candump records...", reader.BaseStream.Position, fileLength, ref lastReportedPercent);
                 var match = regex.Match(line);
                 if (!match.Success) continue;
 
@@ -215,16 +243,19 @@ namespace NMEA2000Analyzer
             return records;
         }
 
-        public static List<Nmea2000Record> LoadActisense(string filePath)
+        public static List<Nmea2000Record> LoadActisense(string filePath, IProgress<FileLoadProgress>? progress = null)
         {
             var records = new List<Nmea2000Record>(EstimateRecordCapacity(filePath, 52));
 
             using (var reader = new StreamReader(filePath))
             {
+                var fileLength = reader.BaseStream.Length;
+                var lastReportedPercent = -1;
                 while (!reader.EndOfStream)
                 {
                     var line = reader.ReadLine();
                     if (string.IsNullOrWhiteSpace(line)) continue;
+                    ReportReadProgress(progress, "Loading Actisense records...", reader.BaseStream.Position, fileLength, ref lastReportedPercent);
 
                     var values = line.Split(',').Select(v => v.Trim()).ToArray();
                     if (values.Length < 8) continue; // Ensure there are enough columns (PGN, Source, Destination, and Data)
@@ -243,16 +274,19 @@ namespace NMEA2000Analyzer
             return records;
         }
 
-        public static List<Nmea2000Record> LoadYDWGLog(string filePath)
+        public static List<Nmea2000Record> LoadYDWGLog(string filePath, IProgress<FileLoadProgress>? progress = null)
         {
             var records = new List<Nmea2000Record>(EstimateRecordCapacity(filePath, 44));
 
             using (var reader = new StreamReader(filePath))
             {
+                var fileLength = reader.BaseStream.Length;
+                var lastReportedPercent = -1;
                 while (!reader.EndOfStream)
                 {
                     var line = reader.ReadLine();
                     if (string.IsNullOrWhiteSpace(line)) continue;
+                    ReportReadProgress(progress, "Loading YDWG records...", reader.BaseStream.Position, fileLength, ref lastReportedPercent);
 
                     try
                     {
@@ -275,21 +309,24 @@ namespace NMEA2000Analyzer
 
             return records;
         }
-        public static List<Nmea2000Record> LoadPCANView(string filePath)
+        public static List<Nmea2000Record> LoadPCANView(string filePath, IProgress<FileLoadProgress>? progress = null)
         {
             var records = new List<Nmea2000Record>(EstimateRecordCapacity(filePath, 56));
 
             using (var reader = new StreamReader(filePath))
             {
+                var fileLength = reader.BaseStream.Length;
+                var lastReportedPercent = -1;
+                var regex = new Regex(@"^\s*(?<index>\d+)\)\s+(?<timeOffset>[\d.]+)\s+(?<direction>Rx|Tx)\s+(?<canId>[0-9A-F]{8})\s+(?<dlc>\d)\s+(?<data>.+)$");
                 while (!reader.EndOfStream)
                 {
                     var line = reader.ReadLine();
                     if (string.IsNullOrWhiteSpace(line)) continue;
+                    ReportReadProgress(progress, "Loading PCAN-View records...", reader.BaseStream.Position, fileLength, ref lastReportedPercent);
 
                     try
                     {
                         // Match log lines with PCAN-View format
-                        var regex = new Regex(@"^\s*(?<index>\d+)\)\s+(?<timeOffset>[\d.]+)\s+(?<direction>Rx|Tx)\s+(?<canId>[0-9A-F]{8})\s+(?<dlc>\d)\s+(?<data>.+)$");
                         var match = regex.Match(line);
 
                         if (!match.Success) continue;
@@ -346,7 +383,7 @@ namespace NMEA2000Analyzer
             }
         }
 
-        public static List<Nmea2000Record> LoadYDBinary(string filePath)
+        public static List<Nmea2000Record> LoadYDBinary(string filePath, IProgress<FileLoadProgress>? progress = null)
         {
             var records = new List<Nmea2000Record>(EstimateBinaryRecordCapacity(filePath, 16));
 
@@ -355,8 +392,10 @@ namespace NMEA2000Analyzer
                 using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read))
                 using (var reader = new BinaryReader(fs))
                 {
+                    var lastReportedPercent = -1;
                     while (reader.BaseStream.Position < reader.BaseStream.Length)
                     {
+                        ReportReadProgress(progress, "Loading Yacht Devices binary records...", reader.BaseStream.Position, reader.BaseStream.Length, ref lastReportedPercent);
                         byte[] recordBytes = reader.ReadBytes(16);
                         if (recordBytes.Length < 16) break; // Ensure full record read
 
@@ -419,12 +458,14 @@ namespace NMEA2000Analyzer
             return records;
         }
 
-        public static List<Nmea2000Record> LoadYDCsv(string filePath)
+        public static List<Nmea2000Record> LoadYDCsv(string filePath, IProgress<FileLoadProgress>? progress = null)
         {
             var records = new List<Nmea2000Record>(EstimateRecordCapacity(filePath, 64));
 
             using (var reader = new StreamReader(filePath))
             {
+                var fileLength = reader.BaseStream.Length;
+                var lastReportedPercent = -1;
                 string? headerLine = reader.ReadLine(); // Read the header
                 if (headerLine == null) throw new Exception("File is empty.");
 
@@ -440,6 +481,7 @@ namespace NMEA2000Analyzer
                 {
                     var line = reader.ReadLine();
                     if (string.IsNullOrWhiteSpace(line)) continue;
+                    ReportReadProgress(progress, "Loading Yacht Devices CSV records...", reader.BaseStream.Position, fileLength, ref lastReportedPercent);
 
                     var values = line.Split(',').Select(v => v.Trim()).ToArray();
                     if (values.Length < 7) continue; // Ensure there are enough columns
@@ -581,6 +623,34 @@ namespace NMEA2000Analyzer
             {
                 return 256;
             }
+        }
+
+        private static void ReportReadProgress(
+            IProgress<FileLoadProgress>? progress,
+            string message,
+            long position,
+            long length,
+            ref int lastReportedPercent)
+        {
+            if (progress == null || length <= 0)
+            {
+                return;
+            }
+
+            var filePercent = (int)Math.Clamp(position * 100L / length, 0, 100);
+            if (filePercent <= lastReportedPercent)
+            {
+                return;
+            }
+
+            lastReportedPercent = filePercent;
+            var scaledPercent = LoadPercentStart + ((LoadPercentEnd - LoadPercentStart) * filePercent / 100.0);
+            progress.Report(new FileLoadProgress
+            {
+                Stage = "Reading File",
+                Message = message,
+                Percent = scaledPercent
+            });
         }
     }
 }

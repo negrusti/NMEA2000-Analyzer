@@ -77,6 +77,9 @@
             <StatusBarItem>
                 <TextBlock x:Name="TimestampRangeText" Text="No data loaded"/>
             </StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right">
+                <TextBlock x:Name="RowCountText" Text="Rows: 0"/>
+            </StatusBarItem>
         </StatusBar>
         <Grid>
             <Grid.ColumnDefinitions>

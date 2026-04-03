@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using System.Windows;
@@ -16,6 +17,7 @@ namespace NMEA2000Analyzer
     {
         private static readonly Worker _worker = new Worker(PcanChannel.Usb01, Bitrate.Pcan250);
         private static List<Nmea2000Record>? capture;
+        private static int capturedCount;
         
         public static bool StartCapture()
         {
@@ -25,6 +27,13 @@ namespace NMEA2000Analyzer
                 {
                     capture = new List<Nmea2000Record>();
                 }
+                else
+                {
+                    capture.Clear();
+                }
+
+                capturedCount = 0;
+                _worker.MessageAvailable -= OnMessageAvailable;
                 _worker.MessageAvailable += OnMessageAvailable;
                 _worker.Start();
                 Debug.WriteLine("Worker started successfully.");
@@ -44,6 +53,7 @@ namespace NMEA2000Analyzer
             try
             {
                 _worker.Stop();
+                _worker.MessageAvailable -= OnMessageAvailable;
             }
             catch (PcanBasicException e)
             {
@@ -53,6 +63,11 @@ namespace NMEA2000Analyzer
         public static List<Nmea2000Record> LoadCapture()
         {
             return (capture);
+        }
+
+        public static int GetCapturedCount()
+        {
+            return Volatile.Read(ref capturedCount);
         }
 
         private static void OnMessageAvailable(object? sender, MessageAvailableEventArgs e)
@@ -90,6 +105,7 @@ namespace NMEA2000Analyzer
                     Priority = priority.ToString(),
                     Data = dataHex,
                 });
+                Interlocked.Increment(ref capturedCount);
                 // Debug.WriteLine($"TS: {timestamp}, Src: {source}, Len: {msg.DLC}, PGN: {pgn}");
             }
         }

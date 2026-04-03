@@ -18,6 +18,7 @@ namespace NMEA2000Analyzer
 {
     public partial class MainWindow : Window
     {
+        private const long ProgressDialogThresholdBytes = 32L * 1024 * 1024;
 
         private List<Nmea2000Record>? _Data;
         private List<Nmea2000Record>? _assembledData;
@@ -28,6 +29,9 @@ namespace NMEA2000Analyzer
         private HashSet<string> _includePGNs = new HashSet<string>();
         private HashSet<string> _includeAddresses = new HashSet<string>();
         private HashSet<string> _excludePGNs = new HashSet<string>();
+        private HashSet<Nmea2000Record>? _visibleRecords;
+        private List<Nmea2000Record>? _indexedDataSource;
+        private FilterIndexes? _filterIndexes;
         private bool _distinctFilterEnabled;
 
         private enum PacketViewMode
@@ -170,6 +174,15 @@ namespace NMEA2000Analyzer
 
         }
 
+        private sealed class FilterIndexes
+        {
+            public Dictionary<string, List<Nmea2000Record>> ByPgn { get; } = new(StringComparer.Ordinal);
+            public Dictionary<string, List<Nmea2000Record>> BySource { get; } = new(StringComparer.Ordinal);
+            public Dictionary<string, List<Nmea2000Record>> ByDestination { get; } = new(StringComparer.Ordinal);
+        }
+
+        private readonly record struct FastPacketKey(string Source, string Destination, string Pgn);
+
 
         public Task LoadFileFromCommandLineAsync(string filePath)
         {
@@ -179,10 +192,12 @@ namespace NMEA2000Analyzer
         private async Task LoadFileAsync(string filePath)
         {
             ClearData();
+            LoadingProgressWindow? progressWindow = null;
 
             try
             {
-                var result = await CaptureLoadService.LoadAsync(filePath);
+                var progress = CreateLoadProgress(filePath, out progressWindow);
+                var result = await CaptureLoadService.LoadAsync(filePath, progress);
                 _Data = result.RawRecords;
                 _assembledData = result.AssembledRecords;
                 Title = $"NMEA2000 Analyzer - {Path.GetFileName(filePath)} " +
@@ -198,6 +213,51 @@ namespace NMEA2000Analyzer
             {
                 MessageBox.Show(ex.Message, "Error",
                                 MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                progressWindow?.Close();
+            }
+        }
+
+        private IProgress<FileLoadProgress>? CreateLoadProgress(string filePath, out LoadingProgressWindow? progressWindow)
+        {
+            progressWindow = null;
+
+            if (!ShouldShowLoadProgress(filePath))
+            {
+                return null;
+            }
+
+            progressWindow = new LoadingProgressWindow
+            {
+                Owner = this
+            };
+
+            progressWindow.UpdateProgress(
+                Path.GetFileName(filePath),
+                new FileLoadProgress
+                {
+                    Stage = "Preparing",
+                    Message = "Starting load...",
+                    Percent = 0
+                });
+            progressWindow.Show();
+
+            var window = progressWindow;
+            return new Progress<FileLoadProgress>(progress =>
+                window.UpdateProgress(Path.GetFileName(filePath), progress));
+        }
+
+        private static bool ShouldShowLoadProgress(string filePath)
+        {
+            try
+            {
+                return new FileInfo(filePath).Length >= ProgressDialogThresholdBytes;
+            }
+            catch
+            {
+                return false;
             }
         }
 
@@ -314,13 +374,11 @@ namespace NMEA2000Analyzer
             {
                 ClearData();
 
-                // Pause here to allow packet to capture.
-                System.Windows.MessageBox.Show(
-                                "Capture Started.  Press OK to stop",
-                                "Capturing Data...",
-                                MessageBoxButton.OK,
-                                MessageBoxImage.Information
-                                );
+                var captureWindow = new CaptureProgressWindow
+                {
+                    Owner = this
+                };
+                captureWindow.ShowDialog();
 
                 PCAN.StopCapture();
                 
@@ -371,6 +429,7 @@ namespace NMEA2000Analyzer
             var sourceData = GetActiveBaseData();
             if (sourceData == null)
             {
+                UpdateRowCountText();
                 return;
             }
 
@@ -393,8 +452,11 @@ namespace NMEA2000Analyzer
             _includeAddresses = ParseList(IncludeAddressTextBox.Text);
             _excludePGNs = ParseList(ExcludePGNTextBox.Text);
             _distinctFilterEnabled = DistinctFilterCheckBox.IsChecked == true;
+            EnsureFilterIndexes(sourceData);
+            _visibleRecords = BuildVisibleRecordSet(sourceData);
             _distinctDataSeen.Clear();
             _dataGridView.Refresh();
+            UpdateRowCountText();
         }
 
         private bool FilterRecord(object obj)
@@ -404,13 +466,7 @@ namespace NMEA2000Analyzer
                 return false;
             }
 
-            var includePGN = _includePGNs.Count == 0 || _includePGNs.Contains(record.PGN);
-            var includeSource = _includeAddresses.Count == 0
-                || _includeAddresses.Contains(record.Source)
-                || _includeAddresses.Contains(record.Destination);
-            var exclude = _excludePGNs.Contains(record.PGN);
-
-            if (!includePGN || !includeSource || exclude)
+            if (_visibleRecords != null && !_visibleRecords.Contains(record))
             {
                 return false;
             }
@@ -430,11 +486,141 @@ namespace NMEA2000Analyzer
                         .Select(pgn => pgn.Trim())
                         .ToHashSet();
         }
+
+        private void EnsureFilterIndexes(List<Nmea2000Record> sourceData)
+        {
+            if (ReferenceEquals(_indexedDataSource, sourceData) && _filterIndexes != null)
+            {
+                return;
+            }
+
+            _filterIndexes = BuildFilterIndexes(sourceData);
+            _indexedDataSource = sourceData;
+        }
+
+        private static FilterIndexes BuildFilterIndexes(List<Nmea2000Record> records)
+        {
+            var indexes = new FilterIndexes();
+
+            foreach (var record in records)
+            {
+                AddIndexedRecord(indexes.ByPgn, record.PGN, record);
+                AddIndexedRecord(indexes.BySource, record.Source, record);
+                AddIndexedRecord(indexes.ByDestination, record.Destination, record);
+            }
+
+            return indexes;
+        }
+
+        private static void AddIndexedRecord(
+            Dictionary<string, List<Nmea2000Record>> index,
+            string key,
+            Nmea2000Record record)
+        {
+            if (!index.TryGetValue(key, out var records))
+            {
+                records = new List<Nmea2000Record>();
+                index[key] = records;
+            }
+
+            records.Add(record);
+        }
+
+        private HashSet<Nmea2000Record>? BuildVisibleRecordSet(List<Nmea2000Record> sourceData)
+        {
+            if (_filterIndexes == null)
+            {
+                return null;
+            }
+
+            HashSet<Nmea2000Record>? visibleRecords = null;
+
+            if (_includePGNs.Count > 0)
+            {
+                visibleRecords = UnionMatches(_filterIndexes.ByPgn, _includePGNs);
+            }
+
+            if (_includeAddresses.Count > 0)
+            {
+                var addressMatches = UnionMatches(_filterIndexes.BySource, _includeAddresses);
+                UnionInto(addressMatches, _filterIndexes.ByDestination, _includeAddresses);
+                visibleRecords = visibleRecords == null
+                    ? addressMatches
+                    : IntersectMatches(visibleRecords, addressMatches);
+            }
+
+            if (_excludePGNs.Count > 0)
+            {
+                if (visibleRecords == null)
+                {
+                    visibleRecords = new HashSet<Nmea2000Record>(sourceData);
+                }
+
+                RemoveMatches(visibleRecords, _filterIndexes.ByPgn, _excludePGNs);
+            }
+
+            return visibleRecords;
+        }
+
+        private static HashSet<Nmea2000Record> UnionMatches(
+            Dictionary<string, List<Nmea2000Record>> index,
+            HashSet<string> keys)
+        {
+            var matches = new HashSet<Nmea2000Record>();
+            UnionInto(matches, index, keys);
+            return matches;
+        }
+
+        private static void UnionInto(
+            HashSet<Nmea2000Record> target,
+            Dictionary<string, List<Nmea2000Record>> index,
+            HashSet<string> keys)
+        {
+            foreach (var key in keys)
+            {
+                if (!index.TryGetValue(key, out var records))
+                {
+                    continue;
+                }
+
+                foreach (var record in records)
+                {
+                    target.Add(record);
+                }
+            }
+        }
+
+        private static HashSet<Nmea2000Record> IntersectMatches(
+            HashSet<Nmea2000Record> left,
+            HashSet<Nmea2000Record> right)
+        {
+            left.IntersectWith(right);
+            return left;
+        }
+
+        private static void RemoveMatches(
+            HashSet<Nmea2000Record> target,
+            Dictionary<string, List<Nmea2000Record>> index,
+            HashSet<string> keys)
+        {
+            foreach (var key in keys)
+            {
+                if (!index.TryGetValue(key, out var records))
+                {
+                    continue;
+                }
+
+                foreach (var record in records)
+                {
+                    target.Remove(record);
+                }
+            }
+        }
         
         internal static List<Nmea2000Record> AssembleFrames(List<Nmea2000Record> records)
         {
             var assembledRecords = new List<Nmea2000Record>(records.Count);
-            var activeMessages = new Dictionary<string, FastPacketMessage>(Math.Max(256, records.Count / 8)); // Track in-progress multi-frame messages
+            var activeMessages = new Dictionary<FastPacketKey, FastPacketMessage>(Math.Max(256, records.Count / 8)); // Track in-progress multi-frame messages
 
             int RowNumber = 0;
             foreach (var record in records)
@@ -445,7 +631,7 @@ namespace NMEA2000Analyzer
                 {
                     if (pgnDefinition.Type == "Fast")
                     {
-                        var messageKey = $"{record.Source}-{record.Destination}-{record.PGN}";
+                        var messageKey = new FastPacketKey(record.Source, record.Destination, record.PGN);
                         var assembled = ProcessFastPacketFrame(messageKey, record, activeMessages, assembledRecords);
 
                         if (assembled != null)
@@ -512,9 +698,9 @@ namespace NMEA2000Analyzer
 
 
         private static Nmea2000Record? ProcessFastPacketFrame(
-            string messageKey,
+            FastPacketKey messageKey,
             Nmea2000Record frame,
-            Dictionary<string, FastPacketMessage> activeMessages,
+            Dictionary<FastPacketKey, FastPacketMessage> activeMessages,
             List<Nmea2000Record> assembledRecords)
         {
             var frameData = frame.PayloadBytes;
@@ -697,6 +883,9 @@ namespace NMEA2000Analyzer
             _filterDebounceTimer.Stop();
             _dataGridView = null;
             _distinctDataSeen.Clear();
+            _visibleRecords = null;
+            _indexedDataSource = null;
+            _filterIndexes = null;
             _includePGNs.Clear();
             _includeAddresses.Clear();
             _excludePGNs.Clear();
@@ -710,6 +899,7 @@ namespace NMEA2000Analyzer
             IncludePGNTextBox.Text = string.Empty;
             ExcludePGNTextBox.Text = string.Empty;
             IncludeAddressTextBox.Text = string.Empty;
+            UpdateRowCountText();
         }
 
         private List<Nmea2000Record>? GetActiveBaseData()
@@ -955,6 +1145,17 @@ namespace NMEA2000Analyzer
             }
 
             TimestampRangeText.Text = $"Timestamp Range: {firstTimestamp.Value:G} - {lastTimestamp.Value:G}";
+        }
+
+        private void UpdateRowCountText()
+        {
+            if (_dataGridView == null)
+            {
+                RowCountText.Text = "Rows: 0";
+                return;
+            }
+
+            RowCountText.Text = $"Rows: {_dataGridView.Cast<object>().Count():N0}";
         }
         private void AboutMenuItem_Click(object sender, RoutedEventArgs e)
         {

@@ -2,6 +2,13 @@ using System.Globalization;
 
 namespace NMEA2000Analyzer
 {
+    internal sealed class FileLoadProgress
+    {
+        public required string Stage { get; init; }
+        public required string Message { get; init; }
+        public double? Percent { get; init; }
+    }
+
     internal sealed class CaptureLoadResult
     {
         public required string FilePath { get; init; }
@@ -17,26 +24,41 @@ namespace NMEA2000Analyzer
 
     internal static class CaptureLoadService
     {
-        public static async Task<(FileFormats.FileFormat Format, List<MainWindow.Nmea2000Record> RawRecords)> LoadRawAsync(string filePath)
+        private static void ReportProgress(IProgress<FileLoadProgress>? progress, string stage, string message, double? percent = null)
         {
+            progress?.Report(new FileLoadProgress
+            {
+                Stage = stage,
+                Message = message,
+                Percent = percent
+            });
+        }
+
+        public static async Task<(FileFormats.FileFormat Format, List<MainWindow.Nmea2000Record> RawRecords)> LoadRawAsync(
+            string filePath,
+            IProgress<FileLoadProgress>? progress = null)
+        {
+            ReportProgress(progress, "Preparing", "Detecting format...", 2);
             var format = FileFormats.DetectFileFormat(filePath);
             if (format == FileFormats.FileFormat.Unknown)
             {
                 throw new InvalidOperationException("Unsupported or unknown file format.");
             }
 
+            ReportProgress(progress, "Reading File", $"{format} capture", 5);
             List<MainWindow.Nmea2000Record> rawRecords = format switch
             {
-                FileFormats.FileFormat.TwoCanCsv => await Task.Run(() => FileFormats.LoadTwoCanCsv(filePath)),
-                FileFormats.FileFormat.Actisense => await Task.Run(() => FileFormats.LoadActisense(filePath)),
-                FileFormats.FileFormat.CanDump1 => await Task.Run(() => FileFormats.LoadCanDump1(filePath)),
-                FileFormats.FileFormat.CanDump2 => await Task.Run(() => FileFormats.LoadCanDump2(filePath)),
-                FileFormats.FileFormat.YDWG => await Task.Run(() => FileFormats.LoadYDWGLog(filePath)),
-                FileFormats.FileFormat.PCANView => await Task.Run(() => FileFormats.LoadPCANView(filePath)),
-                FileFormats.FileFormat.YDCsv => await Task.Run(() => FileFormats.LoadYDCsv(filePath)),
+                FileFormats.FileFormat.TwoCanCsv => await Task.Run(() => FileFormats.LoadTwoCanCsv(filePath, progress)),
+                FileFormats.FileFormat.Actisense => await Task.Run(() => FileFormats.LoadActisense(filePath, progress)),
+                FileFormats.FileFormat.CanDump1 => await Task.Run(() => FileFormats.LoadCanDump1(filePath, progress)),
+                FileFormats.FileFormat.CanDump2 => await Task.Run(() => FileFormats.LoadCanDump2(filePath, progress)),
+                FileFormats.FileFormat.YDWG => await Task.Run(() => FileFormats.LoadYDWGLog(filePath, progress)),
+                FileFormats.FileFormat.PCANView => await Task.Run(() => FileFormats.LoadPCANView(filePath, progress)),
+                FileFormats.FileFormat.YDCsv => await Task.Run(() => FileFormats.LoadYDCsv(filePath, progress)),
                 _ => throw new InvalidOperationException("Unsupported or unknown file format.")
             };
 
+            ReportProgress(progress, "Reading File", $"{rawRecords.Count:N0} raw records parsed", 75);
             return (format, rawRecords);
         }
 
@@ -66,26 +88,43 @@ namespace NMEA2000Analyzer
             return (firstTimestamp, lastTimestamp);
         }
 
-        public static async Task<CaptureLoadResult> LoadAsync(string filePath)
+        public static async Task<CaptureLoadResult> LoadAsync(string filePath, IProgress<FileLoadProgress>? progress = null)
         {
-            var (format, rawRecords) = await LoadRawAsync(filePath);
+            var (format, rawRecords) = await LoadRawAsync(filePath, progress);
+            var processingResult = await Task.Run(() =>
+            {
+                ReportProgress(progress, "Processing Packets", "Enriching unassembled records", 82);
+                MainWindow.EnrichUnassembledRecords(rawRecords);
 
-            MainWindow.EnrichUnassembledRecords(rawRecords);
-            var assembledRecords = MainWindow.AssembleFrames(rawRecords);
-            var (firstTimestamp, lastTimestamp) = GetTimestampBounds(rawRecords);
+                ReportProgress(progress, "Processing Packets", "Assembling fast packets", 89);
+                var assembledRecords = MainWindow.AssembleFrames(rawRecords);
+                var (firstTimestamp, lastTimestamp) = GetTimestampBounds(rawRecords);
 
-            PgnDefinitions.GenerateDeviceInfo(assembledRecords);
-            MainWindow.UpdateSrcDevices(rawRecords);
-            MainWindow.UpdateSrcDevices(assembledRecords);
+                ReportProgress(progress, "Processing Packets", "Generating device info", 95);
+                PgnDefinitions.GenerateDeviceInfo(assembledRecords);
+
+                ReportProgress(progress, "Processing Packets", "Updating device lookup tables", 98);
+                MainWindow.UpdateSrcDevices(rawRecords);
+                MainWindow.UpdateSrcDevices(assembledRecords);
+
+                return new
+                {
+                    AssembledRecords = assembledRecords,
+                    FirstTimestamp = firstTimestamp,
+                    LastTimestamp = lastTimestamp
+                };
+            });
+
+            ReportProgress(progress, "Ready", $"{processingResult.AssembledRecords.Count:N0} assembled records ready", 100);
 
             return new CaptureLoadResult
             {
                 FilePath = filePath,
                 Format = format,
                 RawRecords = rawRecords,
-                AssembledRecords = assembledRecords,
-                FirstTimestamp = firstTimestamp,
-                LastTimestamp = lastTimestamp
+                AssembledRecords = processingResult.AssembledRecords,
+                FirstTimestamp = processingResult.FirstTimestamp,
+                LastTimestamp = processingResult.LastTimestamp
             };
         }
     }
