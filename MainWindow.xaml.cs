@@ -62,7 +62,8 @@ namespace NMEA2000Analyzer
         // Class to hold parsed data for the DataGrid
         public class Nmea2000Record
         {
-            private string _data = string.Empty;
+            private byte[] _payloadBytes = Array.Empty<byte>();
+            private string? _data;
             private string? _asciiData;
 
             public int LogSequenceNumber { get; set; }
@@ -75,10 +76,21 @@ namespace NMEA2000Analyzer
             public string Description { get; set; } = ""; // Placeholder if not provided
             public string Data
             {
-                get => _data;
+                get => _data ??= FormatPayloadBytes(_payloadBytes);
                 set
                 {
-                    _data = value ?? string.Empty;
+                    _payloadBytes = ParseHexData(value);
+                    _data = null;
+                    _asciiData = null;
+                }
+            }
+            public byte[] PayloadBytes
+            {
+                get => _payloadBytes;
+                set
+                {
+                    _payloadBytes = value ?? Array.Empty<byte>();
+                    _data = null;
                     _asciiData = null;
                 }
             }
@@ -86,23 +98,38 @@ namespace NMEA2000Analyzer
             public int? PGNListIndex { get; set; }
             public string DestinationDisplay => Destination == "255" ? "Bcast" : Destination;
 
-            public string AsciiData => _asciiData ??= ConvertHexToAscii(_data);
+            public string AsciiData => _asciiData ??= ConvertBytesToAscii(_payloadBytes);
 
-            private static string ConvertHexToAscii(string hexString)
+            private static string FormatPayloadBytes(byte[] payloadBytes)
+            {
+                return string.Join(" ", payloadBytes.Select(b => $"0x{b:X2}"));
+            }
+
+            private static byte[] ParseHexData(string? hexString)
             {
                 if (string.IsNullOrWhiteSpace(hexString))
+                {
+                    return Array.Empty<byte>();
+                }
+
+                return hexString
+                    .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(hex => Convert.ToByte(hex, 16))
+                    .ToArray();
+            }
+
+            private static string ConvertBytesToAscii(byte[] payloadBytes)
+            {
+                if (payloadBytes.Length == 0)
                 {
                     return string.Empty;
                 }
 
-                var hexValues = hexString.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                var asciiChars = new char[hexValues.Length];
+                var asciiChars = new char[payloadBytes.Length];
 
-                for (var i = 0; i < hexValues.Length; i++)
+                for (var i = 0; i < payloadBytes.Length; i++)
                 {
-                    var hex = hexValues[i].Replace("0x", "", StringComparison.OrdinalIgnoreCase);
-                    var byteValue = int.Parse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
-                    asciiChars[i] = byteValue is >= 32 and <= 126 ? (char)byteValue : '.';
+                    asciiChars[i] = payloadBytes[i] is >= 32 and <= 126 ? (char)payloadBytes[i] : '.';
                 }
 
                 return new string(asciiChars);
@@ -113,7 +140,7 @@ namespace NMEA2000Analyzer
         {
             public int TotalBytes { get; set; }
             public int ReceivedByteCount { get; set; }
-            public Dictionary<int, string[]> Frames { get; set; } = new Dictionary<int, string[]>();
+            public Dictionary<int, byte[]> Frames { get; set; } = new Dictionary<int, byte[]>();
             public string? Timestamp { get; set; }
             public string Source { get; set; }
             public string Destination { get; set; }
@@ -161,7 +188,7 @@ namespace NMEA2000Analyzer
                 Title = $"NMEA2000 Analyzer - {Path.GetFileName(filePath)} " +
                         $"({Enum.GetName(typeof(FileFormats.FileFormat), result.Format)})";
 
-                UpdateTimestampRange();
+                UpdateTimestampRange(result.FirstTimestamp, result.LastTimestamp);
                 RefreshGridView();
 
                 RecentFilesManager.RegisterFileOpen(filePath);
@@ -218,7 +245,7 @@ namespace NMEA2000Analyzer
                 for (var exportIndex = 0; exportIndex < _Data.Count; exportIndex++)
                 {
                     var record = _Data[exportIndex];
-                    var data = ParseRecordData(record.Data);
+                    var data = ParseRecordData(record);
                     if (data.Length == 0)
                     {
                         continue;
@@ -298,7 +325,8 @@ namespace NMEA2000Analyzer
                 PCAN.StopCapture();
                 
                 _Data = PCAN.LoadCapture();
-                UpdateTimestampRange();
+                var (firstTimestamp, lastTimestamp) = CaptureLoadService.GetTimestampBounds(_Data);
+                UpdateTimestampRange(firstTimestamp, lastTimestamp);
                 EnrichUnassembledRecords(_Data);
 
                 _assembledData = AssembleFrames(_Data);
@@ -405,8 +433,8 @@ namespace NMEA2000Analyzer
         
         internal static List<Nmea2000Record> AssembleFrames(List<Nmea2000Record> records)
         {
-            var assembledRecords = new List<Nmea2000Record>();
-            var activeMessages = new Dictionary<string, FastPacketMessage>(); // Track in-progress multi-frame messages
+            var assembledRecords = new List<Nmea2000Record>(records.Count);
+            var activeMessages = new Dictionary<string, FastPacketMessage>(Math.Max(256, records.Count / 8)); // Track in-progress multi-frame messages
 
             int RowNumber = 0;
             foreach (var record in records)
@@ -423,10 +451,7 @@ namespace NMEA2000Analyzer
                         if (assembled != null)
                         {
                             assembled.LogSequenceNumber = RowNumber;
-                            byte[] byteArray = assembled.Data
-                                .Split(' ')                         // Split by spaces
-                                .Select(hex => Convert.ToByte(hex, 16)) // Convert each "0xXX" to a byte
-                                .ToArray();
+                            byte[] byteArray = assembled.PayloadBytes;
 
                             int? defIndex = MatchDataAgainstLookup(byteArray, pgn);
                             if (defIndex != null)
@@ -448,10 +473,7 @@ namespace NMEA2000Analyzer
                     }
                     else
                     {
-                        byte[] byteArray = record.Data
-                            .Split(' ')                         // Split by spaces
-                            .Select(hex => Convert.ToByte(hex, 16)) // Convert each "0xXX" to a byte
-                            .ToArray();
+                        byte[] byteArray = record.PayloadBytes;
 
                         int? defIndex = MatchDataAgainstLookup(byteArray, pgn);
                         if (defIndex != null)
@@ -495,9 +517,13 @@ namespace NMEA2000Analyzer
             Dictionary<string, FastPacketMessage> activeMessages,
             List<Nmea2000Record> assembledRecords)
         {
-            var frameData = frame.Data.Split(' ').ToArray();
+            var frameData = frame.PayloadBytes;
+            if (frameData.Length == 0)
+            {
+                return null;
+            }
 
-            int sequenceNumber = Convert.ToByte(frameData[0], 16) & 0x1F;
+            int sequenceNumber = frameData[0] & 0x1F;
 
             // Check if this is the start of a new multi-frame message
             if (!activeMessages.ContainsKey(messageKey))
@@ -505,7 +531,12 @@ namespace NMEA2000Analyzer
                 if (sequenceNumber == 0)
                 {
                     // First frame: Extract TotalBytes from the second byte (ISO-TP header)
-                    int totalBytes = Convert.ToByte(frameData[1], 16);
+                    if (frameData.Length < 2)
+                    {
+                        return null;
+                    }
+
+                    int totalBytes = frameData[1];
 
                     if (totalBytes == 0)
                     {
@@ -516,7 +547,7 @@ namespace NMEA2000Analyzer
                     activeMessages[messageKey] = new FastPacketMessage
                     {
                         TotalBytes = totalBytes,
-                        Frames = new Dictionary<int, string[]>(),
+                        Frames = new Dictionary<int, byte[]>(),
                         Source = frame.Source,
                         Destination = frame.Destination,
                         PGN = frame.PGN,
@@ -538,7 +569,7 @@ namespace NMEA2000Analyzer
             var message = activeMessages[messageKey];
             if (!message.Frames.ContainsKey(sequenceNumber))
             {
-                string[] framePayload;
+                byte[] framePayload;
 
                 if (sequenceNumber == 0)
                 {
@@ -586,7 +617,7 @@ namespace NMEA2000Analyzer
                     Destination = message.Destination,
                     PGN = message.PGN,
                     Priority = message.Priority,
-                    Data = string.Join(" ", fullMessage),
+                    PayloadBytes = fullMessage,
                     Type = "Fast",
                     Timestamp = message.Timestamp
                 };
@@ -686,11 +717,9 @@ namespace NMEA2000Analyzer
             return _currentPacketView == PacketViewMode.Assembled ? _assembledData : _Data;
         }
 
-        private static byte[] ParseRecordData(string data)
+        private static byte[] ParseRecordData(Nmea2000Record record)
         {
-            return data.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                .Select(hex => Convert.ToByte(hex, 16))
-                .ToArray();
+            return record.PayloadBytes;
         }
 
         private static uint BuildCanId(Nmea2000Record record)
@@ -915,32 +944,17 @@ namespace NMEA2000Analyzer
         }
 
         // Timestamp range in the footer bar 
-        private void UpdateTimestampRange()
+        private void UpdateTimestampRange(DateTimeOffset? firstTimestamp, DateTimeOffset? lastTimestamp)
         {
-            if (_Data == null || !_Data.Any())
+            if (!firstTimestamp.HasValue || !lastTimestamp.HasValue)
             {
-                TimestampRangeText.Text = "No data loaded";
+                TimestampRangeText.Text = _Data == null || !_Data.Any()
+                    ? "No data loaded"
+                    : "No valid timestamps found";
                 return;
             }
 
-            // Parse timestamps from the data
-            var timestamps = _Data
-                .Select(record => DateTimeOffset.TryParse(record.Timestamp, out var timestamp) ? timestamp : (DateTimeOffset?)null)
-                .Where(t => t.HasValue)
-                .Select(t => t.Value)
-                .ToList();
-
-            if (timestamps.Any())
-            {
-                var minTimestamp = timestamps.Min();
-                var maxTimestamp = timestamps.Max();
-
-                TimestampRangeText.Text = $"Timestamp Range: {minTimestamp:G} - {maxTimestamp:G}";
-            }
-            else
-            {
-                TimestampRangeText.Text = "No valid timestamps found";
-            }
+            TimestampRangeText.Text = $"Timestamp Range: {firstTimestamp.Value:G} - {lastTimestamp.Value:G}";
         }
         private void AboutMenuItem_Click(object sender, RoutedEventArgs e)
         {
@@ -963,7 +977,7 @@ namespace NMEA2000Analyzer
                 try
                 {
                     // Convert the Data string to a byte array
-                    var dataBytes = selectedRecord.Data.Split(' ').Select(b => Convert.ToByte(b, 16)).ToArray();
+                    var dataBytes = selectedRecord.PayloadBytes;
 
                     JsonObject decodedJson;
                     

@@ -50,3 +50,17 @@ NMEA2000Analyzer.exe "C:\path\to\capture.log"
 ```
 
 The file is loaded on startup using the same detection logic as `File -> Open`.
+
+For CLI-style validation and search commands:
+
+```powershell
+NMEA2000Analyzer.exe --summary "C:\path\to\capture.log"
+NMEA2000Analyzer.exe --verify "C:\path\to\capture.log"
+NMEA2000Analyzer.exe --search-pgn 126208
+```
+
+Commands:
+
+* `--summary <file>` prints a JSON load summary
+* `--verify <file>` loads the file and returns success/failure
+* `--search-pgn <pgn>` searches all files in the current working directory and prints matching filenames

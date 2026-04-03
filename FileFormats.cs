@@ -102,7 +102,7 @@ namespace NMEA2000Analyzer
 
         public static List<Nmea2000Record> LoadTwoCanCsv(string filePath)
         {
-            var records = new List<Nmea2000Record>();
+            var records = new List<Nmea2000Record>(EstimateRecordCapacity(filePath, 56));
 
             using (var reader = new StreamReader(filePath))
             {
@@ -125,15 +125,13 @@ namespace NMEA2000Analyzer
                     var values = line.Split(',').Select(v => v.Trim()).ToArray();
                     if (values.Length < 12) continue; // Ensure there are enough columns (D1-D8)
 
-                    var record = new Nmea2000Record
-                    {
-                        Source = values[0],
-                        Destination = values[1],
-                        PGN = values[2],
-                        Priority = values[3],
-                        Data = string.Join(" ", values.Skip(4).Take(8)) // Combine D1-D8 as hex values with spaces
-                    };
-                    records.Add(record);
+                    records.Add(CreateRecord(
+                        timestamp: null,
+                        priority: values[3],
+                        pgn: values[2],
+                        source: values[0],
+                        destination: values[1],
+                        payloadBytes: values.Skip(4).Take(8).Select(ParseHexByte).ToArray()));
                 }
             }
 
@@ -142,7 +140,7 @@ namespace NMEA2000Analyzer
 
         public static List<Nmea2000Record> LoadCanDump1(string filePath)
         {
-            var records = new List<Nmea2000Record>();
+            var records = new List<Nmea2000Record>(EstimateRecordCapacity(filePath, 36));
 
             // Regular expression to match the log format
             var regex = new Regex(@"\((?<timestamp>[\d.]+)\)\s+(?<interface>\S+)\s+(?<canId>[0-9A-F]+)#(?<data>[0-9A-F]*)");
@@ -159,41 +157,13 @@ namespace NMEA2000Analyzer
                     var datetime = DateTimeOffset.FromUnixTimeSeconds((long)timestamp)
                         .AddMilliseconds((timestamp % 1) * 1000);
 
-                    // Parse the CAN ID
-                    var canIdHex = match.Groups["canId"].Value;
-                    int canId = int.Parse(canIdHex, NumberStyles.HexNumber);
+                    var canId = int.Parse(match.Groups["canId"].Value, NumberStyles.HexNumber);
+                    var data = ParseCompactHexPayload(match.Groups["data"].Value);
 
-                    int priority = (canId >> 26) & 0x7;       // Extract bits 26-28 (3 bits)
-                    int source = canId & 0xFF;               // Extract bits 0-7 (8 bits)
-                    int pgn = (canId >> 8) & 0x1FFFF;        // Extract bits 8-25 (18 bits)
-
-                    int destination;
-                    if ((pgn & 0xFF00) == 0xEF00)            // Check if it's a PDU1 (destination-specific PGN)
-                    {
-                        destination = (pgn & 0xFF);          // Extract destination (last byte of PGN)
-                        pgn &= 0x1FF00;                      // Remove destination from PGN
-                    }
-                    else
-                    {
-                        destination = 255;                   // Broadcast for PDU2 (no destination-specific PGN)
-                    }
-
-                    // Parse the CAN data
-                    var data = match.Groups["data"].Value;
-                    var dataFormatted = string.Join(" ", Regex.Matches(data, "..").Select(m => $"0x{m.Value}"));
-
-                    // Create an Nmea2000Record
-                    records.Add(new Nmea2000Record
-                    {
-                        Timestamp = datetime.ToString("o"), // ISO 8601 format
-                        Source = source.ToString(),
-                        Destination = destination.ToString(),
-                        PGN = pgn.ToString(),
-                        Priority = priority.ToString(),
-                        Data = dataFormatted,
-                        Description = "Unknown PGN",
-                        Type = "Unknown"
-                    });
+                    records.Add(CreateRecordFromCanFrame(
+                        datetime.ToString("o"),
+                        canId,
+                        data));
                 }
                 catch (Exception ex)
                 {
@@ -207,7 +177,7 @@ namespace NMEA2000Analyzer
 
         public static List<Nmea2000Record> LoadCanDump2(string filePath)
         {
-            var records = new List<Nmea2000Record>();
+            var records = new List<Nmea2000Record>(EstimateRecordCapacity(filePath, 52));
 
             // candump log format with spaced bytes, with or without a leading timestamp.
             var regex = new Regex(@"^\s*(\((?<timestamp>[\d.]+)\)\s+)?(?<interface>\S+)\s+(?<canId>[0-9A-F]+)\s+\[(?<length>\d+)\]\s+(?<data>([0-9A-F]{2}\s*)+)$");
@@ -228,43 +198,13 @@ namespace NMEA2000Analyzer
                         formattedTimestamp = datetime.ToString("o");
                     }
 
-                    // Parse the CAN ID
-                    var canIdHex = match.Groups["canId"].Value;
-                    int canId = int.Parse(canIdHex, NumberStyles.HexNumber);
+                    var canId = int.Parse(match.Groups["canId"].Value, NumberStyles.HexNumber);
+                    var data = match.Groups["data"].Value
+                        .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                        .Select(ParseHexByte)
+                        .ToArray();
 
-                    int priority = (canId >> 26) & 0x7;       // Extract bits 26-28 (3 bits)
-                    int source = canId & 0xFF;               // Extract bits 0-7 (8 bits)
-                    int pgn = (canId >> 8) & 0x1FFFF;        // Extract bits 8-25 (18 bits)
-
-                    int destination;
-                    if ((pgn & 0xFF00) == 0xEF00)            // Check if it's a PDU1 (destination-specific PGN)
-                    {
-                        destination = (pgn & 0xFF);          // Extract destination (last byte of PGN)
-                        pgn &= 0x1FF00;                      // Remove destination from PGN
-                    }
-                    else
-                    {
-                        destination = 255;                   // Broadcast for PDU2 (no destination-specific PGN)
-                    }
-
-                    // Parse the CAN data
-                    var data = match.Groups["data"].Value.Trim();
-                    var dataBytes = data.Split(' ')
-                                        .Where(b => !string.IsNullOrEmpty(b))
-                                        .Select(b => $"0x{b}");
-
-                    // Create an Nmea2000Record
-                    records.Add(new Nmea2000Record
-                    {
-                        Timestamp = formattedTimestamp,
-                        Source = source.ToString(),
-                        Destination = destination.ToString(),
-                        PGN = pgn.ToString(),
-                        Priority = priority.ToString(),
-                        Data = string.Join(" ", dataBytes),
-                        Description = "Unknown PGN",
-                        Type = "Unknown"
-                    });
+                    records.Add(CreateRecordFromCanFrame(formattedTimestamp, canId, data));
                 }
                 catch (Exception ex)
                 {
@@ -277,7 +217,7 @@ namespace NMEA2000Analyzer
 
         public static List<Nmea2000Record> LoadActisense(string filePath)
         {
-            var records = new List<Nmea2000Record>();
+            var records = new List<Nmea2000Record>(EstimateRecordCapacity(filePath, 52));
 
             using (var reader = new StreamReader(filePath))
             {
@@ -290,17 +230,13 @@ namespace NMEA2000Analyzer
                     if (values.Length < 8) continue; // Ensure there are enough columns (PGN, Source, Destination, and Data)
 
                     // Parse the record
-                    var record = new Nmea2000Record
-                    {
-                        Timestamp = values[0], // Use raw timestamp for now, parsing can be added if needed
-                        Priority = values[1],
-                        PGN = values[2],
-                        Source = values[3],
-                        Destination = values[4],
-                        Data = string.Join(" ", values.Skip(6).Select(d => $"0x{d.ToUpper()}").ToArray()) // Combine data bytes as a space-separated string
-                    };
-                    //Debug.WriteLine(record.Data);
-                    records.Add(record);
+                    records.Add(CreateRecord(
+                        timestamp: values[0],
+                        priority: values[1],
+                        pgn: values[2],
+                        source: values[3],
+                        destination: values[4],
+                        payloadBytes: values.Skip(6).Select(ParseHexByte).ToArray()));
                 }
             }
 
@@ -309,7 +245,7 @@ namespace NMEA2000Analyzer
 
         public static List<Nmea2000Record> LoadYDWGLog(string filePath)
         {
-            var records = new List<Nmea2000Record>();
+            var records = new List<Nmea2000Record>(EstimateRecordCapacity(filePath, 44));
 
             using (var reader = new StreamReader(filePath))
             {
@@ -324,37 +260,11 @@ namespace NMEA2000Analyzer
                         var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                         if (parts.Length < 3) throw new Exception("Invalid YDWG log format.");
 
-                        // Extract timestamp, direction, and CAN ID
-                        string timestamp = parts[0]; // Time of the message
-                        string direction = parts[1]; // Direction (R/T)
-                        string canIdHex = parts[2];  // CAN ID in hexadecimal
-                        int canId = int.Parse(canIdHex, System.Globalization.NumberStyles.HexNumber);
+                        string timestamp = parts[0];
+                        int canId = int.Parse(parts[2], NumberStyles.HexNumber);
+                        var dataBytes = parts.Skip(3).Select(ParseHexByte).ToArray();
 
-                        // Decode fields from CAN ID
-                        int priority = (canId >> 26) & 0x7;       // Top 3 bits
-                        int pgn = (canId >> 8) & 0x1FFFF;         // Next 18 bits
-                        int source = canId & 0xFF;                // Bottom 8 bits
-
-                        // Determine destination for PDU1 format
-                        int? destination = null;
-                        if (pgn < 0xF000) // PDU1 format
-                        {
-                            destination = int.Parse(parts[3], System.Globalization.NumberStyles.HexNumber);
-                        }
-
-                        // Decode data bytes
-                        var dataBytes = parts.Skip(3).Select(b => $"0x{b.ToUpper()}").ToList();
-
-                        // Create and add the record
-                        records.Add(new Nmea2000Record
-                        {
-                            Timestamp = timestamp,
-                            Priority = priority.ToString(),
-                            PGN = pgn.ToString(),
-                            Source = source.ToString(),
-                            Destination = destination?.ToString() ?? "255",
-                            Data = string.Join(" ", dataBytes)
-                        });
+                        records.Add(CreateRecordFromCanFrame(timestamp, canId, dataBytes));
                     }
                     catch (Exception ex)
                     {
@@ -367,7 +277,7 @@ namespace NMEA2000Analyzer
         }
         public static List<Nmea2000Record> LoadPCANView(string filePath)
         {
-            var records = new List<Nmea2000Record>();
+            var records = new List<Nmea2000Record>(EstimateRecordCapacity(filePath, 56));
 
             using (var reader = new StreamReader(filePath))
             {
@@ -386,38 +296,16 @@ namespace NMEA2000Analyzer
 
                         // Extract data
                         string timeOffset = match.Groups["timeOffset"].Value;
-                        string direction = match.Groups["direction"].Value;
                         string canIdHex = match.Groups["canId"].Value;
                         int dlc = int.Parse(match.Groups["dlc"].Value);
                         var dataBytes = match.Groups["data"].Value
                             .Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
                             .Take(dlc)
-                            .Select(b => $"0x{b.ToUpper()}")
-                            .ToList();
+                            .Select(ParseHexByte)
+                            .ToArray();
 
-                        // Decode CAN ID fields
                         int canId = int.Parse(canIdHex, NumberStyles.HexNumber);
-                        int priority = (canId >> 26) & 0x7;   // Top 3 bits
-                        int pgn = (canId >> 8) & 0x1FFFF;     // Middle 18 bits
-                        int source = canId & 0xFF;            // Bottom 8 bits
-
-                        // Destination (PDU1 format)
-                        int? destination = null;
-                        if (pgn < 0xF000) // PDU1 format
-                        {
-                            destination = (canId >> 8) & 0xFF;
-                        }
-
-                        // Add the record
-                        records.Add(new Nmea2000Record
-                        {
-                            Timestamp = timeOffset,
-                            Priority = priority.ToString(),
-                            PGN = pgn.ToString(),
-                            Source = source.ToString(),
-                            Destination = destination?.ToString() ?? "255", // Default to broadcast
-                            Data = string.Join(" ", dataBytes)
-                        });
+                        records.Add(CreateRecordFromCanFrame(timeOffset, canId, dataBytes));
                     }
                     catch (Exception ex)
                     {
@@ -460,7 +348,7 @@ namespace NMEA2000Analyzer
 
         public static List<Nmea2000Record> LoadYDBinary(string filePath)
         {
-            var records = new List<Nmea2000Record>();
+            var records = new List<Nmea2000Record>(EstimateBinaryRecordCapacity(filePath, 16));
 
             try
             {
@@ -513,20 +401,13 @@ namespace NMEA2000Analyzer
                             Debug.WriteLine($"Data Length: {dataLength}");
                         
                         // Format data bytes as a space-separated hex string
-                        string dataHex = string.Join(" ", data.Take(dataLength).Select(b => $"0x{b:X2}"));
-
-                        // Create the record
-                        var record = new Nmea2000Record
-                        {
-                            Timestamp = timestamp,
-                            Priority = priority.ToString(),
-                            PGN = pgn.ToString(),
-                            Source = source.ToString(),
-                            Destination = destination.ToString(),
-                            Data = dataHex
-                        };
-
-                        records.Add(record);
+                        records.Add(CreateRecord(
+                            timestamp: timestamp,
+                            priority: priority.ToString(),
+                            pgn: pgn.ToString(),
+                            source: source.ToString(),
+                            destination: destination.ToString(),
+                            payloadBytes: data.Take(dataLength).ToArray()));
                     }
                 }
             }
@@ -540,7 +421,7 @@ namespace NMEA2000Analyzer
 
         public static List<Nmea2000Record> LoadYDCsv(string filePath)
         {
-            var records = new List<Nmea2000Record>();
+            var records = new List<Nmea2000Record>(EstimateRecordCapacity(filePath, 64));
 
             using (var reader = new StreamReader(filePath))
             {
@@ -575,37 +456,131 @@ namespace NMEA2000Analyzer
                     if (dlc < 1 || dlc > 8) continue;
 
                     // Extract data bytes
-                    string data = string.Join(" ", values.Skip(6).Take(dlc).Select(d => $"0x{d.ToUpper()}"));
-
-                    // Decode CAN ID
-                    int priority = -1, source = -1, destination = -1;
-                    uint pgn = canId; // Default if no 29-bit conversion is needed
+                    var payloadBytes = values.Skip(6).Take(dlc).Select(ParseHexByte).ToArray();
 
                     if (bitType == 29)
                     {
-                        priority = (int)((canId >> 26) & 0x07);
-                        pgn = (canId >> 8) & 0x1FFFF; // PGN is in bits 9-26
-                        destination = (int)((canId >> 8) & 0xFF);
-                        source = (int)(canId & 0xFF);
+                        records.Add(CreateRecordFromCanFrame(timestamp, unchecked((int)canId), payloadBytes));
                     }
-
-                    // Create the record
-                    var record = new Nmea2000Record
+                    else
                     {
-                        Timestamp = timestamp,
-                        Priority = priority >= 0 ? priority.ToString() : "-",
-                        PGN = pgn.ToString(),
-                        Source = source >= 0 ? source.ToString() : "-",
-                        Destination = destination >= 0 ? destination.ToString() : "-",
-                        Data = data
-                    };
-                    records.Add(record);
+                        records.Add(CreateRecord(
+                            timestamp: timestamp,
+                            priority: "-",
+                            pgn: canId.ToString(),
+                            source: "-",
+                            destination: "-",
+                            payloadBytes: payloadBytes));
+                    }
                 }
             }
-
             return records;
         }
 
+        private static Nmea2000Record CreateRecord(string? timestamp, string priority, string pgn, string source, string destination, byte[] payloadBytes)
+        {
+            return new Nmea2000Record
+            {
+                Timestamp = timestamp,
+                Priority = priority,
+                PGN = pgn,
+                Source = source,
+                Destination = destination,
+                PayloadBytes = payloadBytes,
+                Description = "Unknown PGN",
+                Type = "Unknown"
+            };
+        }
 
+        private static Nmea2000Record CreateRecordFromCanFrame(string? timestamp, int canId, byte[] payloadBytes)
+        {
+            var priority = (canId >> 26) & 0x7;
+            var source = canId & 0xFF;
+            var pgn = (canId >> 8) & 0x1FFFF;
+            var destination = 255;
+
+            if (pgn < 0xF000)
+            {
+                destination = pgn & 0xFF;
+                pgn &= 0x1FF00;
+            }
+
+            return CreateRecord(
+                timestamp,
+                priority.ToString(CultureInfo.InvariantCulture),
+                pgn.ToString(CultureInfo.InvariantCulture),
+                source.ToString(CultureInfo.InvariantCulture),
+                destination.ToString(CultureInfo.InvariantCulture),
+                payloadBytes);
+        }
+
+        private static byte ParseHexByte(string hex)
+        {
+            var span = hex.AsSpan();
+            if (span.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            {
+                span = span[2..];
+            }
+
+            return ParseHexByte(span);
+        }
+
+        private static byte[] ParseCompactHexPayload(string hexPayload)
+        {
+            if (string.IsNullOrWhiteSpace(hexPayload))
+            {
+                return Array.Empty<byte>();
+            }
+
+            var span = hexPayload.AsSpan().Trim();
+            var bytes = new byte[span.Length / 2];
+            for (var i = 0; i < bytes.Length; i++)
+            {
+                bytes[i] = ParseHexByte(span.Slice(i * 2, 2));
+            }
+
+            return bytes;
+        }
+
+        private static byte ParseHexByte(ReadOnlySpan<char> hex)
+        {
+            return byte.Parse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        }
+
+        private static int EstimateRecordCapacity(string filePath, int averageBytesPerRecord)
+        {
+            if (averageBytesPerRecord <= 0)
+            {
+                return 256;
+            }
+
+            try
+            {
+                var fileLength = new FileInfo(filePath).Length;
+                return (int)Math.Clamp(fileLength / averageBytesPerRecord, 256, int.MaxValue);
+            }
+            catch
+            {
+                return 256;
+            }
+        }
+
+        private static int EstimateBinaryRecordCapacity(string filePath, int bytesPerRecord)
+        {
+            if (bytesPerRecord <= 0)
+            {
+                return 256;
+            }
+
+            try
+            {
+                var fileLength = new FileInfo(filePath).Length;
+                return (int)Math.Clamp(fileLength / bytesPerRecord, 256, int.MaxValue);
+            }
+            catch
+            {
+                return 256;
+            }
+        }
     }
 }

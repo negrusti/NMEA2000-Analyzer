@@ -25,9 +25,7 @@ namespace NMEA2000Analyzer
         {
             base.OnStartup(e);
 
-            var args = e.Args.Length > 0
-                ? e.Args
-                : Environment.GetCommandLineArgs().Skip(1).ToArray();
+            var args = GetEffectiveCommandLineArgs(e.Args);
 
             if (args.Length > 0 && args[0].StartsWith("--", StringComparison.Ordinal))
             {
@@ -73,6 +71,29 @@ namespace NMEA2000Analyzer
             await mainWindow.LoadFileFromCommandLineAsync(filePath);
         }
 
+        private static string[] GetEffectiveCommandLineArgs(string[] startupArgs)
+        {
+            var args = startupArgs.Length > 0
+                ? startupArgs
+                : Environment.GetCommandLineArgs().Skip(1).ToArray();
+
+            if (args.Length > 0 && !args[0].StartsWith("--", StringComparison.Ordinal))
+            {
+                var envArgs = Environment.GetCommandLineArgs().Skip(1).ToArray();
+                if (envArgs.Length > 0 && (envArgs[0].EndsWith(".dll", StringComparison.OrdinalIgnoreCase) || envArgs[0].EndsWith(".exe", StringComparison.OrdinalIgnoreCase)))
+                {
+                    envArgs = envArgs.Skip(1).ToArray();
+                }
+
+                if (envArgs.Length > 0 && envArgs[0].StartsWith("--", StringComparison.Ordinal))
+                {
+                    return envArgs;
+                }
+            }
+
+            return args;
+        }
+
         private static async Task<int> RunCommandLineModeAsync(string[] args)
         {
             static void WriteCliTrace(params string[] lines)
@@ -94,10 +115,16 @@ namespace NMEA2000Analyzer
                 Console.WriteLine("Usage:");
                 Console.WriteLine("  NMEA2000Analyzer.exe --summary <file>");
                 Console.WriteLine("  NMEA2000Analyzer.exe --verify <file>");
+                Console.WriteLine("  NMEA2000Analyzer.exe --search-pgn <pgn>");
                 return 2;
             }
 
             var command = args[0];
+            if (command == "--search-pgn")
+            {
+                return await SearchPgnInWorkingDirectoryAsync(args[1], WriteCliTrace);
+            }
+
             var filePath = Path.GetFullPath(args[1]);
 
             if (!File.Exists(filePath))
@@ -128,8 +155,8 @@ namespace NMEA2000Analyzer
                             format = result.Format.ToString(),
                             rawCount = result.RawCount,
                             assembledCount = result.AssembledCount,
-                            firstTimestamp = result.FirstTimestamp,
-                            lastTimestamp = result.LastTimestamp
+                            firstTimestamp = result.FirstTimestamp?.ToString("o"),
+                            lastTimestamp = result.LastTimestamp?.ToString("o")
                         }, new JsonSerializerOptions { WriteIndented = true }));
                         return 0;
 
@@ -144,14 +171,14 @@ namespace NMEA2000Analyzer
                             $"Format: {result.Format}",
                             $"Raw records: {result.RawCount}",
                             $"Assembled records: {result.AssembledCount}",
-                            $"First timestamp: {result.FirstTimestamp ?? "<none>"}",
-                            $"Last timestamp: {result.LastTimestamp ?? "<none>"}");
+                            $"First timestamp: {result.FirstTimestamp?.ToString("o") ?? "<none>"}",
+                            $"Last timestamp: {result.LastTimestamp?.ToString("o") ?? "<none>"}");
                         Console.WriteLine(passed ? "OK" : "FAIL");
                         Console.WriteLine($"Format: {result.Format}");
                         Console.WriteLine($"Raw records: {result.RawCount}");
                         Console.WriteLine($"Assembled records: {result.AssembledCount}");
-                        Console.WriteLine($"First timestamp: {result.FirstTimestamp ?? "<none>"}");
-                        Console.WriteLine($"Last timestamp: {result.LastTimestamp ?? "<none>"}");
+                        Console.WriteLine($"First timestamp: {result.FirstTimestamp?.ToString("o") ?? "<none>"}");
+                        Console.WriteLine($"Last timestamp: {result.LastTimestamp?.ToString("o") ?? "<none>"}");
                         return passed ? 0 : 1;
 
                     default:
@@ -171,6 +198,53 @@ namespace NMEA2000Analyzer
                 Console.WriteLine(ex.Message);
                 return 1;
             }
+        }
+
+        private static async Task<int> SearchPgnInWorkingDirectoryAsync(string pgn, Action<string[]> writeCliTrace)
+        {
+            if (string.IsNullOrWhiteSpace(pgn))
+            {
+                writeCliTrace(new[] { "Invalid PGN", pgn });
+                Console.WriteLine("FAIL");
+                Console.WriteLine("PGN must not be empty.");
+                return 1;
+            }
+
+            var matches = new List<string>();
+            var cwd = Directory.GetCurrentDirectory();
+
+            foreach (var filePath in Directory.EnumerateFiles(cwd).OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    var (_, rawRecords) = await CaptureLoadService.LoadRawAsync(filePath);
+                    if (rawRecords.Any(record => string.Equals(record.PGN, pgn, StringComparison.Ordinal)))
+                    {
+                        matches.Add(Path.GetFileName(filePath));
+                    }
+                }
+                catch
+                {
+                    // Skip files that are not recognized capture logs.
+                }
+            }
+
+            writeCliTrace(new[]
+            {
+                "OK",
+                "Command: --search-pgn",
+                $"PGN: {pgn}",
+                $"Working directory: {cwd}",
+                $"Matches: {matches.Count}",
+                matches.Count == 0 ? "<none>" : string.Join(", ", matches)
+            });
+
+            foreach (var match in matches)
+            {
+                Console.WriteLine(match);
+            }
+
+            return 0;
         }
     }
 }
