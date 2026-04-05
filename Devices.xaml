@@ -14,14 +14,16 @@
                   VerticalGridLinesBrush="#F0F0F0"
                   ItemsSource="{Binding BindableDevices}">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Addr" Binding="{Binding Key}" Width="Auto" />
-                <DataGridTextColumn Header="Manufacturer" Binding="{Binding Value.MfgCode}" Width="Auto" />
-                <DataGridTextColumn Header="Model ID" Binding="{Binding Value.ModelID}" Width="Auto" />
-                <DataGridTextColumn Header="Model Version" Binding="{Binding Value.ModelVersion}" Width="Auto" />
-                <DataGridTextColumn Header="Device Function" Binding="{Binding Value.DeviceFunction}" Width="Auto" />
-                <DataGridTextColumn Header="Software Version" Binding="{Binding Value.SoftwareVersionCode}" Width="Auto" />
-                <DataGridTextColumn Header="Model Serial" Binding="{Binding Value.ModelSerialCode}" Width="Auto" />
-                <DataGridTextColumn Header="Prod Code" Binding="{Binding Value.ProductCode}" Width="Auto" />
+                <DataGridTextColumn Header="Addr" Binding="{Binding Address}" Width="Auto" />
+                <DataGridTextColumn Header="Manufacturer" Binding="{Binding MfgCode}" Width="Auto" />
+                <DataGridTextColumn Header="Model ID" Binding="{Binding ModelID}" Width="Auto" />
+                <DataGridTextColumn Header="Model Version" Binding="{Binding ModelVersion}" Width="Auto" />
+                <DataGridTextColumn Header="Device Function" Binding="{Binding DeviceFunction}" Width="Auto" />
+                <DataGridTextColumn Header="Unassembled" Binding="{Binding UnassembledCount}" Width="Auto" />
+                <DataGridTextColumn Header="Assembled" Binding="{Binding AssembledCount}" Width="Auto" />
+                <DataGridTextColumn Header="Software Version" Binding="{Binding SoftwareVersionCode}" Width="Auto" />
+                <DataGridTextColumn Header="Model Serial" Binding="{Binding ModelSerialCode}" Width="Auto" />
+                <DataGridTextColumn Header="Prod Code" Binding="{Binding ProductCode}" Width="Auto" />
             </DataGrid.Columns>
         </DataGrid>
     </Grid>

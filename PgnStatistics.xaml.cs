@@ -47,6 +47,7 @@ namespace NMEA2000Analyzer
     {
         public string PGN { get; set; }
         public string Description { get; set; }
+        public string SourceAddresses { get; set; }
         public int Count { get; set; }
     }
 }

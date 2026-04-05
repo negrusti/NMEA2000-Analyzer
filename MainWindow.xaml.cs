@@ -820,18 +820,24 @@ namespace NMEA2000Analyzer
             }
 
             // Group PGNs by their count and include descriptions
-            var pgnCounts = _assembledData
-                .GroupBy(record => record.PGN)
-                .Select(group =>
-                {
-                    var firstRecord = group.First();
-                    return new PgnStatisticsEntry
-                    {
-                        PGN = group.Key,
-                        Count = group.Count(),
-                        Description = firstRecord.Description ?? "Unknown"
-                    };
-                })
+              var pgnCounts = _assembledData
+                  .GroupBy(record => record.PGN)
+                  .Select(group =>
+                  {
+                      var firstRecord = group.First();
+                      return new PgnStatisticsEntry
+                      {
+                          PGN = group.Key,
+                          Count = group.Count(),
+                          Description = firstRecord.Description ?? "Unknown",
+                          SourceAddresses = string.Join(", ",
+                              group.Select(record => record.Source)
+                                   .Where(source => !string.IsNullOrWhiteSpace(source))
+                                   .Distinct(StringComparer.Ordinal)
+                                   .OrderBy(source => int.TryParse(source, out var address) ? address : int.MaxValue)
+                                   .ThenBy(source => source, StringComparer.Ordinal))
+                       };
+                   })
                 .OrderByDescending(entry => entry.Count)
                 .ToList();
 
@@ -869,11 +875,40 @@ namespace NMEA2000Analyzer
                 return;
             }
 
+            var unassembledCounts = (_Data ?? Enumerable.Empty<Nmea2000Record>())
+                .GroupBy(record => record.Source)
+                .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal);
 
-            // Open the statistics window
-            var devicesWindow = new Devices();
-            devicesWindow.Show();
-        }
+            var assembledCounts = (_assembledData ?? Enumerable.Empty<Nmea2000Record>())
+                .GroupBy(record => record.Source)
+                .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal);
+
+            var statistics = Globals.Devices
+                .OrderBy(device => device.Key)
+                .Select(device =>
+                {
+                    var sourceKey = device.Key.ToString();
+                    return new DeviceStatisticsEntry
+                    {
+                        Address = device.Value.Address,
+                        ProductCode = device.Value.ProductCode,
+                        ModelID = device.Value.ModelID,
+                        SoftwareVersionCode = device.Value.SoftwareVersionCode,
+                        ModelVersion = device.Value.ModelVersion,
+                        ModelSerialCode = device.Value.ModelSerialCode,
+                        MfgCode = device.Value.MfgCode,
+                        DeviceClass = device.Value.DeviceClass,
+                        DeviceFunction = device.Value.DeviceFunction,
+                        UnassembledCount = unassembledCounts.GetValueOrDefault(sourceKey),
+                        AssembledCount = assembledCounts.GetValueOrDefault(sourceKey)
+                    };
+                })
+                .ToList();
+
+              // Open the statistics window
+              var devicesWindow = new Devices(statistics);
+              devicesWindow.Show();
+          }
 
         private void ClearData()
         {

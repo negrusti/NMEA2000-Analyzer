@@ -8,19 +8,24 @@ namespace NMEA2000Analyzer
     /// </summary>
     public partial class Devices : Window
     {
+        public ObservableCollection<DeviceStatisticsEntry> BindableDevices { get; }
+            = new ObservableCollection<DeviceStatisticsEntry>();
 
-        public ObservableCollection<KeyValuePair<int, Device>> BindableDevices { get; }
-            = new ObservableCollection<KeyValuePair<int, Device>>();
-
-        public Devices()
+        public Devices(IEnumerable<DeviceStatisticsEntry> statistics)
         {
             InitializeComponent();
             DataContext = this;
             BindableDevices.Clear();
-            foreach (var kvp in Globals.Devices)
+            foreach (var device in statistics)
             {
-                BindableDevices.Add(kvp);
+                BindableDevices.Add(device);
             }
         }
+    }
+
+    public class DeviceStatisticsEntry : Device
+    {
+        public int UnassembledCount { get; set; }
+        public int AssembledCount { get; set; }
     }
 }

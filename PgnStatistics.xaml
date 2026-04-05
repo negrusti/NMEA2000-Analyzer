@@ -17,6 +17,7 @@
             <DataGrid.Columns>
                 <DataGridTextColumn Header="PGN" Binding="{Binding PGN}" Width="*" />
                 <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="2*" />
+                <DataGridTextColumn Header="Addresses" Binding="{Binding SourceAddresses}" Width="2*" />
                 <DataGridTextColumn Header="Count" Binding="{Binding Count}" Width="Auto" />
             </DataGrid.Columns>
         </DataGrid>
