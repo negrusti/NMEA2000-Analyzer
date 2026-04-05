@@ -8,7 +8,15 @@
         Title="Devices"
         MaxWidth="1000" MaxHeight="800"
         SizeToContent="WidthAndHeight">
+    <Window.Resources>
+        <local:BpsHighlightConverter x:Key="BpsHighlightConverter" />
+    </Window.Resources>
     <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
         <DataGrid x:Name="DevicesDataGrid" AutoGenerateColumns="False" IsReadOnly="True"
                   HorizontalGridLinesBrush="#F0F0F0"
                   VerticalGridLinesBrush="#F0F0F0"
@@ -19,12 +27,53 @@
                 <DataGridTextColumn Header="Model ID" Binding="{Binding ModelID}" Width="Auto" />
                 <DataGridTextColumn Header="Model Version" Binding="{Binding ModelVersion}" Width="Auto" />
                 <DataGridTextColumn Header="Device Function" Binding="{Binding DeviceFunction}" Width="Auto" />
-                <DataGridTextColumn Header="Unassembled" Binding="{Binding UnassembledCount}" Width="Auto" />
-                <DataGridTextColumn Header="Assembled" Binding="{Binding AssembledCount}" Width="Auto" />
                 <DataGridTextColumn Header="Software Version" Binding="{Binding SoftwareVersionCode}" Width="Auto" />
                 <DataGridTextColumn Header="Model Serial" Binding="{Binding ModelSerialCode}" Width="Auto" />
                 <DataGridTextColumn Header="Prod Code" Binding="{Binding ProductCode}" Width="Auto" />
+                <DataGridTextColumn Header="Raw Packets" Binding="{Binding UnassembledCount}" Width="Auto" />
+                <DataGridTextColumn Header="Assembled Packets" Binding="{Binding AssembledCount}" Width="Auto" />
+                <DataGridTextColumn Header="Avg Bps" Binding="{Binding AvgBps}" Width="Auto" />
+                <DataGridTextColumn Header="Peak Bps" Binding="{Binding PeakBps}" Width="Auto" />
             </DataGrid.Columns>
         </DataGrid>
+
+        <Border Grid.Row="1"
+                BorderBrush="#D9D9D9"
+                BorderThickness="0,1,0,0"
+                Background="#FAFAFA"
+                Padding="8,6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0"
+                           Text="Totals"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1"
+                           Margin="16,0,0,0"
+                           Text="{Binding TotalUnassembledCount, StringFormat=Raw Packets: {0}}"
+                           VerticalAlignment="Center" />
+                <TextBlock Grid.Column="2"
+                           Margin="16,0,0,0"
+                           Text="{Binding TotalAssembledCount, StringFormat=Assembled Packets: {0}}"
+                           VerticalAlignment="Center" />
+                <TextBlock Grid.Column="3"
+                           Margin="16,0,0,0"
+                           Text="{Binding TotalAvgBps, StringFormat=Avg Bps: {0}}"
+                           Foreground="{Binding TotalAvgBpsValue, Converter={StaticResource BpsHighlightConverter}}"
+                           VerticalAlignment="Center" />
+                <TextBlock Grid.Column="4"
+                           Margin="16,0,0,0"
+                           Text="{Binding TotalPeakBps, StringFormat=Peak Bps: {0}}"
+                           Foreground="{Binding TotalPeakBpsValue, Converter={StaticResource BpsHighlightConverter}}"
+                           VerticalAlignment="Center" />
+            </Grid>
+        </Border>
     </Grid>
 </Window>

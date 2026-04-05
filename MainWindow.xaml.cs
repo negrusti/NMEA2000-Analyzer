@@ -869,7 +869,16 @@ namespace NMEA2000Analyzer
 
         private void DevicesMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            if (Globals.Devices == null || !Globals.Devices.Any())
+            var observedAddresses = (_Data ?? Enumerable.Empty<Nmea2000Record>())
+                .Concat(_assembledData ?? Enumerable.Empty<Nmea2000Record>())
+                .Select(record => record.Source)
+                .Where(source => int.TryParse(source, out _))
+                .Select(source => int.Parse(source, CultureInfo.InvariantCulture))
+                .Distinct()
+                .OrderBy(address => address)
+                .ToList();
+
+            if ((Globals.Devices == null || !Globals.Devices.Any()) && observedAddresses.Count == 0)
             {
                 MessageBox.Show("No device data available.", "Device Statistics", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
@@ -883,24 +892,38 @@ namespace NMEA2000Analyzer
                 .GroupBy(record => record.Source)
                 .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal);
 
-            var statistics = Globals.Devices
-                .OrderBy(device => device.Key)
-                .Select(device =>
+            var throughputBySource = (_assembledData ?? Enumerable.Empty<Nmea2000Record>())
+                .GroupBy(record => record.Source)
+                .ToDictionary(group => group.Key, CalculateThroughput, StringComparer.Ordinal);
+
+            var addresses = observedAddresses
+                .Concat(Globals.Devices?.Keys.Select(key => (int)key) ?? Enumerable.Empty<int>())
+                .Distinct()
+                .OrderBy(address => address);
+
+            var statistics = addresses
+                .Select(address =>
                 {
-                    var sourceKey = device.Key.ToString();
+                    var sourceKey = address.ToString(CultureInfo.InvariantCulture);
+                    throughputBySource.TryGetValue(sourceKey, out var throughput);
+                    Globals.Devices.TryGetValue((byte)address, out var deviceInfo);
                     return new DeviceStatisticsEntry
                     {
-                        Address = device.Value.Address,
-                        ProductCode = device.Value.ProductCode,
-                        ModelID = device.Value.ModelID,
-                        SoftwareVersionCode = device.Value.SoftwareVersionCode,
-                        ModelVersion = device.Value.ModelVersion,
-                        ModelSerialCode = device.Value.ModelSerialCode,
-                        MfgCode = device.Value.MfgCode,
-                        DeviceClass = device.Value.DeviceClass,
-                        DeviceFunction = device.Value.DeviceFunction,
+                        Address = deviceInfo?.Address ?? address,
+                        ProductCode = deviceInfo?.ProductCode,
+                        ModelID = deviceInfo?.ModelID,
+                        SoftwareVersionCode = deviceInfo?.SoftwareVersionCode,
+                        ModelVersion = deviceInfo?.ModelVersion,
+                        ModelSerialCode = deviceInfo?.ModelSerialCode,
+                        MfgCode = deviceInfo?.MfgCode,
+                        DeviceClass = deviceInfo?.DeviceClass,
+                        DeviceFunction = deviceInfo?.DeviceFunction,
                         UnassembledCount = unassembledCounts.GetValueOrDefault(sourceKey),
-                        AssembledCount = assembledCounts.GetValueOrDefault(sourceKey)
+                        AssembledCount = assembledCounts.GetValueOrDefault(sourceKey),
+                        AvgBpsValue = throughput.AverageBytesPerSecond ?? 0,
+                        PeakBpsValue = throughput.PeakBytesPerSecond ?? 0,
+                        AvgBps = FormatBps(throughput.AverageBytesPerSecond),
+                        PeakBps = FormatBps(throughput.PeakBytesPerSecond)
                     };
                 })
                 .ToList();
@@ -909,6 +932,79 @@ namespace NMEA2000Analyzer
               var devicesWindow = new Devices(statistics);
               devicesWindow.Show();
           }
+
+        private static (double? AverageBytesPerSecond, double? PeakBytesPerSecond) CalculateThroughput(
+            IEnumerable<Nmea2000Record> records)
+        {
+            var timestampedRecords = records
+                .Select(record => new
+                {
+                    Timestamp = TryGetRecordTimestamp(record),
+                    PayloadLength = record.PayloadBytes.Length
+                })
+                .Where(item => item.Timestamp.HasValue)
+                .Select(item => new
+                {
+                    Timestamp = item.Timestamp!.Value,
+                    item.PayloadLength
+                })
+                .ToList();
+
+            if (timestampedRecords.Count == 0)
+            {
+                return (null, null);
+            }
+
+            var totalBytes = timestampedRecords.Sum(item => item.PayloadLength);
+            var firstTimestamp = timestampedRecords.Min(item => item.Timestamp);
+            var lastTimestamp = timestampedRecords.Max(item => item.Timestamp);
+            var durationSeconds = (lastTimestamp - firstTimestamp).TotalSeconds;
+            double? averageBytesPerSecond = durationSeconds > 0 ? totalBytes / durationSeconds : null;
+
+            var peakBytesPerSecond = timestampedRecords
+                .GroupBy(item => item.Timestamp.ToUnixTimeSeconds())
+                .Select(group => (double)group.Sum(item => item.PayloadLength))
+                .DefaultIfEmpty(0)
+                .Max();
+
+            return (averageBytesPerSecond, peakBytesPerSecond > 0 ? peakBytesPerSecond : null);
+        }
+
+        private static DateTimeOffset? TryGetRecordTimestamp(Nmea2000Record record)
+        {
+            if (string.IsNullOrWhiteSpace(record.Timestamp))
+            {
+                return null;
+            }
+
+            if (double.TryParse(record.Timestamp, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds))
+            {
+                var wholeSeconds = Math.Truncate(seconds);
+                var fractionalSeconds = seconds - wholeSeconds;
+                return DateTimeOffset.UnixEpoch
+                    .AddSeconds(wholeSeconds)
+                    .AddTicks((long)Math.Round(fractionalSeconds * TimeSpan.TicksPerSecond));
+            }
+
+            if (DateTimeOffset.TryParse(record.Timestamp, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var timestamp))
+            {
+                return timestamp;
+            }
+
+            if (TimeSpan.TryParse(record.Timestamp, CultureInfo.InvariantCulture, out var timeSpan))
+            {
+                return DateTimeOffset.UnixEpoch.Add(timeSpan);
+            }
+
+            return null;
+        }
+
+        private static string FormatBps(double? bytesPerSecond)
+        {
+            return bytesPerSecond.HasValue
+                ? bytesPerSecond.Value.ToString("0.##", CultureInfo.InvariantCulture)
+                : string.Empty;
+        }
 
         private void ClearData()
         {
