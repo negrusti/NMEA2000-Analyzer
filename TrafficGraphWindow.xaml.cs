@@ -13,11 +13,14 @@ namespace NMEA2000Analyzer
     {
         private const double BarWidthDip = 6;
         private const double LabelWidthDip = 84;
+        private static readonly int[] ZoomStepsSeconds = [1, 5, 10, 30, 60, 300, 600, 1800, 3600, 10800, 21600, 43200, 86400];
 
         private readonly List<DateTimeOffset> _timestamps;
         private readonly DateTimeOffset _fullStart;
         private readonly DateTimeOffset _fullEnd;
         private readonly string _graphSubtitleBase;
+        private int _currentSecondsPerBar;
+        private int _maxSecondsPerBar;
         private DateTimeOffset _visibleStart;
         private DateTimeOffset _visibleEnd;
         private Point _panStartPoint;
@@ -42,6 +45,8 @@ namespace NMEA2000Analyzer
             _timestamps = timestamps.OrderBy(value => value).ToList();
             _fullStart = fullStart;
             _fullEnd = fullEnd <= fullStart ? fullStart.AddSeconds(1) : fullEnd;
+            _currentSecondsPerBar = 1;
+            _maxSecondsPerBar = 1;
             _visibleStart = _fullStart;
             _visibleEnd = _fullEnd;
 
@@ -63,6 +68,8 @@ namespace NMEA2000Analyzer
                     Stroke = new SolidColorPaint(strokeColor, 1),
                     AnimationsSpeed = TimeSpan.Zero,
                     EasingFunction = EasingFunctions.Lineal,
+                    XToolTipLabelFormatter = _ => string.Empty,
+                    YToolTipLabelFormatter = chartPoint => chartPoint.Coordinate.PrimaryValue.ToString("0"),
                     Rx = 0,
                     Ry = 0,
                     Padding = 0,
@@ -96,6 +103,7 @@ namespace NMEA2000Analyzer
                     AnimationsSpeed = TimeSpan.Zero,
                     EasingFunction = EasingFunctions.Lineal,
                     NamePaint = new SolidColorPaint(labelColor),
+                    NameTextSize = 12,
                     LabelsPaint = new SolidColorPaint(labelColor),
                     TextSize = 12,
                     MinLimit = 0,
@@ -108,31 +116,49 @@ namespace NMEA2000Analyzer
             DataContext = this;
             Width = SystemParameters.WorkArea.Width * 0.9;
             Height = Math.Max(390, SystemParameters.WorkArea.Height * 0.54);
-            Loaded += (_, _) => UpdateChart();
+            Loaded += (_, _) =>
+            {
+                RecalculateZoomBounds();
+                _currentSecondsPerBar = _maxSecondsPerBar;
+                _visibleStart = _fullStart;
+                _visibleEnd = _fullEnd;
+                UpdateChart();
+            };
         }
 
         private void TrafficChart_SizeChanged(object sender, SizeChangedEventArgs e)
         {
             if (e.WidthChanged && IsLoaded)
             {
+                RecalculateZoomBounds();
+                var nextEnd = _visibleStart + TimeSpan.FromSeconds(GetVisibleDurationSeconds());
+                ClampVisibleRange(ref _visibleStart, ref nextEnd);
+                _visibleEnd = nextEnd;
                 UpdateChart();
             }
         }
 
         private void TrafficChart_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
-            var barCount = GetBarCount();
-            var minVisibleSeconds = barCount;
-            var fullVisibleSeconds = Math.Max(minVisibleSeconds, (_fullEnd - _fullStart).TotalSeconds);
-            var currentVisibleSeconds = (_visibleEnd - _visibleStart).TotalSeconds;
-            var zoomFactor = e.Delta > 0 ? 0.8 : 1.25;
-            var nextVisibleSeconds = Math.Clamp(currentVisibleSeconds * zoomFactor, minVisibleSeconds, fullVisibleSeconds);
+            var nextSecondsPerBar = e.Delta > 0
+                ? GetNextFinerStep(_currentSecondsPerBar)
+                : GetNextCoarserStep(_currentSecondsPerBar);
+
+            if (nextSecondsPerBar == _currentSecondsPerBar)
+            {
+                e.Handled = true;
+                return;
+            }
+
+            var currentVisibleSeconds = GetVisibleDurationSeconds();
+            var nextVisibleSeconds = GetVisibleDurationSeconds(nextSecondsPerBar);
             var centerRatio = TrafficChart.ActualWidth <= 0 ? 0.5 : Math.Clamp(e.GetPosition(TrafficChart).X / TrafficChart.ActualWidth, 0, 1);
             var center = _visibleStart + TimeSpan.FromSeconds(currentVisibleSeconds * centerRatio);
             var nextStart = center - TimeSpan.FromSeconds(nextVisibleSeconds * centerRatio);
             var nextEnd = nextStart + TimeSpan.FromSeconds(nextVisibleSeconds);
 
             ClampVisibleRange(ref nextStart, ref nextEnd);
+            _currentSecondsPerBar = nextSecondsPerBar;
             _visibleStart = nextStart;
             _visibleEnd = nextEnd;
             UpdateChart();
@@ -183,8 +209,7 @@ namespace NMEA2000Analyzer
             }
 
             var barCount = GetBarCount();
-            var visibleSeconds = Math.Max(barCount, (_visibleEnd - _visibleStart).TotalSeconds);
-            var secondsPerBar = visibleSeconds / barCount;
+            var secondsPerBar = _currentSecondsPerBar;
             var labels = new string[barCount];
             var points = new ObservablePoint[barCount];
             var labelEvery = Math.Max(1, (int)Math.Ceiling(LabelWidthDip / BarWidthDip));
@@ -249,6 +274,58 @@ namespace NMEA2000Analyzer
         {
             var width = Math.Max(1, TrafficChart.ActualWidth);
             return Math.Max(1, (int)Math.Floor(width / BarWidthDip));
+        }
+
+        private void RecalculateZoomBounds()
+        {
+            var requiredSecondsPerBar = (_fullEnd - _fullStart).TotalSeconds / GetBarCount();
+            _maxSecondsPerBar = ZoomStepsSeconds.FirstOrDefault(step => step >= requiredSecondsPerBar);
+            if (_maxSecondsPerBar == 0)
+            {
+                _maxSecondsPerBar = ZoomStepsSeconds[^1];
+            }
+
+            _currentSecondsPerBar = Math.Min(_currentSecondsPerBar, _maxSecondsPerBar);
+            if (_currentSecondsPerBar <= 0)
+            {
+                _currentSecondsPerBar = ZoomStepsSeconds[0];
+            }
+        }
+
+        private int GetVisibleDurationSeconds()
+        {
+            return GetVisibleDurationSeconds(_currentSecondsPerBar);
+        }
+
+        private int GetVisibleDurationSeconds(int secondsPerBar)
+        {
+            return Math.Max(secondsPerBar, GetBarCount() * secondsPerBar);
+        }
+
+        private int GetNextFinerStep(int currentSecondsPerBar)
+        {
+            for (var index = ZoomStepsSeconds.Length - 1; index >= 0; index--)
+            {
+                if (ZoomStepsSeconds[index] < currentSecondsPerBar)
+                {
+                    return ZoomStepsSeconds[index];
+                }
+            }
+
+            return ZoomStepsSeconds[0];
+        }
+
+        private int GetNextCoarserStep(int currentSecondsPerBar)
+        {
+            foreach (var step in ZoomStepsSeconds)
+            {
+                if (step > currentSecondsPerBar)
+                {
+                    return Math.Min(step, _maxSecondsPerBar);
+                }
+            }
+
+            return _maxSecondsPerBar;
         }
 
         private void ClampVisibleRange(ref DateTimeOffset start, ref DateTimeOffset end)

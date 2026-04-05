@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.11 - 2026-04-05
+
+- Refined traffic graph zooming to use discrete time-per-bar steps with fixed bar width and a dynamic zoom-out limit based on full-log fit.
+- Simplified graph tooltips to show only packet counts and aligned graph label sizing with the time-axis text.
+- Documented timestamp requirements for graphs and added a graph screenshot to the README.
+
 ## 1.3.10 - 2026-04-05
 
 - Added zoomable packet-rate graphs for both `Devices` and `PGNs`, opened by double-clicking rows in the statistics windows.

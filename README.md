@@ -43,6 +43,9 @@ In `Statistics`:
 
 * double-click a row in `Devices` to open a packet-rate graph for that device
 * double-click a row in `PGNs` to open a packet-rate graph for that PGN
+* graphs are available only when the loaded log contains timestamps
+
+![Traffic Graph Screenshot](images/Screenshot2.png)
 
 ## Highlighting
 
