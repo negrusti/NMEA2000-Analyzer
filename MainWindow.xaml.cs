@@ -11,8 +11,10 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Threading;
+using System.Windows.Media;
 using static NMEA2000Analyzer.PgnDefinitions;
 using Application = System.Windows.Application;
+using LiveChartsCore.Defaults;
 
 namespace NMEA2000Analyzer
 {
@@ -33,6 +35,7 @@ namespace NMEA2000Analyzer
         private List<Nmea2000Record>? _indexedDataSource;
         private FilterIndexes? _filterIndexes;
         private bool _distinctFilterEnabled;
+        private readonly Dictionary<string, Brush> _highlightBackgroundsByPgn = new(StringComparer.Ordinal);
 
         private enum PacketViewMode
         {
@@ -53,6 +56,7 @@ namespace NMEA2000Analyzer
                 PopulateRecentFilesMenu();
             };
             this.Loaded += MainWindow_Loaded;
+            LoadHighlights();
         }
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -101,6 +105,7 @@ namespace NMEA2000Analyzer
             public string? DeviceInfo { get; set; }
             public int? PGNListIndex { get; set; }
             public string DestinationDisplay => Destination == "255" ? "Bcast" : Destination;
+            public Brush HighlightBackground { get; set; } = Brushes.Transparent;
 
             public string AsciiData => _asciiData ??= ConvertBytesToAscii(_payloadBytes);
 
@@ -200,6 +205,8 @@ namespace NMEA2000Analyzer
                 var result = await CaptureLoadService.LoadAsync(filePath, progress);
                 _Data = result.RawRecords;
                 _assembledData = result.AssembledRecords;
+                ApplyHighlights(_Data);
+                ApplyHighlights(_assembledData);
                 Title = $"NMEA2000 Analyzer - {Path.GetFileName(filePath)} " +
                         $"({Enum.GetName(typeof(FileFormats.FileFormat), result.Format)})";
 
@@ -386,8 +393,10 @@ namespace NMEA2000Analyzer
                 var (firstTimestamp, lastTimestamp) = CaptureLoadService.GetTimestampBounds(_Data);
                 UpdateTimestampRange(firstTimestamp, lastTimestamp);
                 EnrichUnassembledRecords(_Data);
+                ApplyHighlights(_Data);
 
                 _assembledData = AssembleFrames(_Data);
+                ApplyHighlights(_assembledData);
 
                 GenerateDeviceInfo(_assembledData);
                 UpdateSrcDevices(_Data);
@@ -842,7 +851,7 @@ namespace NMEA2000Analyzer
                 .ToList();
 
             // Open the statistics window
-            var statsWindow = new PgnStatistics(pgnCounts)
+            var statsWindow = new PgnStatistics(pgnCounts, ShowPgnGraph)
             {
                 Owner = this
             };
@@ -929,9 +938,91 @@ namespace NMEA2000Analyzer
                 .ToList();
 
               // Open the statistics window
-              var devicesWindow = new Devices(statistics);
-              devicesWindow.Show();
-          }
+                var devicesWindow = new Devices(statistics, ShowDeviceGraph);
+                devicesWindow.Show();
+            }
+
+        private void ShowDeviceGraph(DeviceStatisticsEntry entry)
+        {
+            var records = GetTimestampedAssembledRecords(record =>
+                string.Equals(record.Source, entry.Address.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal));
+
+            if (records.Count == 0)
+            {
+                MessageBox.Show("No timestamped assembled packets are available for this device.", "Traffic Graph", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var deviceName = string.IsNullOrWhiteSpace(entry.ModelID) ? entry.MfgCode ?? string.Empty : entry.ModelID;
+            ShowTrafficGraph(
+                $"Device {entry.Address}",
+                $"Device {entry.Address}",
+                deviceName,
+                records);
+        }
+
+        private void ShowPgnGraph(PgnStatisticsEntry entry)
+        {
+            if (string.IsNullOrWhiteSpace(entry.PGN))
+            {
+                return;
+            }
+
+            var records = GetTimestampedAssembledRecords(record =>
+                string.Equals(record.PGN, entry.PGN, StringComparison.Ordinal));
+
+            if (records.Count == 0)
+            {
+                MessageBox.Show("No timestamped assembled packets are available for this PGN.", "Traffic Graph", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            ShowTrafficGraph(
+                $"PGN {entry.PGN}",
+                $"PGN {entry.PGN}",
+                entry.Description ?? string.Empty,
+                records);
+        }
+
+        private List<DateTimeOffset> GetTimestampedAssembledRecords(Func<Nmea2000Record, bool> predicate)
+        {
+            return (_assembledData ?? Enumerable.Empty<Nmea2000Record>())
+                .Where(predicate)
+                .Select(record => new
+                {
+                    Timestamp = TryGetRecordTimestamp(record)
+                })
+                .Where(item => item.Timestamp.HasValue)
+                .Select(item => item.Timestamp!.Value)
+                .OrderBy(timestamp => timestamp)
+                .ToList();
+        }
+
+        private void ShowTrafficGraph(
+            string graphTitle,
+            string graphSeriesName,
+            string graphSubtitle,
+            IReadOnlyList<DateTimeOffset> records)
+        {
+            var graphStart = records.First().UtcDateTime;
+            var graphEnd = records.Last().UtcDateTime;
+            if (graphEnd <= graphStart)
+            {
+                graphEnd = graphStart.AddSeconds(1);
+            }
+
+            var graphWindow = new TrafficGraphWindow(
+                graphTitle,
+                graphSeriesName,
+                graphSubtitle,
+                records,
+                new DateTimeOffset(graphStart, TimeSpan.Zero),
+                new DateTimeOffset(graphEnd, TimeSpan.Zero))
+            {
+                Owner = this
+            };
+            graphWindow.Show();
+        }
 
         private static (double? AverageBytesPerSecond, double? PeakBytesPerSecond) CalculateThroughput(
             IEnumerable<Nmea2000Record> records)
@@ -1031,6 +1122,85 @@ namespace NMEA2000Analyzer
             ExcludePGNTextBox.Text = string.Empty;
             IncludeAddressTextBox.Text = string.Empty;
             UpdateRowCountText();
+        }
+
+        private void LoadHighlights()
+        {
+            _highlightBackgroundsByPgn.Clear();
+
+            var highlightPath = Path.Combine(AppContext.BaseDirectory, "highlight.json");
+            if (!File.Exists(highlightPath))
+            {
+                return;
+            }
+
+            try
+            {
+                var json = File.ReadAllText(highlightPath);
+                var entries = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+                if (entries == null)
+                {
+                    return;
+                }
+
+                foreach (var entry in entries)
+                {
+                    if (string.IsNullOrWhiteSpace(entry.Key) ||
+                        string.IsNullOrWhiteSpace(entry.Value) ||
+                        !TryParseBrush(entry.Value, out var brush))
+                    {
+                        continue;
+                    }
+
+                    _highlightBackgroundsByPgn[entry.Key.Trim()] = brush;
+                }
+            }
+            catch
+            {
+                // Ignore malformed highlight.json and continue with default styling.
+            }
+        }
+
+        private static bool TryParseBrush(string colorValue, out Brush brush)
+        {
+            brush = Brushes.Black;
+
+            try
+            {
+                var converted = ColorConverter.ConvertFromString(colorValue);
+                if (converted is Color color)
+                {
+                    var solidBrush = new SolidColorBrush(color);
+                    solidBrush.Freeze();
+                    brush = solidBrush;
+                    return true;
+                }
+            }
+            catch
+            {
+            }
+
+            return false;
+        }
+
+        private void ApplyHighlights(IEnumerable<Nmea2000Record>? records)
+        {
+            if (records == null)
+            {
+                return;
+            }
+
+            foreach (var record in records)
+            {
+                if (record.PGN != null && _highlightBackgroundsByPgn.TryGetValue(record.PGN, out var brush))
+                {
+                    record.HighlightBackground = brush;
+                }
+                else
+                {
+                    record.HighlightBackground = Brushes.Transparent;
+                }
+            }
         }
 
         private List<Nmea2000Record>? GetActiveBaseData()

@@ -37,6 +37,17 @@ The main grid can switch between:
 * `Assembled` packets
 * `Unassembled` raw frames
 
+## Statistics
+
+In `Statistics`:
+
+* double-click a row in `Devices` to open a packet-rate graph for that device
+* double-click a row in `PGNs` to open a packet-rate graph for that PGN
+
+## Highlighting
+
+Optional PGN row highlights can be defined in `highlight.json` using web colors such as `#F8D7DA`.
+
 ## Export
 
 `File -> Save` exports the full unassembled capture in candump format.

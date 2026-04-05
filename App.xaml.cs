@@ -96,22 +96,8 @@ namespace NMEA2000Analyzer
 
         private static async Task<int> RunCommandLineModeAsync(string[] args)
         {
-            static void WriteCliTrace(params string[] lines)
-            {
-                try
-                {
-                    var tracePath = Path.Combine(AppContext.BaseDirectory, "cli-last-run.txt");
-                    File.WriteAllLines(tracePath, lines);
-                }
-                catch
-                {
-                    // Best-effort diagnostics only.
-                }
-            }
-
             if (args.Length < 2)
             {
-                WriteCliTrace("Usage error", string.Join(" ", args));
                 Console.WriteLine("Usage:");
                 Console.WriteLine("  NMEA2000Analyzer.exe --summary <file>");
                 Console.WriteLine("  NMEA2000Analyzer.exe --verify <file>");
@@ -122,14 +108,13 @@ namespace NMEA2000Analyzer
             var command = args[0];
             if (command == "--search-pgn")
             {
-                return await SearchPgnInWorkingDirectoryAsync(args[1], WriteCliTrace);
+                return await SearchPgnInWorkingDirectoryAsync(args[1]);
             }
 
             var filePath = Path.GetFullPath(args[1]);
 
             if (!File.Exists(filePath))
             {
-                WriteCliTrace("File not found", filePath);
                 Console.WriteLine("FAIL");
                 Console.WriteLine($"File not found: {filePath}");
                 return 1;
@@ -142,13 +127,6 @@ namespace NMEA2000Analyzer
                 switch (command)
                 {
                     case "--summary":
-                        WriteCliTrace(
-                            "OK",
-                            $"Command: {command}",
-                            $"File: {result.FilePath}",
-                            $"Format: {result.Format}",
-                            $"Raw records: {result.RawCount}",
-                            $"Assembled records: {result.AssembledCount}");
                         Console.WriteLine(JsonSerializer.Serialize(new
                         {
                             file = result.FilePath,
@@ -164,15 +142,6 @@ namespace NMEA2000Analyzer
                         var passed = result.Format != FileFormats.FileFormat.Unknown
                             && result.RawCount > 0;
 
-                        WriteCliTrace(
-                            passed ? "OK" : "FAIL",
-                            $"Command: {command}",
-                            $"File: {result.FilePath}",
-                            $"Format: {result.Format}",
-                            $"Raw records: {result.RawCount}",
-                            $"Assembled records: {result.AssembledCount}",
-                            $"First timestamp: {result.FirstTimestamp?.ToString("o") ?? "<none>"}",
-                            $"Last timestamp: {result.LastTimestamp?.ToString("o") ?? "<none>"}");
                         Console.WriteLine(passed ? "OK" : "FAIL");
                         Console.WriteLine($"Format: {result.Format}");
                         Console.WriteLine($"Raw records: {result.RawCount}");
@@ -182,29 +151,22 @@ namespace NMEA2000Analyzer
                         return passed ? 0 : 1;
 
                     default:
-                        WriteCliTrace("Unknown command", command, filePath);
                         Console.WriteLine($"Unknown command: {command}");
                         return 2;
                 }
             }
             catch (Exception ex)
             {
-                WriteCliTrace(
-                    "FAIL",
-                    $"Command: {command}",
-                    $"File: {filePath}",
-                    ex.ToString());
                 Console.WriteLine("FAIL");
                 Console.WriteLine(ex.Message);
                 return 1;
             }
         }
 
-        private static async Task<int> SearchPgnInWorkingDirectoryAsync(string pgn, Action<string[]> writeCliTrace)
+        private static async Task<int> SearchPgnInWorkingDirectoryAsync(string pgn)
         {
             if (string.IsNullOrWhiteSpace(pgn))
             {
-                writeCliTrace(new[] { "Invalid PGN", pgn });
                 Console.WriteLine("FAIL");
                 Console.WriteLine("PGN must not be empty.");
                 return 1;
@@ -228,16 +190,6 @@ namespace NMEA2000Analyzer
                     // Skip files that are not recognized capture logs.
                 }
             }
-
-            writeCliTrace(new[]
-            {
-                "OK",
-                "Command: --search-pgn",
-                $"PGN: {pgn}",
-                $"Working directory: {cwd}",
-                $"Matches: {matches.Count}",
-                matches.Count == 0 ? "<none>" : string.Join(", ", matches)
-            });
 
             foreach (var match in matches)
             {

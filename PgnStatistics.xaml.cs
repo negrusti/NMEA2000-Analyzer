@@ -1,13 +1,18 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
 
 namespace NMEA2000Analyzer
 {
     public partial class PgnStatistics : Window
     {
-        public PgnStatistics(List<PgnStatisticsEntry> statistics)
+        private readonly Action<PgnStatisticsEntry>? _graphRequested;
+
+        public PgnStatistics(List<PgnStatisticsEntry> statistics, Action<PgnStatisticsEntry>? graphRequested = null)
         {
+            _graphRequested = graphRequested;
             InitializeComponent();
             PgnStatisticsDataGrid.ItemsSource = statistics;
         }
@@ -40,6 +45,19 @@ namespace NMEA2000Analyzer
                 .Where(pgn => !string.IsNullOrWhiteSpace(pgn))
                 .Distinct()
                 .ToList();
+        }
+
+        private void PgnRow_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is not DataGridRow row ||
+                row.Item is not PgnStatisticsEntry entry)
+            {
+                return;
+            }
+
+            row.IsSelected = true;
+            row.Focus();
+            _graphRequested?.Invoke(entry);
         }
     }
 

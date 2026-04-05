@@ -1,0 +1,67 @@
+<Window x:Class="NMEA2000Analyzer.TrafficGraphWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.WPF;assembly=LiveChartsCore.SkiaSharpView.WPF"
+        mc:Ignorable="d"
+        Title="Traffic Graph"
+        Background="#F3F5F7"
+        WindowStartupLocation="CenterScreen">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0"
+                Margin="0,0,0,12"
+                Padding="14,10"
+                Background="#FFFFFF"
+                BorderBrush="#D7DDE4"
+                BorderThickness="1"
+                CornerRadius="10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Orientation="Vertical">
+                    <TextBlock Text="{Binding GraphTitle}"
+                               FontSize="18"
+                               Foreground="#1F2933"
+                               FontWeight="SemiBold" />
+                    <TextBlock Margin="0,4,0,0"
+                               Text="{Binding GraphSubtitle}"
+                               Foreground="#66717D" />
+                </StackPanel>
+
+                <TextBlock Grid.Column="1"
+                           VerticalAlignment="Center"
+                           Foreground="#66717D"
+                           Text="Zoom: mouse wheel | Pan: drag" />
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="1"
+                Background="#FFFFFF"
+                BorderBrush="#D7DDE4"
+                BorderThickness="1"
+                CornerRadius="12"
+                Padding="12">
+            <lvc:CartesianChart x:Name="TrafficChart"
+                                Series="{Binding Series}"
+                                XAxes="{Binding XAxes}"
+                                YAxes="{Binding YAxes}"
+                                LegendPosition="Hidden"
+                                TooltipPosition="Top"
+                                DrawMarginFrame="{x:Null}"
+                                PreviewMouseWheel="TrafficChart_PreviewMouseWheel"
+                                MouseLeftButtonDown="TrafficChart_MouseLeftButtonDown"
+                                MouseMove="TrafficChart_MouseMove"
+                                MouseLeftButtonUp="TrafficChart_MouseLeftButtonUp"
+                                SizeChanged="TrafficChart_SizeChanged" />
+        </Border>
+    </Grid>
+</Window>

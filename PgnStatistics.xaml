@@ -8,6 +8,12 @@
           SelectionUnit="FullRow"
           HorizontalGridLinesBrush="#F0F0F0"
           VerticalGridLinesBrush="#F0F0F0">
+            <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow">
+                    <EventSetter Event="MouseDoubleClick"
+                                 Handler="PgnRow_MouseDoubleClick" />
+                </Style>
+            </DataGrid.RowStyle>
             <DataGrid.ContextMenu>
                 <ContextMenu>
                     <MenuItem Header="Include" Click="IncludeMenuItem_Click" />

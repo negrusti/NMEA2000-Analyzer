@@ -131,6 +131,7 @@
                 <DataGrid.RowStyle>
                     <Style TargetType="{x:Type DataGridRow}">
                         <Setter Property="ContextMenu" Value="{StaticResource rowContextMenu}"/>
+                        <Setter Property="Background" Value="{Binding HighlightBackground}"/>
                     </Style>
                 </DataGrid.RowStyle>
                 <DataGrid.Columns>

@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Input;
 using System.Windows.Media;
 using static NMEA2000Analyzer.MainWindow;
 
@@ -12,6 +14,8 @@ namespace NMEA2000Analyzer
     /// </summary>
     public partial class Devices : Window
     {
+        private readonly Action<DeviceStatisticsEntry>? _graphRequested;
+
         public ObservableCollection<DeviceStatisticsEntry> BindableDevices { get; }
             = new ObservableCollection<DeviceStatisticsEntry>();
         public int TotalUnassembledCount { get; }
@@ -21,8 +25,9 @@ namespace NMEA2000Analyzer
         public string TotalAvgBps { get; }
         public string TotalPeakBps { get; }
 
-        public Devices(IEnumerable<DeviceStatisticsEntry> statistics)
+        public Devices(IEnumerable<DeviceStatisticsEntry> statistics, Action<DeviceStatisticsEntry>? graphRequested = null)
         {
+            _graphRequested = graphRequested;
             var entries = statistics.ToList();
             TotalUnassembledCount = entries.Sum(device => device.UnassembledCount);
             TotalAssembledCount = entries.Sum(device => device.AssembledCount);
@@ -43,6 +48,19 @@ namespace NMEA2000Analyzer
         private static string FormatBps(double bytesPerSecond)
         {
             return bytesPerSecond.ToString("0.##");
+        }
+
+        private void DeviceRow_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is not DataGridRow row ||
+                row.Item is not DeviceStatisticsEntry entry)
+            {
+                return;
+            }
+
+            row.IsSelected = true;
+            row.Focus();
+            _graphRequested?.Invoke(entry);
         }
     }
 
