@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.0 - 2026-04-08
+
+- Added an MCP analysis server for the currently open data, including file open, packet querying, packet context, byte-variability, packet highlighting, and UI selection readback.
+- Added reverse-engineering MCP tools for packet-variant grouping, correlated-packet discovery, packet-pair comparison, and UI-equivalent Include/Exclude PGN filters.
+- Migrated the MCP transport from a custom raw TCP socket to Streamable HTTP on localhost, backed by `mcp.json` configuration and self-describing runtime discovery via `get_server_guide` and richer `tools/list` metadata.
+- Improved proprietary PGN decoding support for variable strings, dynamic fields, partial group-function decoding, and indirect lookup handling.
+
 ## 1.3.13 - 2026-04-08
 
 - Added an `Alarms` menu and alarm history window built from assembled alarm and alert PGNs.

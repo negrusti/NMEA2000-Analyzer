@@ -13,6 +13,7 @@ namespace NMEA2000Analyzer
     public partial class App : Application
     {
         private const int AttachParentProcess = -1;
+        private McpHttpServer? _mcpServer;
 
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool AttachConsole(int dwProcessId);
@@ -68,6 +69,7 @@ namespace NMEA2000Analyzer
             }
 
             CanboatRoot ??= await PgnDefinitions.LoadPgnDefinitionsAsync();
+            StartMcpServer();
 
             var mainWindow = new MainWindow();
             MainWindow = mainWindow;
@@ -86,6 +88,27 @@ namespace NMEA2000Analyzer
             }
 
             await mainWindow.LoadFileFromCommandLineAsync(filePath);
+        }
+
+        protected override void OnExit(ExitEventArgs e)
+        {
+            _mcpServer?.Dispose();
+            _mcpServer = null;
+            base.OnExit(e);
+        }
+
+        private void StartMcpServer()
+        {
+            try
+            {
+                var settings = McpSettings.Load();
+                _mcpServer ??= new McpHttpServer(settings.Port);
+                _mcpServer.Start();
+            }
+            catch
+            {
+                // Leave MCP unavailable if the port is already in use.
+            }
         }
 
         private static string[] GetEffectiveCommandLineArgs(string[] startupArgs)

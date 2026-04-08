@@ -220,6 +220,135 @@ namespace NMEA2000Analyzer
             return LoadFileAsync(filePath);
         }
 
+        public Task LoadFileFromMcpAsync(string filePath)
+        {
+            return LoadFileAsync(filePath);
+        }
+
+        public JsonObject HighlightPacketsFromMcp(IEnumerable<int> sequences, bool assembled)
+        {
+            var requestedSequences = sequences
+                .Distinct()
+                .ToList();
+
+            if (requestedSequences.Count == 0)
+            {
+                return new JsonObject
+                {
+                    ["assembled"] = assembled,
+                    ["requestedCount"] = 0,
+                    ["matchedCount"] = 0
+                };
+            }
+
+            SetPacketView(assembled ? PacketViewMode.Assembled : PacketViewMode.Unassembled);
+
+            var sourceData = GetCurrentSourceData();
+            if (sourceData == null || sourceData.Count == 0)
+            {
+                return new JsonObject
+                {
+                    ["assembled"] = assembled,
+                    ["requestedCount"] = requestedSequences.Count,
+                    ["matchedCount"] = 0,
+                    ["missingSeqs"] = new JsonArray(requestedSequences.Select(value => JsonValue.Create(value)).ToArray())
+                };
+            }
+
+            DataGrid.UnselectAll();
+
+            var matchedRecords = sourceData
+                .Where(record => requestedSequences.Contains(record.LogSequenceNumber))
+                .OrderBy(record => requestedSequences.IndexOf(record.LogSequenceNumber))
+                .ToList();
+
+            foreach (var record in matchedRecords)
+            {
+                DataGrid.SelectedItems.Add(record);
+            }
+
+            if (matchedRecords.Count > 0)
+            {
+                var firstRecord = matchedRecords[0];
+                DataGrid.SelectedItem = firstRecord;
+
+                if (DataGrid.Columns.Count > 0)
+                {
+                    DataGrid.CurrentCell = new DataGridCellInfo(firstRecord, DataGrid.Columns[0]);
+                }
+
+                DataGrid.ScrollIntoView(firstRecord);
+                DataGrid.Focus();
+                Activate();
+            }
+
+            var matchedSeqs = matchedRecords
+                .Select(record => record.LogSequenceNumber)
+                .ToHashSet();
+
+            var missingSeqs = requestedSequences
+                .Where(seq => !matchedSeqs.Contains(seq))
+                .ToList();
+
+            return new JsonObject
+            {
+                ["assembled"] = assembled,
+                ["requestedCount"] = requestedSequences.Count,
+                ["matchedCount"] = matchedRecords.Count,
+                ["selectedSeqs"] = new JsonArray(matchedRecords.Select(record => JsonValue.Create(record.LogSequenceNumber)).ToArray()),
+                ["missingSeqs"] = new JsonArray(missingSeqs.Select(value => JsonValue.Create(value)).ToArray())
+            };
+        }
+
+        public List<Nmea2000Record> GetSelectedPacketsForMcp()
+        {
+            return DataGrid.SelectedItems
+                .OfType<Nmea2000Record>()
+                .ToList();
+        }
+
+        public Nmea2000Record? GetCurrentPacketForMcp()
+        {
+            return DataGrid.SelectedItem as Nmea2000Record;
+        }
+
+        public JsonObject SetPgnFiltersFromMcp(IEnumerable<string> includePgns, IEnumerable<string> excludePgns)
+        {
+            IncludePGNTextBox.Text = string.Join(", ",
+                includePgns
+                    .Where(pgn => !string.IsNullOrWhiteSpace(pgn))
+                    .Distinct(StringComparer.Ordinal)
+                    .OrderBy(pgn => pgn, StringComparer.Ordinal));
+
+            ExcludePGNTextBox.Text = string.Join(", ",
+                excludePgns
+                    .Where(pgn => !string.IsNullOrWhiteSpace(pgn))
+                    .Distinct(StringComparer.Ordinal)
+                    .OrderBy(pgn => pgn, StringComparer.Ordinal));
+
+            RefreshFilterView();
+
+            return new JsonObject
+            {
+                ["includePgns"] = IncludePGNTextBox.Text,
+                ["excludePgns"] = ExcludePGNTextBox.Text
+            };
+        }
+
+        public JsonObject ClearFiltersFromMcp()
+        {
+            IncludePGNTextBox.Text = string.Empty;
+            ExcludePGNTextBox.Text = string.Empty;
+            IncludeAddressTextBox.Text = string.Empty;
+            DistinctFilterCheckBox.IsChecked = false;
+            RefreshFilterView();
+
+            return new JsonObject
+            {
+                ["cleared"] = true
+            };
+        }
+
         private async Task LoadFileAsync(string filePath)
         {
             ClearData();
@@ -236,6 +365,15 @@ namespace NMEA2000Analyzer
                 SetWindowTitle(
                     Path.GetFileName(filePath),
                     Enum.GetName(typeof(FileFormats.FileFormat), result.Format));
+
+                ActiveDataSessionService.SetCurrent(
+                    Path.GetFileName(filePath),
+                    result.Format.ToString(),
+                    _Data,
+                    _assembledData,
+                    result.FirstTimestamp,
+                    result.LastTimestamp,
+                    filePath);
 
                 UpdateTimestampRange(result.FirstTimestamp, result.LastTimestamp);
                 RefreshGridView();
@@ -431,6 +569,13 @@ namespace NMEA2000Analyzer
                 GenerateDeviceInfo(_assembledData);
                 UpdateSrcDevices(_Data);
                 UpdateSrcDevices(_assembledData);
+                ActiveDataSessionService.SetCurrent(
+                    "PCAN Capture",
+                    "PCAN",
+                    _Data,
+                    _assembledData,
+                    firstTimestamp,
+                    lastTimestamp);
                 RefreshGridView();
 
             }
@@ -1582,6 +1727,7 @@ namespace NMEA2000Analyzer
             _excludePGNs.Clear();
             _distinctFilterEnabled = false;
             Globals.Devices.Clear();
+            ActiveDataSessionService.Clear();
 
             // Reset the DataGrid and data view
             DataGrid.ItemsSource = null;
@@ -1755,6 +1901,11 @@ namespace NMEA2000Analyzer
         private void RefreshGridView()
         {
             RefreshFilterView();
+        }
+
+        private List<Nmea2000Record>? GetCurrentSourceData()
+        {
+            return _currentPacketView == PacketViewMode.Assembled ? _assembledData : _Data;
         }
 
         private void SetPacketView(PacketViewMode packetViewMode)

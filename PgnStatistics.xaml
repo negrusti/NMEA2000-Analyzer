@@ -3,7 +3,13 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="PGN Statistics" Height="400" Width="600">
     <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
         <DataGrid x:Name="PgnStatisticsDataGrid" AutoGenerateColumns="False" IsReadOnly="True"
+          Grid.Row="0"
           SelectionMode="Extended"
           SelectionUnit="FullRow"
           HorizontalGridLinesBrush="#F0F0F0"
@@ -27,5 +33,15 @@
                 <DataGridTextColumn Header="Count" Binding="{Binding Count}" Width="Auto" />
             </DataGrid.Columns>
         </DataGrid>
+
+        <Border Grid.Row="1"
+                BorderBrush="#E3E3E3"
+                BorderThickness="0,1,0,0"
+                Background="#FCFCFC"
+                Padding="8,6">
+            <TextBlock Foreground="#666666"
+                       Text="Double-click a row to open a packet graph. Right-click selected rows to include or exclude PGNs."
+                       VerticalAlignment="Center" />
+        </Border>
     </Grid>
 </Window>

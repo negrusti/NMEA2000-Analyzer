@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using System.Globalization;
 using System.IO;
 using System.Net.Http;
 using System.Text;
@@ -150,6 +151,18 @@ namespace NMEA2000Analyzer
                         var decodedString = DecodeVariableStringField(pgnData, effectiveBitOffset, field);
                         finalValue = decodedString.Value;
                         currentBitCursor = AdvanceBitCursor(currentBitCursor, effectiveBitOffset, decodedString.BitsConsumed);
+                    }
+                    else if (field.FieldType == "DYNAMIC_FIELD_KEY")
+                    {
+                        var rawValue = ExtractBits(pgnData, effectiveBitOffset / 8, effectiveBitOffset % 8, field.BitLength);
+                        finalValue = DecodeDynamicFieldKey(rawValue, field);
+                        currentBitCursor = AdvanceBitCursor(currentBitCursor, effectiveBitOffset, field.BitLength);
+                    }
+                    else if (field.FieldType == "DYNAMIC_FIELD_VALUE")
+                    {
+                        var decodedDynamicField = DecodeDynamicFieldValue(pgnData, effectiveBitOffset, field, pgnDefinition);
+                        finalValue = decodedDynamicField.Value;
+                        currentBitCursor = AdvanceBitCursor(currentBitCursor, effectiveBitOffset, decodedDynamicField.BitsConsumed);
                     }
                     else
                     {
@@ -649,6 +662,185 @@ namespace NMEA2000Analyzer
             }
 
             return payload[..end].ToArray();
+        }
+
+        private static string DecodeDynamicFieldKey(ulong rawValue, Canboat.Field field)
+        {
+            var definition = LookupFieldTypeDefinition(field.LookupFieldTypeEnumeration, (int)rawValue);
+            return definition?.name ?? $"Unknown ({rawValue})";
+        }
+
+        private static (object? Value, int BitsConsumed) DecodeDynamicFieldValue(
+            byte[] pgnData,
+            int bitOffset,
+            Canboat.Field field,
+            Canboat.Pgn pgnDefinition)
+        {
+            var keyField = FindPrecedingDynamicKeyField(pgnDefinition, field)
+                ?? throw new InvalidOperationException("No preceding DYNAMIC_FIELD_KEY field was found.");
+
+            var keyBitOffset = GetEffectiveBitOffset(keyField, 0);
+            var keyRawValue = ExtractBits(pgnData, keyBitOffset / 8, keyBitOffset % 8, keyField.BitLength);
+            var keyDefinition = LookupFieldTypeDefinition(keyField.LookupFieldTypeEnumeration, (int)keyRawValue);
+
+            if (keyDefinition == null)
+            {
+                var fallbackBitLength = ResolveUnknownDynamicFieldBitLength(pgnData, bitOffset, pgnDefinition, field);
+                var fallbackValue = DecodeUnknownDynamicFieldValue(pgnData, bitOffset, fallbackBitLength);
+                return (fallbackValue, fallbackBitLength);
+            }
+
+            var bitLength = ResolveDynamicFieldBitLength(pgnData, keyDefinition, pgnDefinition, field);
+            if (bitLength <= 0)
+            {
+                throw new InvalidOperationException($"Dynamic field '{field.Name}' has no valid bit length.");
+            }
+
+            var rawValue = ExtractBits(pgnData, bitOffset / 8, bitOffset % 8, bitLength);
+            var syntheticField = CreateDynamicValueField(field, keyDefinition, bitLength);
+            var decodedValue = DecodeFieldValue(rawValue, syntheticField, pgnData, pgnDefinition);
+            var finalValue = decodedValue == null ? null : ApplyUnitConversion(decodedValue, syntheticField);
+
+            return (finalValue, bitLength);
+        }
+
+        private static Canboat.Field? FindPrecedingDynamicKeyField(Canboat.Pgn pgnDefinition, Canboat.Field field)
+        {
+            return pgnDefinition.Fields
+                .Where(candidate => candidate.Order < field.Order && string.Equals(candidate.FieldType, "DYNAMIC_FIELD_KEY", StringComparison.Ordinal))
+                .OrderByDescending(candidate => candidate.Order)
+                .FirstOrDefault();
+        }
+
+        private static Canboat.Enumfieldtypevalue? LookupFieldTypeDefinition(string enumeration, int value)
+        {
+            return ((App)Application.Current).CanboatRoot.LookupFieldTypeEnumerations
+                .FirstOrDefault(item => item.Name == enumeration)?
+                .EnumFieldTypeValues
+                .FirstOrDefault(item => item.value == value);
+        }
+
+        private static int ResolveUnknownDynamicFieldBitLength(
+            byte[] pgnData,
+            int bitOffset,
+            Canboat.Pgn pgnDefinition,
+            Canboat.Field valueField)
+        {
+            var remainingBits = Math.Max(0, (pgnData.Length * 8) - bitOffset);
+            if (remainingBits <= 0)
+            {
+                return 0;
+            }
+
+            var candidateLengthField = pgnDefinition.Fields
+                .Where(candidate =>
+                    candidate.Order < valueField.Order &&
+                    string.Equals(candidate.FieldType, "NUMBER", StringComparison.Ordinal) &&
+                    (string.Equals(candidate.Id, "length", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(candidate.Id, "minlength", StringComparison.OrdinalIgnoreCase) ||
+                     (!string.IsNullOrWhiteSpace(candidate.Name) && candidate.Name.Contains("length", StringComparison.OrdinalIgnoreCase))))
+                .OrderByDescending(candidate => candidate.Order)
+                .FirstOrDefault();
+
+            if (candidateLengthField != null)
+            {
+                var lengthBitOffset = GetEffectiveBitOffset(candidateLengthField, 0);
+                var rawLength = ExtractBits(pgnData, lengthBitOffset / 8, lengthBitOffset % 8, candidateLengthField.BitLength);
+                if (rawLength > 0)
+                {
+                    var candidateBits = checked((int)Math.Min((ulong)remainingBits, rawLength * 8));
+                    if (candidateBits > 0)
+                    {
+                        return candidateBits;
+                    }
+                }
+            }
+
+            return remainingBits;
+        }
+
+        private static object? DecodeUnknownDynamicFieldValue(byte[] pgnData, int bitOffset, int bitLength)
+        {
+            if (bitLength <= 0)
+            {
+                return null;
+            }
+
+            if (bitOffset % 8 != 0 || bitLength % 8 != 0)
+            {
+                var rawValue = ExtractBits(pgnData, bitOffset / 8, bitOffset % 8, bitLength);
+                return rawValue;
+            }
+
+            var byteOffset = bitOffset / 8;
+            var byteLength = bitLength / 8;
+            if (byteOffset + byteLength > pgnData.Length)
+            {
+                byteLength = Math.Max(0, pgnData.Length - byteOffset);
+            }
+
+            if (byteLength <= 0)
+            {
+                return null;
+            }
+
+            if (byteLength == 1)
+            {
+                return pgnData[byteOffset];
+            }
+
+            var bytes = pgnData.AsSpan(byteOffset, byteLength).ToArray();
+            return string.Join(" ", bytes.Select(b => $"0x{b:X2}"));
+        }
+
+        private static int ResolveDynamicFieldBitLength(
+            byte[] pgnData,
+            Canboat.Enumfieldtypevalue definition,
+            Canboat.Pgn pgnDefinition,
+            Canboat.Field valueField)
+        {
+            if (!string.IsNullOrWhiteSpace(definition.Bits) &&
+                int.TryParse(definition.Bits, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedBits) &&
+                parsedBits > 0)
+            {
+                return parsedBits;
+            }
+
+            var lengthField = pgnDefinition.Fields
+                .Where(candidate => candidate.Order < valueField.Order && string.Equals(candidate.FieldType, "DYNAMIC_FIELD_LENGTH", StringComparison.Ordinal))
+                .OrderByDescending(candidate => candidate.Order)
+                .FirstOrDefault();
+
+            if (lengthField == null)
+            {
+                return 0;
+            }
+
+            var lengthBitOffset = GetEffectiveBitOffset(lengthField, 0);
+            var rawLength = ExtractBits(pgnData, lengthBitOffset / 8, lengthBitOffset % 8, lengthField.BitLength);
+            return rawLength > 0 && rawLength <= int.MaxValue / 8
+                ? (int)rawLength * 8
+                : 0;
+        }
+
+        private static Canboat.Field CreateDynamicValueField(Canboat.Field valueField, Canboat.Enumfieldtypevalue definition, int bitLength)
+        {
+            var syntheticField = new Canboat.Field
+            {
+                Name = string.IsNullOrWhiteSpace(definition.name) ? valueField.Name : definition.name,
+                FieldType = definition.FieldType,
+                BitLength = bitLength,
+                BitOffset = valueField.BitOffset,
+                BitStart = valueField.BitStart,
+                Resolution = definition.Resolution == 0 ? 1 : definition.Resolution,
+                Signed = false,
+                LookupEnumeration = definition.LookupEnumeration,
+                LookupBitEnumeration = definition.LookupBitEnumeration,
+                Unit = definition.Unit,
+                Description = valueField.Description
+            };
+
+            return syntheticField;
         }
 
         // Function to extract bits from the data
