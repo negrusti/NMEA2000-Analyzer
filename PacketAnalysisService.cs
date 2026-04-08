@@ -98,20 +98,35 @@ namespace NMEA2000Analyzer
         {
             var records = GetRecords(assembled);
             var groups = records
-                .Where(IsUnknownOrWarningRecord)
-                .GroupBy(record => record.PGN ?? string.Empty)
+                .Select(record =>
+                {
+                    var decoded = TryDecodeRecord(record);
+                    return new
+                    {
+                        Record = record,
+                        Decoded = decoded,
+                        Reasons = GetReverseEngineeringReasons(record, decoded)
+                    };
+                })
+                .Where(item => item.Reasons.Count > 0)
+                .GroupBy(item => item.Record.PGN ?? string.Empty)
                 .OrderByDescending(group => group.Count())
                 .ThenBy(group => group.Key, StringComparer.Ordinal);
 
             var result = new JsonArray();
             foreach (var group in groups)
             {
-                var first = group.First();
+                var first = group.First().Record;
                 var sources = group
-                    .Select(record => record.Source)
+                    .Select(item => item.Record.Source)
                     .Where(source => !string.IsNullOrWhiteSpace(source))
                     .Distinct(StringComparer.Ordinal)
                     .OrderBy(source => source, StringComparer.Ordinal)
+                    .ToList();
+                var reasons = group
+                    .SelectMany(item => item.Reasons)
+                    .Distinct(StringComparer.Ordinal)
+                    .OrderBy(reason => reason, StringComparer.Ordinal)
                     .ToList();
 
                 result.Add(new JsonObject
@@ -119,7 +134,8 @@ namespace NMEA2000Analyzer
                     ["pgn"] = first.PGN ?? string.Empty,
                     ["description"] = first.Description ?? string.Empty,
                     ["count"] = group.Count(),
-                    ["sources"] = new JsonArray(sources.Select(source => JsonValue.Create(source)).ToArray())
+                    ["sources"] = new JsonArray(sources.Select(source => JsonValue.Create(source)).ToArray()),
+                    ["reasons"] = new JsonArray(reasons.Select(reason => JsonValue.Create(reason)).ToArray())
                 });
             }
 
@@ -574,16 +590,42 @@ namespace NMEA2000Analyzer
                 ?? throw new InvalidOperationException("No open data is loaded.");
         }
 
-        private static bool IsUnknownOrWarningRecord(MainWindow.Nmea2000Record record)
+        private static IReadOnlyList<string> GetReverseEngineeringReasons(MainWindow.Nmea2000Record record, JsonObject? decoded)
         {
-            var decoded = TryDecodeRecord(record);
-            return IsUnknownRecord(record, decoded) || decoded?["Warnings"] is JsonArray warningArray && warningArray.Count > 0;
+            var reasons = new List<string>();
+
+            if (IsUnknownRecord(record, decoded))
+            {
+                reasons.Add("unknown");
+            }
+
+            if (decoded?["Warnings"] is JsonArray warningArray && warningArray.Count > 0)
+            {
+                reasons.Add("decode_warnings");
+            }
+
+            if (IsProprietaryRecord(record))
+            {
+                reasons.Add("proprietary");
+            }
+
+            return reasons;
         }
 
         private static bool IsUnknownRecord(MainWindow.Nmea2000Record record, JsonObject? decoded)
         {
             return string.Equals(record.Description, "No pattern match", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(record.Description, "Unknown PGN", StringComparison.OrdinalIgnoreCase)
                 || decoded == null;
+        }
+
+        private static bool IsProprietaryRecord(MainWindow.Nmea2000Record record)
+        {
+            var description = record.Description ?? string.Empty;
+            return description.StartsWith("MFG -", StringComparison.OrdinalIgnoreCase)
+                || description.StartsWith("MFG-Specific", StringComparison.OrdinalIgnoreCase)
+                || description.StartsWith("MFG Specific", StringComparison.OrdinalIgnoreCase)
+                || description.IndexOf("Proprietary", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private static JsonObject BuildPacketJson(MainWindow.Nmea2000Record record, JsonObject? decoded, bool includeDecoded)

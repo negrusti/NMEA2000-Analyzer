@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.1 - 2026-04-08
+
+- Broadened the MCP reverse-engineering candidate list to include proprietary manufacturer-specific PGNs such as `MFG-Specific ...`, not just fully unknown PGNs.
+- Mitigated truncated trailing `STRING_LAU` decoding for final-field AIS payloads, fixing `129041` AtoN names like `NG3 WINDFARM` without relaxing validation for non-terminal string fields.
+
 ## 1.4.0 - 2026-04-08
 
 - Added an MCP analysis server for the currently open data, including file open, packet querying, packet context, byte-variability, packet highlighting, and UI selection readback.

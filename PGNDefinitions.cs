@@ -148,7 +148,11 @@ namespace NMEA2000Analyzer
                     }
                     else if (field.FieldType == "STRING_LZ" || field.FieldType == "STRING_LAU")
                     {
-                        var decodedString = DecodeVariableStringField(pgnData, effectiveBitOffset, field);
+                        var decodedString = DecodeVariableStringField(
+                            pgnData,
+                            effectiveBitOffset,
+                            field,
+                            allowTruncatedAtEnd: i == pgnDefinition.Fields.Length - 1);
                         finalValue = decodedString.Value;
                         currentBitCursor = AdvanceBitCursor(currentBitCursor, effectiveBitOffset, decodedString.BitsConsumed);
                     }
@@ -547,7 +551,11 @@ namespace NMEA2000Analyzer
             }
         }
 
-        private static (string? Value, int BitsConsumed) DecodeVariableStringField(byte[] pgnData, int bitOffset, Canboat.Field field)
+        private static (string? Value, int BitsConsumed) DecodeVariableStringField(
+            byte[] pgnData,
+            int bitOffset,
+            Canboat.Field field,
+            bool allowTruncatedAtEnd = false)
         {
             if (bitOffset % 8 != 0)
             {
@@ -563,7 +571,7 @@ namespace NMEA2000Analyzer
             return field.FieldType switch
             {
                 "STRING_LZ" => DecodeStringLz(pgnData, byteOffset),
-                "STRING_LAU" => DecodeStringLau(pgnData, byteOffset),
+                "STRING_LAU" => DecodeStringLau(pgnData, byteOffset, allowTruncatedAtEnd),
                 _ => throw new NotSupportedException($"Field type '{field.FieldType}' is not supported by variable string decoder.")
             };
         }
@@ -594,7 +602,7 @@ namespace NMEA2000Analyzer
             return (text, totalBytes * 8);
         }
 
-        private static (string? Value, int BitsConsumed) DecodeStringLau(byte[] pgnData, int byteOffset)
+        private static (string? Value, int BitsConsumed) DecodeStringLau(byte[] pgnData, int byteOffset, bool allowTruncatedAtEnd)
         {
             var declaredCount = pgnData[byteOffset];
             if (declaredCount == byte.MaxValue)
@@ -607,13 +615,28 @@ namespace NMEA2000Analyzer
                 throw new ArgumentException("STRING_LAU count must be at least 2.");
             }
 
+            var availableCount = pgnData.Length - byteOffset;
+            var effectiveCount = declaredCount;
+
             if (byteOffset + declaredCount > pgnData.Length)
             {
-                throw new ArgumentException("STRING_LAU length extends beyond the PGN payload.");
+                if (!allowTruncatedAtEnd)
+                {
+                    throw new ArgumentException("STRING_LAU length extends beyond the PGN payload.");
+                }
+
+                // Some AIS payloads appear to carry a trailing STRING_LAU with an
+                // overstated count byte. When the string is the final field, consume
+                // the remaining payload instead of failing the whole field.
+                effectiveCount = (byte)availableCount;
+                if (effectiveCount < 2)
+                {
+                    return (string.Empty, Math.Max(1, (int)effectiveCount) * 8);
+                }
             }
 
             var encodingType = pgnData[byteOffset + 1];
-            var payloadLength = declaredCount - 2;
+            var payloadLength = effectiveCount - 2;
             var payloadStart = byteOffset + 2;
             var payload = pgnData.AsSpan(payloadStart, payloadLength);
 
@@ -624,7 +647,7 @@ namespace NMEA2000Analyzer
                 _ => throw new NotSupportedException($"Unsupported STRING_LAU encoding type '{encodingType}'.")
             };
 
-            var totalBytes = declaredCount;
+            var totalBytes = effectiveCount;
             if (encodingType == 0)
             {
                 if (payloadStart + payloadLength + 1 < pgnData.Length &&
