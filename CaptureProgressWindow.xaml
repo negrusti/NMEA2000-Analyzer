@@ -21,12 +21,26 @@
                  Text="0" />
         </TextBlock>
 
-        <Button Grid.Row="1"
-                Width="90"
-                Margin="0,16,0,0"
-                HorizontalAlignment="Right"
-                IsDefault="True"
-                Content="Stop"
-                Click="StopButton_Click" />
+        <Grid Grid.Row="1"
+              Margin="0,16,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <Button Grid.Column="1"
+                    Width="130"
+                    Margin="0,0,8,0"
+                    x:Name="RequestDeviceInfoButton"
+                    Content="Request device info"
+                    Click="RequestDeviceInfoButton_Click" />
+
+            <Button Grid.Column="2"
+                    Width="90"
+                    IsDefault="True"
+                    Content="Stop"
+                    Click="StopButton_Click" />
+        </Grid>
     </Grid>
 </Window>

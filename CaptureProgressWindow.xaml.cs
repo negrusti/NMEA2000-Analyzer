@@ -33,6 +33,22 @@ namespace NMEA2000Analyzer
             DialogResult = true;
         }
 
+        private void RequestDeviceInfoButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (!PCAN.RequestProductInformationBroadcast(out var errorMessage))
+            {
+                MessageBox.Show(
+                    this,
+                    errorMessage,
+                    "PCAN Capture",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            RequestDeviceInfoButton.IsEnabled = false;
+        }
+
         private void UpdatePacketCount()
         {
             PacketCountRun.Text = PCAN.GetCapturedCount().ToString("N0");

@@ -8,8 +8,8 @@
     <UseWPF>true</UseWPF>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <SignAssembly>False</SignAssembly>
-    <AssemblyVersion>1.3.12</AssemblyVersion>
-    <FileVersion>1.3.12</FileVersion>
+    <AssemblyVersion>1.3.13</AssemblyVersion>
+    <FileVersion>1.3.13</FileVersion>
     <Version />
   </PropertyGroup>
 

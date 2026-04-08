@@ -151,24 +151,6 @@ namespace NMEA2000Analyzer
                         finalValue = decodedString.Value;
                         currentBitCursor = AdvanceBitCursor(currentBitCursor, effectiveBitOffset, decodedString.BitsConsumed);
                     }
-                    else if (field.FieldType == "INDIRECT_LOOKUP")
-                    {
-                        int byteStart = effectiveBitOffset / 8;
-                        int bitStart = effectiveBitOffset % 8;
-                        int bitLength = field.BitLength;
-
-                        int rawValue = (int)ExtractBits(pgnData, byteStart, bitStart, bitLength);
-
-                        var indirectField = pgnDefinition.Fields[field.LookupIndirectEnumerationFieldOrder - 1];
-
-                        byteStart = indirectField.BitOffset / 8;
-                        bitStart = indirectField.BitOffset % 8;
-                        bitLength = indirectField.BitLength;
-
-                        int rawValueIndirectField = (int)ExtractBits(pgnData, byteStart, bitStart, bitLength);
-                        finalValue = LookupIndirect(field.LookupIndirectEnumeration, rawValueIndirectField, rawValue);
-                        currentBitCursor = AdvanceBitCursor(currentBitCursor, effectiveBitOffset, field.BitLength);
-                    }
                     else
                     {
                         int byteStart = effectiveBitOffset / 8;
@@ -179,7 +161,7 @@ namespace NMEA2000Analyzer
                         ulong rawValue = ExtractBits(pgnData, byteStart, bitStart, bitLength);
 
                         // Decode the value
-                        object? decodedValue = DecodeFieldValue(rawValue, field);
+                        object? decodedValue = DecodeFieldValue(rawValue, field, pgnData, pgnDefinition);
 
                         if (decodedValue is double rangedValue &&
                             ((field.RangeMin != null && rangedValue < field.RangeMin) ||
@@ -272,7 +254,7 @@ namespace NMEA2000Analyzer
                                     int repeatBitLength = field.BitLength;
 
                                     ulong rawValue = ExtractBits(pgnData, repeatByteStart, repeatBitStart, repeatBitLength);
-                                    object? decodedValue = DecodeFieldValue(rawValue, field);
+                                    object? decodedValue = DecodeFieldValue(rawValue, field, pgnData, pgnDefinition);
 
                                     if (decodedValue is double rangedValue &&
                                         ((field.RangeMin != null && rangedValue < field.RangeMin) ||
@@ -693,7 +675,11 @@ namespace NMEA2000Analyzer
         }
 
         // Function to decode the field value based on the field properties
-        private static object? DecodeFieldValue(ulong rawValue, Canboat.Field field)
+        private static object? DecodeFieldValue(
+            ulong rawValue,
+            Canboat.Field field,
+            byte[]? pgnData = null,
+            Canboat.Pgn? pgnDefinition = null)
         {
             switch (field.FieldType)
             {
@@ -743,7 +729,7 @@ namespace NMEA2000Analyzer
                     return Lookup(field.LookupEnumeration, (int)rawValue);
 
                 case "INDIRECT_LOOKUP":
-                    break;
+                    return DecodeIndirectLookupValue(rawValue, field, pgnData, pgnDefinition);
                 case "BITLOOKUP":
                     break;
                 case "FIELDTYPE_LOOKUP":
@@ -767,6 +753,34 @@ namespace NMEA2000Analyzer
             }
             return null;
 
+        }
+
+        private static object DecodeIndirectLookupValue(
+            ulong rawValue,
+            Canboat.Field field,
+            byte[]? pgnData,
+            Canboat.Pgn? pgnDefinition)
+        {
+            if (pgnData == null || pgnDefinition?.Fields == null)
+            {
+                return $"Unknown ({rawValue})";
+            }
+
+            var fieldOrder = field.LookupIndirectEnumerationFieldOrder;
+            if (fieldOrder <= 0 || fieldOrder > pgnDefinition.Fields.Length)
+            {
+                return $"Unknown ({rawValue})";
+            }
+
+            var indirectField = pgnDefinition.Fields[fieldOrder - 1];
+            var indirectBitOffset = GetEffectiveBitOffset(indirectField, 0);
+            var rawIndirectValue = ExtractBits(
+                pgnData,
+                indirectBitOffset / 8,
+                indirectBitOffset % 8,
+                indirectField.BitLength);
+
+            return LookupIndirect(field.LookupIndirectEnumeration, (int)rawIndirectValue, (int)rawValue);
         }
 
         public static string Lookup(string enumeration, int value)

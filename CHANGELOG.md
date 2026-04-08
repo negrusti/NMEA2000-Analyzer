@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.13 - 2026-04-08
+
+- Added an `Alarms` menu and alarm history window built from assembled alarm and alert PGNs.
+- Added a `Request device info` button to the PCAN capture dialog to broadcast an ISO Request for `126996` once per capture session.
+- Fixed window-title updates for PCAN capture and candump saves, and switched PCAN capture timestamps to full absolute local timestamps with millisecond precision.
+- Improved PGN search to operate on the currently visible grid and highlight the matched row correctly.
+- Implemented shared `INDIRECT_LOOKUP` decoding for PGNs such as `60928` and `65240`.
+- Improved statistics-window discoverability with footer hints and added `Packet Graph` to the Devices row context menu alongside `Supported PGNs`.
+
 ## 1.3.12 - 2026-04-08
 
 - Fixed CSV row export to omit internal object/type fields and support exporting multiple selected rows.

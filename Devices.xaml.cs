@@ -68,6 +68,21 @@ namespace NMEA2000Analyzer
             _graphRequested?.Invoke(entry);
         }
 
+        private void PacketGraphMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not MenuItem menuItem ||
+                menuItem.Parent is not ContextMenu contextMenu ||
+                contextMenu.PlacementTarget is not DataGridRow row ||
+                row.Item is not DeviceStatisticsEntry entry)
+            {
+                return;
+            }
+
+            row.IsSelected = true;
+            row.Focus();
+            _graphRequested?.Invoke(entry);
+        }
+
         private void SupportedPgnsMenuItem_Click(object sender, RoutedEventArgs e)
         {
             if (sender is not MenuItem menuItem ||

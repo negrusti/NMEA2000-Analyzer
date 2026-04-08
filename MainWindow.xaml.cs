@@ -36,6 +36,19 @@ namespace NMEA2000Analyzer
         private FilterIndexes? _filterIndexes;
         private bool _distinctFilterEnabled;
         private readonly Dictionary<string, Brush> _highlightBackgroundsByPgn = new(StringComparer.Ordinal);
+        private static readonly HashSet<string> AlarmHistoryPgns = new(StringComparer.Ordinal)
+        {
+            "65288",
+            "65361",
+            "126983",
+            "126984",
+            "126985",
+            "126986",
+            "126987",
+            "126988",
+            "130850",
+            "130856"
+        };
 
         private enum PacketViewMode
         {
@@ -188,6 +201,19 @@ namespace NMEA2000Analyzer
 
         private readonly record struct FastPacketKey(string Source, string Destination, string Pgn);
 
+        private void SetWindowTitle(string? name = null, string? formatLabel = null)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                Title = "NMEA2000 Analyzer";
+                return;
+            }
+
+            Title = string.IsNullOrWhiteSpace(formatLabel)
+                ? $"NMEA2000 Analyzer - {name}"
+                : $"NMEA2000 Analyzer - {name} ({formatLabel})";
+        }
+
 
         public Task LoadFileFromCommandLineAsync(string filePath)
         {
@@ -207,8 +233,9 @@ namespace NMEA2000Analyzer
                 _assembledData = result.AssembledRecords;
                 ApplyHighlights(_Data);
                 ApplyHighlights(_assembledData);
-                Title = $"NMEA2000 Analyzer - {Path.GetFileName(filePath)} " +
-                        $"({Enum.GetName(typeof(FileFormats.FileFormat), result.Format)})";
+                SetWindowTitle(
+                    Path.GetFileName(filePath),
+                    Enum.GetName(typeof(FileFormats.FileFormat), result.Format));
 
                 UpdateTimestampRange(result.FirstTimestamp, result.LastTimestamp);
                 RefreshGridView();
@@ -322,6 +349,8 @@ namespace NMEA2000Analyzer
                     var canId = BuildCanId(record);
                     writer.WriteLine(FormatCandumpLine(timestamp, canId, data));
                 }
+
+                SetWindowTitle(Path.GetFileName(saveFileDialog.FileName), "CanDump");
             }
             catch (Exception ex)
             {
@@ -380,6 +409,7 @@ namespace NMEA2000Analyzer
             if (PCAN.StartCapture())
             {
                 ClearData();
+                SetWindowTitle("PCAN Capture", "PCAN");
 
                 var captureWindow = new CaptureProgressWindow
                 {
@@ -942,6 +972,28 @@ namespace NMEA2000Analyzer
                 devicesWindow.Show();
             }
 
+        private void AlarmsMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (_assembledData == null || !_assembledData.Any())
+            {
+                MessageBox.Show("No assembled alarm data available.", "Alarms", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var entries = BuildAlarmHistory(_assembledData);
+            if (entries.Count == 0)
+            {
+                MessageBox.Show("No alarm or alert history was found in the loaded capture.", "Alarms", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var window = new AlarmsWindow(entries)
+            {
+                Owner = this
+            };
+            window.Show();
+        }
+
         private void ShowDeviceGraph(DeviceStatisticsEntry entry)
         {
             var records = GetTimestampedAssembledRecords(record =>
@@ -982,6 +1034,73 @@ namespace NMEA2000Analyzer
                 Owner = this
             };
             window.Show();
+        }
+
+        private List<AlarmHistoryEntry> BuildAlarmHistory(IEnumerable<Nmea2000Record> records)
+        {
+            var entries = new List<AlarmHistoryEntry>();
+            var alertTextByKey = new Dictionary<string, string>(StringComparer.Ordinal);
+            var simnetMessageByKey = new Dictionary<string, string>(StringComparer.Ordinal);
+            var alarmRecords = records.Where(record => AlarmHistoryPgns.Contains(record.PGN)).ToList();
+
+            foreach (var record in alarmRecords)
+            {
+                var decoded = TryDecodeRecord(record);
+                if (decoded == null)
+                {
+                    continue;
+                }
+
+                var fields = ExtractDecodedFields(decoded);
+                if (record.PGN == "126985")
+                {
+                    var alertKey = BuildAlertKey(fields);
+                    var alertText = FirstNonEmpty(
+                        GetField(fields, "Alert Text Description"),
+                        GetField(fields, "Alert Location Text Description"));
+
+                    if (!string.IsNullOrWhiteSpace(alertKey) && !string.IsNullOrWhiteSpace(alertText))
+                    {
+                        alertTextByKey[alertKey] = alertText;
+                    }
+                }
+                else if (record.PGN == "130856")
+                {
+                    var simnetKey = BuildSimnetAlarmKey(fields);
+                    var messageText = GetField(fields, "Text");
+
+                    if (!string.IsNullOrWhiteSpace(simnetKey) && !string.IsNullOrWhiteSpace(messageText))
+                    {
+                        simnetMessageByKey[simnetKey] = messageText;
+                    }
+                }
+            }
+
+            foreach (var record in alarmRecords)
+            {
+                var decoded = TryDecodeRecord(record);
+                if (decoded == null)
+                {
+                    continue;
+                }
+
+                var fields = ExtractDecodedFields(decoded);
+                entries.Add(new AlarmHistoryEntry
+                {
+                    Timestamp = record.Timestamp ?? string.Empty,
+                    Source = record.Source ?? string.Empty,
+                    Device = record.DeviceInfo ?? string.Empty,
+                    Pgn = record.PGN ?? string.Empty,
+                    Event = ClassifyAlarmEvent(record, fields),
+                    Alarm = BuildAlarmLabel(record, fields, alertTextByKey, simnetMessageByKey),
+                    Details = BuildAlarmDetails(record, fields)
+                });
+            }
+
+            return entries
+                .OrderBy(entry => TryParseAlarmTimestamp(entry.Timestamp))
+                .ThenBy(entry => entry.Source, StringComparer.Ordinal)
+                .ToList();
         }
 
         private bool TryGetSupportedPgnLists(int address, out IReadOnlyList<int> transmitPgns, out IReadOnlyList<int> receivePgns)
@@ -1058,6 +1177,257 @@ namespace NMEA2000Analyzer
             return descriptions.Count == 1
                 ? $"{pgn} - {descriptions[0]}"
                 : pgn.ToString(CultureInfo.InvariantCulture);
+        }
+
+        private JsonObject? TryDecodeRecord(Nmea2000Record record)
+        {
+            try
+            {
+                if (record.PGNListIndex.HasValue)
+                {
+                    return DecodePgnData(record.PayloadBytes, ((App)Application.Current).CanboatRoot.PGNs[record.PGNListIndex.Value]);
+                }
+
+                var pgnDefinition = ((App)Application.Current).CanboatRoot.PGNs.FirstOrDefault(q => q.PGN.ToString(CultureInfo.InvariantCulture) == record.PGN);
+                return pgnDefinition == null ? null : DecodePgnData(record.PayloadBytes, pgnDefinition);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static Dictionary<string, string> ExtractDecodedFields(JsonObject decoded)
+        {
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            ExtractFieldArray(result, decoded["Fields"] as JsonArray);
+            ExtractFieldArray(result, decoded["RepeatedFields"] as JsonArray);
+            return result;
+        }
+
+        private static void ExtractFieldArray(Dictionary<string, string> target, JsonArray? fields)
+        {
+            if (fields == null)
+            {
+                return;
+            }
+
+            foreach (var item in fields)
+            {
+                if (item is not JsonObject fieldObject)
+                {
+                    continue;
+                }
+
+                foreach (var property in fieldObject)
+                {
+                    var stringValue = property.Value switch
+                    {
+                        null => string.Empty,
+                        JsonValue jsonValue when jsonValue.TryGetValue<string>(out var textValue) => textValue ?? string.Empty,
+                        _ => property.Value?.ToJsonString() ?? string.Empty
+                    };
+
+                    if (!string.IsNullOrWhiteSpace(stringValue) || !target.ContainsKey(property.Key))
+                    {
+                        target[property.Key] = stringValue;
+                    }
+                }
+            }
+        }
+
+        private static string GetField(IReadOnlyDictionary<string, string> fields, string fieldName)
+        {
+            return fields.TryGetValue(fieldName, out var value) ? value : string.Empty;
+        }
+
+        private static string BuildAlertKey(IReadOnlyDictionary<string, string> fields)
+        {
+            return string.Join("|", new[]
+            {
+                GetField(fields, "Alert Type"),
+                GetField(fields, "Alert Category"),
+                GetField(fields, "Alert System"),
+                GetField(fields, "Alert Sub-System"),
+                GetField(fields, "Alert ID"),
+                GetField(fields, "Alert Occurrence Number")
+            });
+        }
+
+        private static string BuildSimnetAlarmKey(IReadOnlyDictionary<string, string> fields)
+        {
+            return string.Join("|", new[]
+            {
+                GetField(fields, "Address"),
+                GetField(fields, "Alarm"),
+                GetField(fields, "Message ID")
+            });
+        }
+
+        private static string BuildAlarmLabel(
+            Nmea2000Record record,
+            IReadOnlyDictionary<string, string> fields,
+            IReadOnlyDictionary<string, string> alertTextByKey,
+            IReadOnlyDictionary<string, string> simnetMessageByKey)
+        {
+            return record.PGN switch
+            {
+                "65288" => JoinNonEmpty(" - ",
+                    GetField(fields, "Alarm Group"),
+                    GetField(fields, "Alarm ID")),
+                "65361" => JoinNonEmpty(" - ",
+                    "Silence",
+                    GetField(fields, "Alarm Group"),
+                    GetField(fields, "Alarm ID")),
+                "126983" or "126984" or "126985" or "126986" or "126987" or "126988" =>
+                    BuildAlertLabel(fields, alertTextByKey),
+                "130850" => JoinNonEmpty(" - ",
+                    GetField(fields, "Alarm"),
+                    FirstNonEmpty(
+                        LookupOrEmpty(simnetMessageByKey, BuildSimnetAlarmKey(fields)),
+                        GetField(fields, "Message ID"))),
+                "130856" => FirstNonEmpty(
+                    GetField(fields, "Text"),
+                    JoinNonEmpty(" - ", "Simnet Alarm Message", GetField(fields, "Message ID"))),
+                _ => record.Description ?? string.Empty
+            };
+        }
+
+        private static string BuildAlertLabel(
+            IReadOnlyDictionary<string, string> fields,
+            IReadOnlyDictionary<string, string> alertTextByKey)
+        {
+            var alertKey = BuildAlertKey(fields);
+            var text = LookupOrEmpty(alertTextByKey, alertKey);
+
+            return FirstNonEmpty(
+                text,
+                JoinNonEmpty(" - ",
+                    GetField(fields, "Alert Type"),
+                    GetField(fields, "Alert Category"),
+                    JoinNonEmpty("/",
+                        GetField(fields, "Alert System"),
+                        GetField(fields, "Alert Sub-System"),
+                        GetField(fields, "Alert ID"))));
+        }
+
+        private static string BuildAlarmDetails(Nmea2000Record record, IReadOnlyDictionary<string, string> fields)
+        {
+            return record.PGN switch
+            {
+                "65288" => JoinNonEmpty("; ",
+                    GetField(fields, "Alarm Status"),
+                    ValueWithLabel("Priority", GetField(fields, "Alarm Priority"))),
+                "65361" => "Silence request",
+                "126983" => JoinNonEmpty("; ",
+                    ValueWithLabel("State", GetField(fields, "Alert State")),
+                    ValueWithLabel("Ack", GetField(fields, "Acknowledge Status")),
+                    ValueWithLabel("Silence", GetField(fields, "Temporary Silence Status")),
+                    ValueWithLabel("Escalation", GetField(fields, "Escalation Status")),
+                    ValueWithLabel("Trigger", GetField(fields, "Trigger Condition")),
+                    ValueWithLabel("Threshold", GetField(fields, "Threshold Status"))),
+                "126984" => JoinNonEmpty("; ",
+                    ValueWithLabel("Response", GetField(fields, "Response Command")),
+                    ValueWithLabel("Occurrence", GetField(fields, "Alert Occurrence Number"))),
+                "126985" => JoinNonEmpty("; ",
+                    GetField(fields, "Alert Text Description"),
+                    GetField(fields, "Alert Location Text Description")),
+                "126986" => JoinNonEmpty("; ",
+                    ValueWithLabel("Control", GetField(fields, "Alert Control")),
+                    ValueWithLabel("User Assignment", GetField(fields, "User Defined Alert Assignment")),
+                    ValueWithLabel("Reactivation", GetField(fields, "Reactivation Period")),
+                    ValueWithLabel("Silence Period", GetField(fields, "Temporary Silence Period")),
+                    ValueWithLabel("Escalation Period", GetField(fields, "Escalation Period"))),
+                "126987" => JoinNonEmpty("; ",
+                    ValueWithLabel("Parameter", GetField(fields, "Parameter Number")),
+                    ValueWithLabel("Method", GetField(fields, "Trigger Method")),
+                    ValueWithLabel("Threshold", GetField(fields, "Threshold Level"))),
+                "126988" => JoinNonEmpty("; ",
+                    ValueWithLabel("Parameter", GetField(fields, "Value Parameter Number")),
+                    ValueWithLabel("Value", GetField(fields, "Value Data"))),
+                "130850" => JoinNonEmpty("; ",
+                    ValueWithLabel("Alarm", GetField(fields, "Alarm")),
+                    ValueWithLabel("Message ID", GetField(fields, "Message ID"))),
+                "130856" => GetField(fields, "Text"),
+                _ => string.Empty
+            };
+        }
+
+        private static string ClassifyAlarmEvent(Nmea2000Record record, IReadOnlyDictionary<string, string> fields)
+        {
+            var lowerAlertState = GetField(fields, "Alert State").ToLowerInvariant();
+            var lowerSilence = GetField(fields, "Temporary Silence Status").ToLowerInvariant();
+            var lowerAck = GetField(fields, "Acknowledge Status").ToLowerInvariant();
+            var lowerResponse = GetField(fields, "Response Command").ToLowerInvariant();
+            var lowerSeatalkStatus = GetField(fields, "Alarm Status").ToLowerInvariant();
+
+            return record.PGN switch
+            {
+                "65288" when lowerSeatalkStatus.Contains("not met") || lowerSeatalkStatus.Contains("inactive") => "Cleared",
+                "65288" => "Triggered",
+                "65361" => "Silenced",
+                "126983" when lowerSilence.Contains("silence") && !lowerSilence.Contains("not") => "Silenced",
+                "126983" when lowerAck.Contains("acknowledged") => "Acknowledged",
+                "126983" when lowerAlertState.Contains("normal") || lowerAlertState.Contains("inactive") || lowerAlertState.Contains("cleared") => "Cleared",
+                "126983" => "Triggered",
+                "126984" when lowerResponse.Contains("suppress") => "Suppressed",
+                "126984" when lowerResponse.Contains("silence") => "Silenced",
+                "126984" when lowerResponse.Contains("ack") => "Acknowledged",
+                "126984" when lowerResponse.Contains("clear") || lowerResponse.Contains("reset") => "Cleared",
+                "126984" => "Response",
+                "126985" => "Text",
+                "126986" => "Configured",
+                "126987" => "Threshold",
+                "126988" => "Value",
+                "130850" => "Triggered",
+                "130856" => "Message",
+                _ => record.Description ?? "Alarm"
+            };
+        }
+
+        private static string LookupOrEmpty(IReadOnlyDictionary<string, string> map, string key)
+        {
+            return string.IsNullOrWhiteSpace(key) ? string.Empty : map.TryGetValue(key, out var value) ? value : string.Empty;
+        }
+
+        private static string FirstNonEmpty(params string[] values)
+        {
+            return values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty;
+        }
+
+        private static string JoinNonEmpty(string separator, params string[] values)
+        {
+            return string.Join(separator, values.Where(value => !string.IsNullOrWhiteSpace(value)));
+        }
+
+        private static string ValueWithLabel(string label, string value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? string.Empty : $"{label}: {value}";
+        }
+
+        private static DateTimeOffset? TryParseAlarmTimestamp(string timestamp)
+        {
+            if (string.IsNullOrWhiteSpace(timestamp))
+            {
+                return null;
+            }
+
+            if (DateTimeOffset.TryParse(timestamp, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var absolute))
+            {
+                return absolute;
+            }
+
+            if (double.TryParse(timestamp, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds))
+            {
+                return DateTimeOffset.UnixEpoch.AddSeconds(seconds);
+            }
+
+            if (TimeSpan.TryParse(timestamp, CultureInfo.InvariantCulture, out var relative))
+            {
+                return DateTimeOffset.UnixEpoch.Add(relative);
+            }
+
+            return null;
         }
 
         private void ShowPgnGraph(PgnStatisticsEntry entry)
@@ -1803,31 +2173,48 @@ namespace NMEA2000Analyzer
 
         private void SearchInDataGrid(bool forward)
         {
-            if (_assembledData == null || !_assembledData.Any() ||
+            var visibleRecords = DataGrid.Items
+                .OfType<Nmea2000Record>()
+                .ToList();
+
+            if (visibleRecords.Count == 0 ||
                 !Regex.IsMatch(PgnSearchTextBox.Text ?? string.Empty, @"^\d{5,6}$"))
             {
                 return;
             }
 
             string searchText = PgnSearchTextBox.Text.Trim();
-            int startIndex = forward ? _currentSearchIndex + 1 : _currentSearchIndex - 1;
+            var currentSelectedRecord = DataGrid.SelectedItem as Nmea2000Record;
+            var currentVisibleIndex = currentSelectedRecord == null
+                ? _currentSearchIndex
+                : visibleRecords.IndexOf(currentSelectedRecord);
+
+            int startIndex = forward ? currentVisibleIndex + 1 : currentVisibleIndex - 1;
 
             // Wrap-around behavior
-            if (startIndex >= _assembledData.Count)
+            if (startIndex >= visibleRecords.Count)
                 startIndex = 0;
             else if (startIndex < 0)
-                startIndex = _assembledData.Count - 1;
+                startIndex = visibleRecords.Count - 1;
 
-            for (int i = 0; i < _assembledData.Count; i++)
+            for (int i = 0; i < visibleRecords.Count; i++)
             {
-                int index = (startIndex + (forward ? i : -i + _assembledData.Count)) % _assembledData.Count;
-                if (_assembledData[index].PGN != null && _assembledData[index].PGN.Contains(searchText))
+                int index = (startIndex + (forward ? i : -i + visibleRecords.Count)) % visibleRecords.Count;
+                var matchedRecord = visibleRecords[index];
+                if (matchedRecord.PGN != null && matchedRecord.PGN.Contains(searchText))
                 {
                     _currentSearchIndex = index;
 
-                    // Select and scroll into view in the DataGrid
-                    DataGrid.SelectedItem = _assembledData[index];
-                    DataGrid.ScrollIntoView(DataGrid.SelectedItem);
+                    DataGrid.UnselectAll();
+                    DataGrid.SelectedItem = matchedRecord;
+
+                    if (DataGrid.Columns.Count > 0)
+                    {
+                        DataGrid.CurrentCell = new DataGridCellInfo(matchedRecord, DataGrid.Columns[0]);
+                    }
+
+                    DataGrid.ScrollIntoView(matchedRecord);
+                    DataGrid.Focus();
 
                     return;
                 }
@@ -1836,7 +2223,6 @@ namespace NMEA2000Analyzer
             // If no match found
             MessageBox.Show("No matching PGN found.", "Search Result", MessageBoxButton.OK, MessageBoxImage.Information);
         }
-
         // Enriches DataGrid with device information if available
         internal static void UpdateSrcDevices(List<Nmea2000Record> data)
         {

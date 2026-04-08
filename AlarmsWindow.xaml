@@ -1,0 +1,30 @@
+<Window x:Class="NMEA2000Analyzer.AlarmsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Alarms"
+        Width="1100"
+        Height="620"
+        MinWidth="760"
+        MinHeight="360"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="8">
+        <DataGrid x:Name="AlarmsDataGrid"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  SelectionMode="Extended"
+                  SelectionUnit="FullRow"
+                  HorizontalGridLinesBrush="#F0F0F0"
+                  VerticalGridLinesBrush="#F0F0F0"
+                  ItemsSource="{Binding}">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Timestamp" Binding="{Binding Timestamp}" Width="180" />
+                <DataGridTextColumn Header="Src" Binding="{Binding Source}" Width="Auto" />
+                <DataGridTextColumn Header="Device" Binding="{Binding Device}" Width="2*" />
+                <DataGridTextColumn Header="PGN" Binding="{Binding Pgn}" Width="Auto" />
+                <DataGridTextColumn Header="Event" Binding="{Binding Event}" Width="Auto" />
+                <DataGridTextColumn Header="Alarm" Binding="{Binding Alarm}" Width="2*" />
+                <DataGridTextColumn Header="Details" Binding="{Binding Details}" Width="3*" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</Window>

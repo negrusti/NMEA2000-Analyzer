@@ -28,6 +28,7 @@
                 <MenuItem Header="PGNs" Click="PgnStatisticsMenuItem_Click" />
                 <MenuItem Header="Devices" Click="DevicesMenuItem_Click" />
             </MenuItem>
+            <MenuItem Header="Alarms" Click="AlarmsMenuItem_Click" />
             <MenuItem Header="View">
                 <MenuItem x:Name="AssembledViewMenuItem"
                           Header="Assembled"
