@@ -25,8 +25,15 @@
                   HorizontalGridLinesBrush="#F0F0F0"
                   VerticalGridLinesBrush="#F0F0F0"
                   ItemsSource="{Binding BindableDevices}">
+            <DataGrid.Resources>
+                <ContextMenu x:Key="deviceRowContextMenu">
+                    <MenuItem Header="Supported PGNs"
+                              Click="SupportedPgnsMenuItem_Click" />
+                </ContextMenu>
+            </DataGrid.Resources>
             <DataGrid.RowStyle>
                 <Style TargetType="DataGridRow">
+                    <Setter Property="ContextMenu" Value="{StaticResource deviceRowContextMenu}" />
                     <EventSetter Event="MouseDoubleClick"
                                  Handler="DeviceRow_MouseDoubleClick" />
                 </Style>

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.12 - 2026-04-08
+
+- Fixed CSV row export to omit internal object/type fields and support exporting multiple selected rows.
+- Improved PGN decoding for variable strings, partial proprietary group-function parameter decoding, and repeated PGN-list fields like `126464`.
+- Added `Supported PGNs` to the Devices statistics window, showing per-device transmit and receive PGN lists from `126464`.
+- Appended PGN descriptions to supported-PGN list entries when unambiguous and tightened the list scrollbars.
+- Documented the supported-PGN list window in the README and added a screenshot.
+
 ## 1.3.11 - 2026-04-05
 
 - Refined traffic graph zooming to use discrete time-per-bar steps with fixed bar width and a dynamic zoom-out limit based on full-log fit.

@@ -15,6 +15,7 @@ namespace NMEA2000Analyzer
     public partial class Devices : Window
     {
         private readonly Action<DeviceStatisticsEntry>? _graphRequested;
+        private readonly Action<DeviceStatisticsEntry>? _supportedPgnsRequested;
 
         public ObservableCollection<DeviceStatisticsEntry> BindableDevices { get; }
             = new ObservableCollection<DeviceStatisticsEntry>();
@@ -25,9 +26,13 @@ namespace NMEA2000Analyzer
         public string TotalAvgBps { get; }
         public string TotalPeakBps { get; }
 
-        public Devices(IEnumerable<DeviceStatisticsEntry> statistics, Action<DeviceStatisticsEntry>? graphRequested = null)
+        public Devices(
+            IEnumerable<DeviceStatisticsEntry> statistics,
+            Action<DeviceStatisticsEntry>? graphRequested = null,
+            Action<DeviceStatisticsEntry>? supportedPgnsRequested = null)
         {
             _graphRequested = graphRequested;
+            _supportedPgnsRequested = supportedPgnsRequested;
             var entries = statistics.ToList();
             TotalUnassembledCount = entries.Sum(device => device.UnassembledCount);
             TotalAssembledCount = entries.Sum(device => device.AssembledCount);
@@ -61,6 +66,21 @@ namespace NMEA2000Analyzer
             row.IsSelected = true;
             row.Focus();
             _graphRequested?.Invoke(entry);
+        }
+
+        private void SupportedPgnsMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not MenuItem menuItem ||
+                menuItem.Parent is not ContextMenu contextMenu ||
+                contextMenu.PlacementTarget is not DataGridRow row ||
+                row.Item is not DeviceStatisticsEntry entry)
+            {
+                return;
+            }
+
+            row.IsSelected = true;
+            row.Focus();
+            _supportedPgnsRequested?.Invoke(entry);
         }
     }
 

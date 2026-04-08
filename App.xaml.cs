@@ -1,6 +1,7 @@
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Text.Json;
 using System.Windows;
 
@@ -31,16 +32,32 @@ namespace NMEA2000Analyzer
             {
                 ShutdownMode = ShutdownMode.OnExplicitShutdown;
                 var attached = AttachConsole(AttachParentProcess);
+                using var cancellationSource = new CancellationTokenSource();
+                ConsoleCancelEventHandler? cancelHandler = null;
+                cancelHandler = (sender, eventArgs) =>
+                {
+                    eventArgs.Cancel = true;
+                    cancellationSource.Cancel();
+                };
+                Console.CancelKeyPress += cancelHandler;
 
                 try
                 {
                     CanboatRoot ??= await PgnDefinitions.LoadPgnDefinitionsAsync();
-                    var exitCode = await RunCommandLineModeAsync(args);
+                    var exitCode = await RunCommandLineModeAsync(args, cancellationSource.Token);
                     Shutdown(exitCode);
                     Environment.Exit(exitCode);
                 }
+                catch (OperationCanceledException)
+                {
+                    const int canceledExitCode = 130;
+                    Console.WriteLine("Canceled.");
+                    Shutdown(canceledExitCode);
+                    Environment.Exit(canceledExitCode);
+                }
                 finally
                 {
+                    Console.CancelKeyPress -= cancelHandler;
                     if (attached)
                     {
                         FreeConsole();
@@ -94,21 +111,22 @@ namespace NMEA2000Analyzer
             return args;
         }
 
-        private static async Task<int> RunCommandLineModeAsync(string[] args)
+        private static async Task<int> RunCommandLineModeAsync(string[] args, CancellationToken cancellationToken)
         {
             if (args.Length < 2)
             {
                 Console.WriteLine("Usage:");
                 Console.WriteLine("  NMEA2000Analyzer.exe --summary <file>");
                 Console.WriteLine("  NMEA2000Analyzer.exe --verify <file>");
-                Console.WriteLine("  NMEA2000Analyzer.exe --search-pgn <pgn>");
+                Console.WriteLine("  NMEA2000Analyzer.exe --search-pgn <pgn> [directory]");
                 return 2;
             }
 
             var command = args[0];
             if (command == "--search-pgn")
             {
-                return await SearchPgnInWorkingDirectoryAsync(args[1]);
+                var directory = args.Length >= 3 ? args[2] : null;
+                return await SearchPgnInWorkingDirectoryAsync(args[1], directory, cancellationToken);
             }
 
             var filePath = Path.GetFullPath(args[1]);
@@ -122,7 +140,7 @@ namespace NMEA2000Analyzer
 
             try
             {
-                var result = await CaptureLoadService.LoadAsync(filePath);
+                var result = await CaptureLoadService.LoadAsync(filePath, cancellationToken: cancellationToken);
 
                 switch (command)
                 {
@@ -155,6 +173,10 @@ namespace NMEA2000Analyzer
                         return 2;
                 }
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 Console.WriteLine("FAIL");
@@ -163,7 +185,7 @@ namespace NMEA2000Analyzer
             }
         }
 
-        private static async Task<int> SearchPgnInWorkingDirectoryAsync(string pgn)
+        private static async Task<int> SearchPgnInWorkingDirectoryAsync(string pgn, string? directory, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(pgn))
             {
@@ -173,13 +195,34 @@ namespace NMEA2000Analyzer
             }
 
             var matches = new List<string>();
-            var cwd = Directory.GetCurrentDirectory();
+            var targetDirectory = string.IsNullOrWhiteSpace(directory)
+                ? Directory.GetCurrentDirectory()
+                : Path.GetFullPath(directory);
 
-            foreach (var filePath in Directory.EnumerateFiles(cwd).OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase))
+            if (!Directory.Exists(targetDirectory))
             {
+                Console.WriteLine("FAIL");
+                Console.WriteLine($"Directory not found: {targetDirectory}");
+                return 1;
+            }
+
+            var recognizedLogFiles = 0;
+
+            foreach (var filePath in Directory.EnumerateFiles(targetDirectory).OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var format = FileFormats.DetectFileFormat(filePath);
+                if (format == FileFormats.FileFormat.Unknown)
+                {
+                    continue;
+                }
+
+                recognizedLogFiles++;
+
                 try
                 {
-                    var (_, rawRecords) = await CaptureLoadService.LoadRawAsync(filePath);
+                    var (_, rawRecords) = await CaptureLoadService.LoadRawAsync(filePath, cancellationToken: cancellationToken);
                     if (rawRecords.Any(record => string.Equals(record.PGN, pgn, StringComparison.Ordinal)))
                     {
                         matches.Add(Path.GetFileName(filePath));
@@ -191,10 +234,20 @@ namespace NMEA2000Analyzer
                 }
             }
 
+            if (recognizedLogFiles == 0)
+            {
+                Console.WriteLine();
+                Console.WriteLine("No log files here");
+                Console.WriteLine();
+                return 0;
+            }
+
+            Console.WriteLine();
             foreach (var match in matches)
             {
                 Console.WriteLine(match);
             }
+            Console.WriteLine();
 
             return 0;
         }

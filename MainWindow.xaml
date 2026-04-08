@@ -97,6 +97,8 @@
               HorizontalAlignment="Stretch" 
               VerticalAlignment="Stretch" 
               x:Name="DataGrid" 
+              SelectionMode="Extended"
+              SelectionUnit="FullRow"
               EnableRowVirtualization="True"
               EnableColumnVirtualization="True"
               VirtualizingPanel.IsVirtualizing="True"

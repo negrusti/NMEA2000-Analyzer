@@ -938,7 +938,7 @@ namespace NMEA2000Analyzer
                 .ToList();
 
               // Open the statistics window
-                var devicesWindow = new Devices(statistics, ShowDeviceGraph);
+                var devicesWindow = new Devices(statistics, ShowDeviceGraph, ShowSupportedPgns);
                 devicesWindow.Show();
             }
 
@@ -959,6 +959,105 @@ namespace NMEA2000Analyzer
                 $"Device {entry.Address}",
                 deviceName,
                 records);
+        }
+
+        private void ShowSupportedPgns(DeviceStatisticsEntry entry)
+        {
+            if (!TryGetSupportedPgnLists(entry.Address, out var transmitPgns, out var receivePgns))
+            {
+                MessageBox.Show("No supported PGN list is available for this device.", "Supported PGNs", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var deviceName = string.IsNullOrWhiteSpace(entry.ModelID) ? entry.MfgCode ?? string.Empty : entry.ModelID;
+            var deviceLabel = string.IsNullOrWhiteSpace(deviceName)
+                ? $"Device {entry.Address}"
+                : $"Device {entry.Address} - {deviceName}";
+
+            var window = new SupportedPgnsWindow(
+                deviceLabel,
+                transmitPgns.Select(FormatSupportedPgnEntry),
+                receivePgns.Select(FormatSupportedPgnEntry))
+            {
+                Owner = this
+            };
+            window.Show();
+        }
+
+        private bool TryGetSupportedPgnLists(int address, out IReadOnlyList<int> transmitPgns, out IReadOnlyList<int> receivePgns)
+        {
+            var transmit = new SortedSet<int>();
+            var receive = new SortedSet<int>();
+
+            if (_assembledData == null)
+            {
+                transmitPgns = Array.Empty<int>();
+                receivePgns = Array.Empty<int>();
+                return false;
+            }
+
+            var sourceText = address.ToString(CultureInfo.InvariantCulture);
+            foreach (var record in _assembledData)
+            {
+                if (!string.Equals(record.Source, sourceText, StringComparison.Ordinal) ||
+                    !string.Equals(record.PGN, "126464", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                PopulateSupportedPgnSet(record.PayloadBytes, transmit, receive);
+            }
+
+            transmitPgns = transmit.ToList();
+            receivePgns = receive.ToList();
+            return transmitPgns.Count > 0 || receivePgns.Count > 0;
+        }
+
+        private static void PopulateSupportedPgnSet(byte[] payloadBytes, ISet<int> transmitPgns, ISet<int> receivePgns)
+        {
+            if (payloadBytes == null || payloadBytes.Length < 4)
+            {
+                return;
+            }
+
+            var targetSet = payloadBytes[0] switch
+            {
+                0 => transmitPgns,
+                1 => receivePgns,
+                _ => null
+            };
+
+            if (targetSet == null)
+            {
+                return;
+            }
+
+            for (var offset = 1; offset + 2 < payloadBytes.Length; offset += 3)
+            {
+                var pgn = payloadBytes[offset]
+                          | (payloadBytes[offset + 1] << 8)
+                          | (payloadBytes[offset + 2] << 16);
+                targetSet.Add(pgn);
+            }
+        }
+
+        private static string FormatSupportedPgnEntry(int pgn)
+        {
+            var canboatRoot = ((App)Application.Current).CanboatRoot;
+            if (canboatRoot == null)
+            {
+                return pgn.ToString(CultureInfo.InvariantCulture);
+            }
+
+            var descriptions = canboatRoot.PGNs
+                .Where(definition => definition.PGN == pgn && !string.IsNullOrWhiteSpace(definition.Description))
+                .Select(definition => definition.Description.Trim())
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+
+            return descriptions.Count == 1
+                ? $"{pgn} - {descriptions[0]}"
+                : pgn.ToString(CultureInfo.InvariantCulture);
         }
 
         private void ShowPgnGraph(PgnStatisticsEntry entry)
@@ -1779,25 +1878,57 @@ namespace NMEA2000Analyzer
         {
             if (sender is MenuItem menuItem && menuItem.DataContext is Nmea2000Record selectedItem)
             {
-                var properties = typeof(Nmea2000Record).GetProperties();
-                var csvValues = new List<string>
-                    {
-                        selectedItem.ToString() // Add the Key first
-                    };
-
-                // Add each property value from the class
-                foreach (var property in properties)
-                {
-                    var value = property.GetValue(selectedItem)?.ToString() ?? string.Empty;
-                    csvValues.Add(value);
-                }
-
-                // Create a CSV string
-                string csvRow = string.Join(",", csvValues);
-
-                // Copy the CSV string to the clipboard
-                Clipboard.SetText(csvRow);
+                var recordsToExport = GetRecordsForCsvExport(selectedItem);
+                var csvRows = recordsToExport.Select(BuildCsvRow);
+                Clipboard.SetText(string.Join(Environment.NewLine, csvRows));
             }
+        }
+
+        private IEnumerable<Nmea2000Record> GetRecordsForCsvExport(Nmea2000Record clickedRecord)
+        {
+            var selectedRecords = DataGrid.SelectedItems
+                .OfType<Nmea2000Record>()
+                .ToList();
+
+            if (selectedRecords.Count > 1 && selectedRecords.Contains(clickedRecord))
+            {
+                return selectedRecords
+                    .OrderBy(record => record.LogSequenceNumber)
+                    .ToList();
+            }
+
+            return new[] { clickedRecord };
+        }
+
+        private static string BuildCsvRow(Nmea2000Record record)
+        {
+            var csvValues = new[]
+            {
+                record.LogSequenceNumber.ToString(CultureInfo.InvariantCulture),
+                record.Timestamp ?? string.Empty,
+                record.Source ?? string.Empty,
+                record.DeviceInfo ?? string.Empty,
+                record.Destination ?? string.Empty,
+                record.PGN ?? string.Empty,
+                record.Type ?? string.Empty,
+                record.Priority ?? string.Empty,
+                record.Description ?? string.Empty,
+                record.Data ?? string.Empty
+            };
+
+            return string.Join(",", csvValues.Select(EscapeCsvValue));
+        }
+
+        private static string EscapeCsvValue(string value)
+        {
+            if (value.Contains('"'))
+            {
+                value = value.Replace("\"", "\"\"");
+            }
+
+            return value.IndexOfAny(new[] { ',', '"', '\r', '\n' }) >= 0
+                ? $"\"{value}\""
+                : value;
         }
     }
 

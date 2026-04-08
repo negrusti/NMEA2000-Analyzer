@@ -47,6 +47,12 @@ In `Statistics`:
 
 ![Traffic Graph Screenshot](images/Screenshot2.png)
 
+In `Statistics -> Devices`:
+
+* right-click a device row and choose `Supported PGNs` to see transmit and receive PGN lists learned from `126464`
+
+![Supported PGNs Screenshot](images/Screenshot3.png)
+
 ## Highlighting
 
 Optional PGN row highlights can be defined in `highlight.json` using web colors such as `#F8D7DA`.

@@ -115,14 +115,20 @@ namespace NMEA2000Analyzer
             int repeatedFieldStart = pgnDefinition.RepeatingFieldSet1StartField - 1;
             int repeatedFieldCount = pgnDefinition.RepeatingFieldSet1Size;
 
+            var currentBitCursor = 0;
+
             for (int i = 0; i < pgnDefinition.Fields.Length; i++)
             {
                 var field = pgnDefinition.Fields[i];
                 object? finalValue = null;
+                var effectiveBitOffset = GetEffectiveBitOffset(field, currentBitCursor);
 
                 if (field.FieldType == "RESERVED")
+                {
+                    currentBitCursor = AdvanceBitCursor(currentBitCursor, effectiveBitOffset, field.BitLength);
                     continue; // Skip reserved fields
-                
+                }
+                 
                 // Skip fields that belong to the repeated set, as they will be processed later
                 if (repeatedFieldStart >= 0 && i >= repeatedFieldStart && i < repeatedFieldStart + repeatedFieldCount)
                     continue;
@@ -132,16 +138,23 @@ namespace NMEA2000Analyzer
                     if (field.FieldType == "STRING_FIX")
                     {
                         var rawBytes = new byte[field.BitLength / 8];
-                        Array.Copy(pgnData, field.BitOffset / 8, rawBytes, 0, field.BitLength / 8);
+                        Array.Copy(pgnData, effectiveBitOffset / 8, rawBytes, 0, field.BitLength / 8);
                         var filteredBytes = rawBytes.Where(b => b != 0xFF && b != 0x00).ToArray();
 
                         // Convert the bytes to an ASCII string and trim padding characters
                         finalValue = Encoding.ASCII.GetString(filteredBytes).TrimEnd('@', ' ');
+                        currentBitCursor = AdvanceBitCursor(currentBitCursor, effectiveBitOffset, field.BitLength);
+                    }
+                    else if (field.FieldType == "STRING_LZ" || field.FieldType == "STRING_LAU")
+                    {
+                        var decodedString = DecodeVariableStringField(pgnData, effectiveBitOffset, field);
+                        finalValue = decodedString.Value;
+                        currentBitCursor = AdvanceBitCursor(currentBitCursor, effectiveBitOffset, decodedString.BitsConsumed);
                     }
                     else if (field.FieldType == "INDIRECT_LOOKUP")
                     {
-                        int byteStart = field.BitOffset / 8;
-                        int bitStart = field.BitOffset % 8;
+                        int byteStart = effectiveBitOffset / 8;
+                        int bitStart = effectiveBitOffset % 8;
                         int bitLength = field.BitLength;
 
                         int rawValue = (int)ExtractBits(pgnData, byteStart, bitStart, bitLength);
@@ -154,11 +167,12 @@ namespace NMEA2000Analyzer
 
                         int rawValueIndirectField = (int)ExtractBits(pgnData, byteStart, bitStart, bitLength);
                         finalValue = LookupIndirect(field.LookupIndirectEnumeration, rawValueIndirectField, rawValue);
+                        currentBitCursor = AdvanceBitCursor(currentBitCursor, effectiveBitOffset, field.BitLength);
                     }
                     else
                     {
-                        int byteStart = field.BitOffset / 8;
-                        int bitStart = field.BitOffset % 8;
+                        int byteStart = effectiveBitOffset / 8;
+                        int bitStart = effectiveBitOffset % 8;
                         int bitLength = field.BitLength;
 
                         // Extract the bits from the raw PGN data
@@ -174,6 +188,7 @@ namespace NMEA2000Analyzer
 
                         // Convert units if applicable
                         finalValue = decodedValue == null ? null : ApplyUnitConversion(decodedValue, field);
+                        currentBitCursor = AdvanceBitCursor(currentBitCursor, effectiveBitOffset, field.BitLength);
                     }
                 }
                 catch (Exception ex)
@@ -196,7 +211,19 @@ namespace NMEA2000Analyzer
                     .Take(repeatedFieldCount)
                     .ToArray();
 
-                if (UsesUnsupportedRepeatedLayout(repeatedFields))
+                if (TryDecodeVariableRepeatedFieldSet(pgnData, pgnDefinition, repeatedFields, out var variableRepeatedFieldsArray, out var variableRepeatedWarning))
+                {
+                    if (variableRepeatedFieldsArray.Count > 0)
+                    {
+                        jsonObject["RepeatedFields"] = variableRepeatedFieldsArray;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(variableRepeatedWarning))
+                    {
+                        AddDecodeWarning(warnings, variableRepeatedWarning);
+                    }
+                }
+                else if (UsesUnsupportedRepeatedLayout(repeatedFields))
                 {
                     AddDecodeWarning(warnings, "Repeated field set uses variable or unsupported field types; repeated values were not fully decoded.");
                 }
@@ -206,13 +233,28 @@ namespace NMEA2000Analyzer
 
                     try
                     {
-                        // Determine the number of repetitions from the count field
-                        var countField = pgnDefinition.Fields[pgnDefinition.RepeatingFieldSet1CountField - 1];
-                        int byteStart = countField.BitOffset / 8;
-                        int bitStart = countField.BitOffset % 8;
-                        int bitLength = countField.BitLength;
+                        ulong repetitionCount;
+                        if (pgnDefinition.RepeatingFieldSet1CountField > 0)
+                        {
+                            var countField = pgnDefinition.Fields[pgnDefinition.RepeatingFieldSet1CountField - 1];
+                            int byteStart = countField.BitOffset / 8;
+                            int bitStart = countField.BitOffset % 8;
+                            int bitLength = countField.BitLength;
 
-                        ulong repetitionCount = ExtractBits(pgnData, byteStart, bitStart, bitLength);
+                            repetitionCount = ExtractBits(pgnData, byteStart, bitStart, bitLength);
+                        }
+                        else
+                        {
+                            var repeatedSetStartBitOffset = repeatedFields[0].BitOffset;
+                            var repeatedSetBitLength = repeatedFields.Sum(field => field.BitLength);
+                            if (repeatedSetBitLength <= 0)
+                            {
+                                throw new ArgumentException("Repeated field set length must be positive.");
+                            }
+
+                            var remainingBits = Math.Max(0, (pgnData.Length * 8) - repeatedSetStartBitOffset);
+                            repetitionCount = (ulong)(remainingBits / repeatedSetBitLength);
+                        }
 
                         for (int i = 0; i < (int)repetitionCount; i++)
                         {
@@ -271,6 +313,214 @@ namespace NMEA2000Analyzer
             return jsonObject;
         }
 
+        private static int GetEffectiveBitOffset(Canboat.Field field, int currentBitCursor)
+        {
+            if (field.BitLengthVariable || field.FieldType == "STRING_LZ" || field.FieldType == "STRING_LAU")
+            {
+                return field.BitOffset > 0 ? field.BitOffset : currentBitCursor;
+            }
+
+            return field.BitOffset;
+        }
+
+        private static int AdvanceBitCursor(int currentBitCursor, int effectiveBitOffset, int bitsConsumed)
+        {
+            if (bitsConsumed <= 0)
+            {
+                return currentBitCursor;
+            }
+
+            return Math.Max(currentBitCursor, effectiveBitOffset + bitsConsumed);
+        }
+
+        private static bool TryDecodeVariableRepeatedFieldSet(
+            byte[] pgnData,
+            Canboat.Pgn pgnDefinition,
+            Canboat.Field[] repeatedFields,
+            out JsonArray repeatedFieldsArray,
+            out string? warning)
+        {
+            repeatedFieldsArray = new JsonArray();
+            warning = null;
+
+            if (repeatedFields.Length != 2 ||
+                !string.Equals(repeatedFields[0].FieldType, "FIELD_INDEX", StringComparison.Ordinal) ||
+                !string.Equals(repeatedFields[1].FieldType, "VARIABLE", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            try
+            {
+                var countField = pgnDefinition.Fields[pgnDefinition.RepeatingFieldSet1CountField - 1];
+                int repetitionCount = (int)ExtractBits(pgnData, countField.BitOffset / 8, countField.BitOffset % 8, countField.BitLength);
+                if (repetitionCount <= 0)
+                {
+                    return true;
+                }
+
+                var targetPgnField = pgnDefinition.Fields.FirstOrDefault(field => string.Equals(field.FieldType, "PGN", StringComparison.Ordinal));
+                if (targetPgnField == null)
+                {
+                    warning = "Repeated field set could not be decoded: target PGN field not found.";
+                    return true;
+                }
+
+                int targetPgn = (int)ExtractBits(pgnData, targetPgnField.BitOffset / 8, targetPgnField.BitOffset % 8, targetPgnField.BitLength);
+                var targetDefinition = ResolveGroupFunctionTargetDefinition(targetPgn, pgnData, repeatedFields[0].BitOffset / 8, repetitionCount);
+                if (targetDefinition == null)
+                {
+                    warning = $"Repeated field set could not be decoded: no matching target definition for PGN {targetPgn}.";
+                    return true;
+                }
+
+                var cursor = repeatedFields[0].BitOffset / 8;
+                for (var i = 0; i < repetitionCount; i++)
+                {
+                    if (cursor >= pgnData.Length)
+                    {
+                        warning = $"Repeated field set ended early after {i} items.";
+                        break;
+                    }
+
+                    var parameterIndex = pgnData[cursor++];
+                    if (parameterIndex <= 0 || parameterIndex > targetDefinition.Fields.Length)
+                    {
+                        warning = $"Repeated field set contains invalid parameter index {parameterIndex}.";
+                        break;
+                    }
+
+                    var targetField = targetDefinition.Fields[parameterIndex - 1];
+                    var decodedItem = DecodeGroupFunctionParameterValue(pgnData, ref cursor, targetField);
+                    var repeatedFieldSet = new JsonObject
+                    {
+                        [targetField.Name] = JsonValue.Create(decodedItem)
+                    };
+
+                    repeatedFieldsArray.Add(repeatedFieldSet);
+                }
+            }
+            catch (Exception ex)
+            {
+                warning = $"Repeated field set could not be decoded: {ex.Message}";
+            }
+
+            return true;
+        }
+
+        private static Canboat.Pgn? ResolveGroupFunctionTargetDefinition(int targetPgn, byte[] pgnData, int startByteOffset, int repetitionCount)
+        {
+            var candidates = ((App)Application.Current).CanboatRoot.PGNs
+                .Where(candidate => candidate.PGN == targetPgn && candidate.Fields != null && candidate.Fields.Length > 0)
+                .ToList();
+
+            Canboat.Pgn? bestCandidate = null;
+            int bestScore = int.MinValue;
+
+            foreach (var candidate in candidates)
+            {
+                if (TryScoreGroupFunctionTargetDefinition(candidate, pgnData, startByteOffset, repetitionCount, out var score) &&
+                    score > bestScore)
+                {
+                    bestScore = score;
+                    bestCandidate = candidate;
+                }
+            }
+
+            return bestCandidate;
+        }
+
+        private static bool TryScoreGroupFunctionTargetDefinition(Canboat.Pgn candidate, byte[] pgnData, int startByteOffset, int repetitionCount, out int score)
+        {
+            score = 0;
+            var cursor = startByteOffset;
+
+            for (var i = 0; i < repetitionCount; i++)
+            {
+                if (cursor >= pgnData.Length)
+                {
+                    return false;
+                }
+
+                var parameterIndex = pgnData[cursor++];
+                if (parameterIndex <= 0 || parameterIndex > candidate.Fields.Length)
+                {
+                    return false;
+                }
+
+                var field = candidate.Fields[parameterIndex - 1];
+                if (!TryReadGroupFunctionRawValue(pgnData, ref cursor, field, out var rawValue))
+                {
+                    return false;
+                }
+
+                score++;
+                if (field.Match.HasValue)
+                {
+                    score += (int)rawValue == field.Match.Value ? 10 : -5;
+                }
+            }
+
+            return true;
+        }
+
+        private static object? DecodeGroupFunctionParameterValue(byte[] pgnData, ref int cursor, Canboat.Field field)
+        {
+            if (string.Equals(field.FieldType, "STRING_LZ", StringComparison.Ordinal) ||
+                string.Equals(field.FieldType, "STRING_LAU", StringComparison.Ordinal))
+            {
+                var decodedString = DecodeVariableStringField(pgnData, cursor * 8, field);
+                cursor += decodedString.BitsConsumed / 8;
+                return decodedString.Value;
+            }
+
+            if (!TryReadGroupFunctionRawValue(pgnData, ref cursor, field, out var rawValue))
+            {
+                throw new ArgumentException($"Not enough bytes to decode field '{field.Name}'.");
+            }
+
+            if (string.Equals(field.FieldType, "BINARY", StringComparison.Ordinal))
+            {
+                return FormatBinaryGroupFunctionValue(rawValue, field);
+            }
+
+            var decodedValue = DecodeFieldValue(rawValue, field);
+            return decodedValue == null ? null : ApplyUnitConversion(decodedValue, field);
+        }
+
+        private static bool TryReadGroupFunctionRawValue(byte[] pgnData, ref int cursor, Canboat.Field field, out ulong rawValue)
+        {
+            rawValue = 0;
+
+            if (field.BitLength <= 0)
+            {
+                return false;
+            }
+
+            var byteCount = Math.Max(1, (field.BitLength + 7) / 8);
+            if (cursor + byteCount > pgnData.Length)
+            {
+                return false;
+            }
+
+            rawValue = ExtractBits(pgnData, cursor, 0, field.BitLength);
+            cursor += byteCount;
+            return true;
+        }
+
+        private static string FormatBinaryGroupFunctionValue(ulong rawValue, Canboat.Field field)
+        {
+            var byteCount = Math.Max(1, (field.BitLength + 7) / 8);
+            var bytes = new byte[byteCount];
+
+            for (var i = 0; i < byteCount; i++)
+            {
+                bytes[i] = (byte)((rawValue >> (i * 8)) & 0xFF);
+            }
+
+            return string.Join(" ", bytes.Select(b => $"0x{b:X2}"));
+        }
+
         private static bool UsesUnsupportedRepeatedLayout(IEnumerable<Canboat.Field> repeatedFields)
         {
             foreach (var field in repeatedFields)
@@ -300,6 +550,123 @@ namespace NMEA2000Analyzer
             {
                 warnings.Add(warning);
             }
+        }
+
+        private static (string? Value, int BitsConsumed) DecodeVariableStringField(byte[] pgnData, int bitOffset, Canboat.Field field)
+        {
+            if (bitOffset % 8 != 0)
+            {
+                throw new NotSupportedException($"Field type '{field.FieldType}' requires byte-aligned data.");
+            }
+
+            var byteOffset = bitOffset / 8;
+            if (byteOffset >= pgnData.Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(bitOffset), "String field starts beyond the end of the PGN payload.");
+            }
+
+            return field.FieldType switch
+            {
+                "STRING_LZ" => DecodeStringLz(pgnData, byteOffset),
+                "STRING_LAU" => DecodeStringLau(pgnData, byteOffset),
+                _ => throw new NotSupportedException($"Field type '{field.FieldType}' is not supported by variable string decoder.")
+            };
+        }
+
+        private static (string? Value, int BitsConsumed) DecodeStringLz(byte[] pgnData, int byteOffset)
+        {
+            var declaredLength = pgnData[byteOffset];
+            if (declaredLength == byte.MaxValue)
+            {
+                return (null, 8);
+            }
+
+            var payloadStart = byteOffset + 1;
+            if (payloadStart + declaredLength > pgnData.Length)
+            {
+                throw new ArgumentException("STRING_LZ length extends beyond the PGN payload.");
+            }
+
+            var payload = pgnData.AsSpan(payloadStart, declaredLength);
+            var text = Encoding.UTF8.GetString(TrimTrailingZeros(payload));
+            var totalBytes = 1 + declaredLength;
+
+            if (payloadStart + declaredLength < pgnData.Length && pgnData[payloadStart + declaredLength] == 0x00)
+            {
+                totalBytes++;
+            }
+
+            return (text, totalBytes * 8);
+        }
+
+        private static (string? Value, int BitsConsumed) DecodeStringLau(byte[] pgnData, int byteOffset)
+        {
+            var declaredCount = pgnData[byteOffset];
+            if (declaredCount == byte.MaxValue)
+            {
+                return (null, 8);
+            }
+
+            if (declaredCount < 2)
+            {
+                throw new ArgumentException("STRING_LAU count must be at least 2.");
+            }
+
+            if (byteOffset + declaredCount > pgnData.Length)
+            {
+                throw new ArgumentException("STRING_LAU length extends beyond the PGN payload.");
+            }
+
+            var encodingType = pgnData[byteOffset + 1];
+            var payloadLength = declaredCount - 2;
+            var payloadStart = byteOffset + 2;
+            var payload = pgnData.AsSpan(payloadStart, payloadLength);
+
+            string value = encodingType switch
+            {
+                0 => DecodeUnicodeLau(payload),
+                1 => Encoding.UTF8.GetString(TrimTrailingZeros(payload)),
+                _ => throw new NotSupportedException($"Unsupported STRING_LAU encoding type '{encodingType}'.")
+            };
+
+            var totalBytes = declaredCount;
+            if (encodingType == 0)
+            {
+                if (payloadStart + payloadLength + 1 < pgnData.Length &&
+                    pgnData[payloadStart + payloadLength] == 0x00 &&
+                    pgnData[payloadStart + payloadLength + 1] == 0x00)
+                {
+                    totalBytes += 2;
+                }
+            }
+            else if (payloadStart + payloadLength < pgnData.Length && pgnData[payloadStart + payloadLength] == 0x00)
+            {
+                totalBytes++;
+            }
+
+            return (value, totalBytes * 8);
+        }
+
+        private static string DecodeUnicodeLau(ReadOnlySpan<byte> payload)
+        {
+            var trimmedPayload = TrimTrailingZeros(payload);
+            if ((trimmedPayload.Length & 1) == 1)
+            {
+                trimmedPayload = trimmedPayload[..^1];
+            }
+
+            return Encoding.Unicode.GetString(trimmedPayload);
+        }
+
+        private static byte[] TrimTrailingZeros(ReadOnlySpan<byte> payload)
+        {
+            var end = payload.Length;
+            while (end > 0 && payload[end - 1] == 0x00)
+            {
+                end--;
+            }
+
+            return payload[..end].ToArray();
         }
 
         // Function to extract bits from the data
