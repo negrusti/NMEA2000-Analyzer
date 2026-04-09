@@ -1186,7 +1186,12 @@ namespace NMEA2000Analyzer
             var entries = new List<AlarmHistoryEntry>();
             var alertTextByKey = new Dictionary<string, string>(StringComparer.Ordinal);
             var simnetMessageByKey = new Dictionary<string, string>(StringComparer.Ordinal);
-            var alarmRecords = records.Where(record => AlarmHistoryPgns.Contains(record.PGN)).ToList();
+            var alarmRecords = records
+                .Where(record => AlarmHistoryPgns.Contains(record.PGN))
+                .OrderBy(record => TryParseAlarmTimestamp(record.Timestamp ?? string.Empty))
+                .ThenBy(record => record.LogSequenceNumber)
+                .ToList();
+            var activeAlarmStates = new HashSet<string>(StringComparer.Ordinal);
 
             foreach (var record in alarmRecords)
             {
@@ -1230,13 +1235,22 @@ namespace NMEA2000Analyzer
                 }
 
                 var fields = ExtractDecodedFields(decoded);
+                var alarmKey = BuildAlarmHistoryKey(record, fields, alertTextByKey, simnetMessageByKey);
+                var alarmEvent = ClassifyAlarmEvent(record, fields);
+                var include = ShouldIncludeAlarmHistoryEntry(alarmKey, alarmEvent, activeAlarmStates);
+
+                if (!include)
+                {
+                    continue;
+                }
+
                 entries.Add(new AlarmHistoryEntry
                 {
                     Timestamp = record.Timestamp ?? string.Empty,
                     Source = record.Source ?? string.Empty,
                     Device = record.DeviceInfo ?? string.Empty,
                     Pgn = record.PGN ?? string.Empty,
-                    Event = ClassifyAlarmEvent(record, fields),
+                    Event = alarmEvent,
                     Alarm = BuildAlarmLabel(record, fields, alertTextByKey, simnetMessageByKey),
                     Details = BuildAlarmDetails(record, fields)
                 });
@@ -1246,6 +1260,41 @@ namespace NMEA2000Analyzer
                 .OrderBy(entry => TryParseAlarmTimestamp(entry.Timestamp))
                 .ThenBy(entry => entry.Source, StringComparer.Ordinal)
                 .ToList();
+        }
+
+        private static bool ShouldIncludeAlarmHistoryEntry(string alarmKey, string alarmEvent, ISet<string> activeAlarmStates)
+        {
+            if (string.IsNullOrWhiteSpace(alarmKey))
+            {
+                return true;
+            }
+
+            switch (alarmEvent)
+            {
+                case "Triggered":
+                    activeAlarmStates.Add(alarmKey);
+                    return true;
+                case "Cleared":
+                    if (!activeAlarmStates.Contains(alarmKey))
+                    {
+                        return false;
+                    }
+
+                    activeAlarmStates.Remove(alarmKey);
+                    return true;
+                case "Suppressed":
+                case "Acknowledged":
+                case "Silenced":
+                    if (activeAlarmStates.Contains(alarmKey))
+                    {
+                        return true;
+                    }
+
+                    activeAlarmStates.Add(alarmKey);
+                    return true;
+                default:
+                    return true;
+            }
         }
 
         private bool TryGetSupportedPgnLists(int address, out IReadOnlyList<int> transmitPgns, out IReadOnlyList<int> receivePgns)
@@ -1407,6 +1456,46 @@ namespace NMEA2000Analyzer
                 GetField(fields, "Alarm"),
                 GetField(fields, "Message ID")
             });
+        }
+
+        private static string BuildAlarmHistoryKey(
+            Nmea2000Record record,
+            IReadOnlyDictionary<string, string> fields,
+            IReadOnlyDictionary<string, string> alertTextByKey,
+            IReadOnlyDictionary<string, string> simnetMessageByKey)
+        {
+            var source = record.Source ?? string.Empty;
+
+            return record.PGN switch
+            {
+                "65288" or "65361" => string.Join("|", new[]
+                {
+                    source,
+                    record.PGN ?? string.Empty,
+                    GetField(fields, "Alarm Group"),
+                    GetField(fields, "Alarm ID")
+                }),
+                "126983" or "126984" or "126985" or "126986" or "126987" or "126988" => string.Join("|", new[]
+                {
+                    source,
+                    "12698x",
+                    BuildAlertKey(fields),
+                    BuildAlertLabel(fields, alertTextByKey)
+                }),
+                "130850" or "130856" => string.Join("|", new[]
+                {
+                    source,
+                    "13085x",
+                    BuildSimnetAlarmKey(fields),
+                    BuildAlarmLabel(record, fields, alertTextByKey, simnetMessageByKey)
+                }),
+                _ => string.Join("|", new[]
+                {
+                    source,
+                    record.PGN ?? string.Empty,
+                    BuildAlarmLabel(record, fields, alertTextByKey, simnetMessageByKey)
+                })
+            };
         }
 
         private static string BuildAlarmLabel(

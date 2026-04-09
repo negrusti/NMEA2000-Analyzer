@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.2 - 2026-04-09
+
+- Fixed signed 64-bit numeric decoding, which corrected fields such as `Longitude` in `129029`.
+- Stopped rendering zero-valued `DATE` fields as fake epoch dates like `1970-01-01`.
+- Fixed repeated-field-set stepping and count capping so truncated `129029` payloads no longer produce impossible repeated reference-station lists.
+- Applied canboat numeric `Offset` during decoding, fixing vendor PGNs such as `65016 Utility Total AC Power`.
+- Reduced alarm-history noise by only keeping `Cleared` events such as `Alarm condition not met` when they actually clear a previously active alarm.
+
 ## 1.4.1 - 2026-04-08
 
 - Broadened the MCP reverse-engineering candidate list to include proprietary manufacturer-specific PGNs such as `MFG-Specific ...`, not just fully unknown PGNs.

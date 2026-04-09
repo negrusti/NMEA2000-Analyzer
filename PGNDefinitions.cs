@@ -233,6 +233,7 @@ namespace NMEA2000Analyzer
                     try
                     {
                         ulong repetitionCount;
+                        var repeatedSetBitLength = repeatedFields.Sum(field => field.BitLength);
                         if (pgnDefinition.RepeatingFieldSet1CountField > 0)
                         {
                             var countField = pgnDefinition.Fields[pgnDefinition.RepeatingFieldSet1CountField - 1];
@@ -245,7 +246,6 @@ namespace NMEA2000Analyzer
                         else
                         {
                             var repeatedSetStartBitOffset = repeatedFields[0].BitOffset;
-                            var repeatedSetBitLength = repeatedFields.Sum(field => field.BitLength);
                             if (repeatedSetBitLength <= 0)
                             {
                                 throw new ArgumentException("Repeated field set length must be positive.");
@@ -253,6 +253,22 @@ namespace NMEA2000Analyzer
 
                             var remainingBits = Math.Max(0, (pgnData.Length * 8) - repeatedSetStartBitOffset);
                             repetitionCount = (ulong)(remainingBits / repeatedSetBitLength);
+                        }
+
+                        var maxPossibleRepetitions = 0UL;
+                        if (repeatedFields.Length > 0)
+                        {
+                            var repeatedSetStartBitOffset = repeatedFields[0].BitOffset;
+                            if (repeatedSetBitLength > 0)
+                            {
+                                var remainingBits = Math.Max(0, (pgnData.Length * 8) - repeatedSetStartBitOffset);
+                                maxPossibleRepetitions = (ulong)(remainingBits / repeatedSetBitLength);
+                            }
+                        }
+
+                        if (maxPossibleRepetitions > 0 && repetitionCount > maxPossibleRepetitions)
+                        {
+                            repetitionCount = maxPossibleRepetitions;
                         }
 
                         for (int i = 0; i < (int)repetitionCount; i++)
@@ -265,7 +281,8 @@ namespace NMEA2000Analyzer
 
                                 try
                                 {
-                                    int repeatBitOffset = field.BitOffset + (i * field.BitLength);
+                                    var repeatedSetRelativeOffset = field.BitOffset - repeatedFields[0].BitOffset;
+                                    int repeatBitOffset = repeatedFields[0].BitOffset + (i * repeatedSetBitLength) + repeatedSetRelativeOffset;
                                     int repeatByteStart = repeatBitOffset / 8;
                                     int repeatBitStart = repeatBitOffset % 8;
                                     int repeatBitLength = field.BitLength;
@@ -905,40 +922,15 @@ namespace NMEA2000Analyzer
                 case "PGN":
                 case "DURATION":
                 case "FIELD_INDEX":
-                    double decodedNumberValue = rawValue * field.Resolution;
-
-                    // Handle signed values
-                    if (field.Signed && field.BitLength > 1 && (rawValue & (1UL << (field.BitLength - 1))) != 0)
-                    {
-                        long signedValue = (long)(rawValue | ~((1UL << field.BitLength) - 1));
-                        decodedNumberValue = signedValue * field.Resolution;
-                    }
+                    double decodedNumberValue = DecodeSignedOrUnsignedNumber(rawValue, field);
 
                     return decodedNumberValue;
 
                 case "FLOAT":
-                    double decodedFloatValue = rawValue * field.Resolution;
-
-                    // Handle signed values
-                    if (field.Signed && field.BitLength > 1 && (rawValue & (1UL << (field.BitLength - 1))) != 0)
-                    {
-                        long signedValue = (long)(rawValue | ~((1UL << field.BitLength) - 1));
-                        decodedFloatValue = signedValue * field.Resolution;
-                    }
-
-                    return decodedFloatValue;
+                    return DecodeSignedOrUnsignedNumber(rawValue, field);
 
                 case "DECIMAL":
-                    double decodedDecimalValue = rawValue * field.Resolution;
-
-                    // Handle signed values
-                    if (field.Signed && field.BitLength > 1 && (rawValue & (1UL << (field.BitLength - 1))) != 0)
-                    {
-                        long signedValue = (long)(rawValue | ~((1UL << field.BitLength) - 1));
-                        decodedDecimalValue = signedValue * field.Resolution;
-                    }
-
-                    return decodedDecimalValue;
+                    return DecodeSignedOrUnsignedNumber(rawValue, field);
 
                 case "LOOKUP":
                     return Lookup(field.LookupEnumeration, (int)rawValue);
@@ -968,6 +960,29 @@ namespace NMEA2000Analyzer
             }
             return null;
 
+        }
+
+        private static double DecodeSignedOrUnsignedNumber(ulong rawValue, Canboat.Field field)
+        {
+            if (!field.Signed || field.BitLength <= 1)
+            {
+                return ((double)rawValue + field.Offset) * field.Resolution;
+            }
+
+            if (field.BitLength >= 64)
+            {
+                return (unchecked((long)rawValue) + field.Offset) * field.Resolution;
+            }
+
+            var signBitMask = 1UL << (field.BitLength - 1);
+            if ((rawValue & signBitMask) == 0)
+            {
+                return ((double)rawValue + field.Offset) * field.Resolution;
+            }
+
+            var valueMask = (1UL << field.BitLength) - 1;
+            long signedValue = (long)(rawValue | ~valueMask);
+            return (signedValue + field.Offset) * field.Resolution;
         }
 
         private static object DecodeIndirectLookupValue(
@@ -1080,6 +1095,11 @@ namespace NMEA2000Analyzer
                 }
                 else if (field.Unit == "d")
                 {
+                    if (field.FieldType == "DATE" && numericValue <= 0)
+                    {
+                        return null;
+                    }
+
                     return $"{DateTime.UnixEpoch.AddDays(numericValue):yyyy-MM-dd}";
                 }
                 else if (field.Unit == "deg")
