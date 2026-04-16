@@ -52,6 +52,7 @@ namespace NMEA2000Analyzer
             {
                 FileFormats.FileFormat.TwoCanCsv => await Task.Run(() => FileFormats.LoadTwoCanCsv(filePath, progress), cancellationToken),
                 FileFormats.FileFormat.Actisense => await Task.Run(() => FileFormats.LoadActisense(filePath, progress), cancellationToken),
+                FileFormats.FileFormat.ActisenseEbl => await Task.Run(() => FileFormats.LoadActisenseEbl(filePath, progress), cancellationToken),
                 FileFormats.FileFormat.CanDump1 => await Task.Run(() => FileFormats.LoadCanDump1(filePath, progress), cancellationToken),
                 FileFormats.FileFormat.CanDump2 => await Task.Run(() => FileFormats.LoadCanDump2(filePath, progress), cancellationToken),
                 FileFormats.FileFormat.YDWG => await Task.Run(() => FileFormats.LoadYDWGLog(filePath, progress), cancellationToken),
@@ -102,8 +103,21 @@ namespace NMEA2000Analyzer
                 MainWindow.EnrichUnassembledRecords(rawRecords);
 
                 cancellationToken.ThrowIfCancellationRequested();
-                ReportProgress(progress, "Processing Packets", "Assembling fast packets", 89);
-                var assembledRecords = MainWindow.AssembleFrames(rawRecords);
+                var recordsContainPreassembledPgnPayloads = FileFormats.ContainsPreassembledPgnPayloads(format);
+                ReportProgress(
+                    progress,
+                    "Processing Packets",
+                    recordsContainPreassembledPgnPayloads ? "Using preassembled PGN payloads" : "Assembling fast packets",
+                    89);
+                var assembledRecords = recordsContainPreassembledPgnPayloads
+                    ? rawRecords.ToList()
+                    : MainWindow.AssembleFrames(rawRecords);
+
+                if (recordsContainPreassembledPgnPayloads)
+                {
+                    MainWindow.RefreshAssembledRecordDefinitions(assembledRecords);
+                }
+
                 var (firstTimestamp, lastTimestamp) = GetTimestampBounds(rawRecords);
 
                 cancellationToken.ThrowIfCancellationRequested();

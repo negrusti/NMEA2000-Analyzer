@@ -121,13 +121,13 @@ namespace NMEA2000Analyzer
             public string Type { get; set; }
             public bool Complete { get; set; }
             public int FieldCount { get; set; }
-            public int Length { get; set; }
+            public int? Length { get; set; }
             public bool TransmissionIrregular { get; set; }
             public Field[] Fields { get; set; }
             public string URL { get; set; }
             public string[] Missing { get; set; }
             public int TransmissionInterval { get; set; }
-            public int MinLength { get; set; }
+            public int? MinLength { get; set; }
             public int RepeatingFieldSet1Size { get; set; }
             public int RepeatingFieldSet1StartField { get; set; }
             public int RepeatingFieldSet1CountField { get; set; }

@@ -21,14 +21,19 @@
             <MenuItem Header="File" x:Name="FileMenu">
                 <MenuItem Header="Open" Click="OpenMenuItem_ClickAsync" />
                 <MenuItem Header="Save" Click="SaveAsCandumpMenuItem_Click" />
-                <MenuItem x:Name="RecordMenuItem" Header="PCAN Capture" Click="RecordMenuItem_ClickAsync" />
+                <MenuItem Header="Reload Definitions" Click="ReloadDefinitionsMenuItem_Click" />
+                <MenuItem Header="Capture">
+                    <MenuItem x:Name="RecordMenuItem" Header="PCAN" Click="RecordMenuItem_ClickAsync" />
+                    <MenuItem Header="Actisense" Click="ActisenseCaptureMenuItem_Click" />
+                    <MenuItem Header="Maretron" IsEnabled="False" />
+                </MenuItem>
                 <Separator x:Name="RecentFilesSeparator" Visibility="Collapsed" />
             </MenuItem>
-            <MenuItem Header="Statistics">
+            <MenuItem Header="Data">
                 <MenuItem Header="PGNs" Click="PgnStatisticsMenuItem_Click" />
                 <MenuItem Header="Devices" Click="DevicesMenuItem_Click" />
+                <MenuItem Header="Alarms" Click="AlarmsMenuItem_Click" />
             </MenuItem>
-            <MenuItem Header="Alarms" Click="AlarmsMenuItem_Click" />
             <MenuItem Header="View">
                 <MenuItem x:Name="AssembledViewMenuItem"
                           Header="Assembled"
@@ -174,6 +179,9 @@
                             HorizontalScrollBarVisibility="Auto"
                             TextWrapping="Wrap"
                             IsReadOnly="True"
+                            FontFamily="Consolas"
+                            FontSize="12"
+                            Padding="8"
                             Background="White"
                             Foreground="Black"/>
         </Grid>

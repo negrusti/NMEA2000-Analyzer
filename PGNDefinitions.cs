@@ -97,7 +97,7 @@ namespace NMEA2000Analyzer
             if (pgnDefinition == null)
                 return null;
 
-            if (pgnData == null || pgnData.Length * 8 < pgnDefinition.Length)
+            if (pgnData == null || (pgnDefinition.Length.HasValue && pgnData.Length * 8 < pgnDefinition.Length.Value))
                 throw new ArgumentException("PGN data is null or insufficient for decoding.");
 
             var jsonObject = new JsonObject
@@ -198,7 +198,7 @@ namespace NMEA2000Analyzer
 
                 // Add to JSON output
                 var fieldJson = new JsonObject();
-                fieldJson[field.Name] = JsonValue.Create(finalValue);
+                fieldJson[field.Name] = CreateJsonNode(finalValue);
                 jsonObject["Fields"]?.AsArray().Add(fieldJson);
             }
 
@@ -210,7 +210,19 @@ namespace NMEA2000Analyzer
                     .Take(repeatedFieldCount)
                     .ToArray();
 
-                if (TryDecodeVariableRepeatedFieldSet(pgnData, pgnDefinition, repeatedFields, out var variableRepeatedFieldsArray, out var variableRepeatedWarning))
+                if (TryDecodeAlertValueRepeatedFieldSet(pgnData, pgnDefinition, out var alertValueRepeatedFieldsArray, out var alertValueWarning))
+                {
+                    if (alertValueRepeatedFieldsArray.Count > 0)
+                    {
+                        jsonObject["RepeatedFields"] = alertValueRepeatedFieldsArray;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(alertValueWarning))
+                    {
+                        AddDecodeWarning(warnings, alertValueWarning);
+                    }
+                }
+                else if (TryDecodeVariableRepeatedFieldSet(pgnData, pgnDefinition, repeatedFields, out var variableRepeatedFieldsArray, out var variableRepeatedWarning))
                 {
                     if (variableRepeatedFieldsArray.Count > 0)
                     {
@@ -242,6 +254,10 @@ namespace NMEA2000Analyzer
                             int bitLength = countField.BitLength;
 
                             repetitionCount = ExtractBits(pgnData, byteStart, bitStart, bitLength);
+                            if (IsUnavailableRepeatCount(repetitionCount, countField))
+                            {
+                                repetitionCount = 0;
+                            }
                         }
                         else
                         {
@@ -296,7 +312,7 @@ namespace NMEA2000Analyzer
                                         continue;
 
                                     object? repeatedFinalValue = decodedValue == null ? null : ApplyUnitConversion(decodedValue, field);
-                                    repeatedFieldSet[field.Name] = JsonValue.Create(repeatedFinalValue);
+                                    repeatedFieldSet[field.Name] = CreateJsonNode(repeatedFinalValue);
                                 }
                                 catch (Exception ex)
                                 {
@@ -320,6 +336,8 @@ namespace NMEA2000Analyzer
                     }
                 }
             }
+
+            AddVictronRegisterDecode(jsonObject, pgnDefinition, pgnData);
 
             if (warnings.Count > 0)
             {
@@ -349,6 +367,169 @@ namespace NMEA2000Analyzer
             return Math.Max(currentBitCursor, effectiveBitOffset + bitsConsumed);
         }
 
+        private static void AddVictronRegisterDecode(JsonObject jsonObject, Canboat.Pgn pgnDefinition, byte[] pgnData)
+        {
+            if (pgnDefinition.PGN != 61184 || pgnData.Length < 8)
+            {
+                return;
+            }
+
+            var manufacturerCode = ExtractBits(pgnData, 0, 0, 11);
+            var industryCode = ExtractBits(pgnData, 0, 13, 3);
+            if (manufacturerCode != 358 || industryCode != 4)
+            {
+                return;
+            }
+
+            var registerId = (ushort)ExtractBits(pgnData, 2, 0, 16);
+            var payload = (uint)ExtractBits(pgnData, 4, 0, 32);
+            var decodedRegister = VictronRegisters.Decode(registerId, payload);
+            if (decodedRegister == null)
+            {
+                return;
+            }
+
+            var fields = jsonObject["Fields"] as JsonArray;
+            fields?.Add(new JsonObject
+            {
+                ["Register"] = decodedRegister
+            });
+        }
+
+        private static bool TryDecodeAlertValueRepeatedFieldSet(
+            byte[] pgnData,
+            Canboat.Pgn pgnDefinition,
+            out JsonArray repeatedFieldsArray,
+            out string? warning)
+        {
+            repeatedFieldsArray = new JsonArray();
+            warning = null;
+
+            if (pgnDefinition.PGN != 126988 ||
+                pgnDefinition.RepeatingFieldSet1CountField <= 0 ||
+                pgnDefinition.RepeatingFieldSet1StartField <= 0 ||
+                pgnDefinition.RepeatingFieldSet1Size != 3)
+            {
+                return false;
+            }
+
+            try
+            {
+                var countField = pgnDefinition.Fields[pgnDefinition.RepeatingFieldSet1CountField - 1];
+                var repetitionCount = (int)ExtractBits(
+                    pgnData,
+                    countField.BitOffset / 8,
+                    countField.BitOffset % 8,
+                    countField.BitLength);
+
+                if (IsUnavailableRepeatCount((ulong)repetitionCount, countField) || repetitionCount <= 0)
+                {
+                    return true;
+                }
+
+                var repeatedStartField = pgnDefinition.Fields[pgnDefinition.RepeatingFieldSet1StartField - 1];
+                var cursor = repeatedStartField.BitOffset / 8;
+
+                for (var i = 0; i < repetitionCount; i++)
+                {
+                    if (cursor + 2 > pgnData.Length)
+                    {
+                        warning = $"Alert Value repeated field set ended early after {i} items.";
+                        break;
+                    }
+
+                    var parameterNumber = pgnData[cursor++];
+                    var valueDataFormat = pgnData[cursor++];
+                    var valueDataStart = cursor;
+                    var value = DecodeAlertValueData(pgnData, ref cursor, valueDataFormat);
+                    var rawLength = Math.Max(0, cursor - valueDataStart);
+
+                    var repeatedFieldSet = new JsonObject
+                    {
+                        ["Value Parameter Number"] = parameterNumber,
+                        ["Value Data Format"] = FormatAlertValueDataFormat(valueDataFormat),
+                        ["Value Data"] = CreateJsonNode(value)
+                    };
+
+                    if (rawLength > 0)
+                    {
+                        repeatedFieldSet["Value Data Raw"] = FormatPayloadSlice(pgnData, valueDataStart, rawLength);
+                    }
+
+                    repeatedFieldsArray.Add(repeatedFieldSet);
+                }
+
+                if (cursor < pgnData.Length)
+                {
+                    var trailingBytes = pgnData.AsSpan(cursor).ToArray();
+                    if (trailingBytes.Any(value => value != 0x00 && value != 0xFF))
+                    {
+                        warning = $"Alert Value payload has {pgnData.Length - cursor} trailing byte(s): {FormatPayloadSlice(pgnData, cursor, pgnData.Length - cursor)}.";
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                warning = $"Alert Value repeated field set could not be decoded: {ex.Message}";
+            }
+
+            return true;
+        }
+
+        private static object? DecodeAlertValueData(byte[] pgnData, ref int cursor, int valueDataFormat)
+        {
+            if (cursor >= pgnData.Length)
+            {
+                return null;
+            }
+
+            if (valueDataFormat == 0x32)
+            {
+                var valueField = new Canboat.Field
+                {
+                    Name = "Value Data",
+                    FieldType = "STRING_LAU",
+                    BitLength = 64,
+                    BitOffset = cursor * 8
+                };
+                var decodedString = DecodeVariableStringField(pgnData, cursor * 8, valueField, allowTruncatedAtEnd: true);
+                var consumedBytes = Math.Max(1, decodedString.BitsConsumed / 8);
+                var availableStringBytes = pgnData.Length - cursor;
+                cursor += Math.Max(consumedBytes, Math.Min(8, availableStringBytes));
+                return decodedString.Value;
+            }
+
+            var availableBytes = Math.Min(8, pgnData.Length - cursor);
+            if (availableBytes <= 0)
+            {
+                return null;
+            }
+
+            var rawValue = ExtractBits(pgnData, cursor, 0, availableBytes * 8);
+            cursor += availableBytes;
+            return rawValue;
+        }
+
+        private static string FormatAlertValueDataFormat(int valueDataFormat)
+        {
+            return valueDataFormat switch
+            {
+                0x32 => "STRING_LAU (50)",
+                _ => valueDataFormat.ToString(CultureInfo.InvariantCulture)
+            };
+        }
+
+        private static string FormatPayloadSlice(byte[] data, int start, int length)
+        {
+            if (start >= data.Length || length <= 0)
+            {
+                return string.Empty;
+            }
+
+            var safeLength = Math.Min(length, data.Length - start);
+            return string.Join(" ", data.Skip(start).Take(safeLength).Select(value => $"0x{value:X2}"));
+        }
+
         private static bool TryDecodeVariableRepeatedFieldSet(
             byte[] pgnData,
             Canboat.Pgn pgnDefinition,
@@ -370,6 +551,10 @@ namespace NMEA2000Analyzer
             {
                 var countField = pgnDefinition.Fields[pgnDefinition.RepeatingFieldSet1CountField - 1];
                 int repetitionCount = (int)ExtractBits(pgnData, countField.BitOffset / 8, countField.BitOffset % 8, countField.BitLength);
+                if (IsUnavailableRepeatCount((ulong)repetitionCount, countField))
+                {
+                    return true;
+                }
                 if (repetitionCount <= 0)
                 {
                     return true;
@@ -410,7 +595,7 @@ namespace NMEA2000Analyzer
                     var decodedItem = DecodeGroupFunctionParameterValue(pgnData, ref cursor, targetField);
                     var repeatedFieldSet = new JsonObject
                     {
-                        [targetField.Name] = JsonValue.Create(decodedItem)
+                        [targetField.Name] = CreateJsonNode(decodedItem)
                     };
 
                     repeatedFieldsArray.Add(repeatedFieldSet);
@@ -422,6 +607,16 @@ namespace NMEA2000Analyzer
             }
 
             return true;
+        }
+
+        private static JsonNode? CreateJsonNode(object? value)
+        {
+            return value switch
+            {
+                null => null,
+                JsonNode jsonNode => jsonNode,
+                _ => JsonValue.Create(value)
+            };
         }
 
         private static Canboat.Pgn? ResolveGroupFunctionTargetDefinition(int targetPgn, byte[] pgnData, int startByteOffset, int repetitionCount)
@@ -535,6 +730,16 @@ namespace NMEA2000Analyzer
             }
 
             return string.Join(" ", bytes.Select(b => $"0x{b:X2}"));
+        }
+
+        private static bool IsUnavailableRepeatCount(ulong rawValue, Canboat.Field countField)
+        {
+            if (countField.RangeMax != null && rawValue > (ulong)countField.RangeMax.Value)
+            {
+                return true;
+            }
+
+            return false;
         }
 
         private static bool UsesUnsupportedRepeatedLayout(IEnumerable<Canboat.Field> repeatedFields)
@@ -932,6 +1137,9 @@ namespace NMEA2000Analyzer
                 case "DECIMAL":
                     return DecodeSignedOrUnsignedNumber(rawValue, field);
 
+                case "ISO_NAME":
+                    return DecodeIsoName(rawValue);
+
                 case "LOOKUP":
                     return Lookup(field.LookupEnumeration, (int)rawValue);
 
@@ -960,6 +1168,39 @@ namespace NMEA2000Analyzer
             }
             return null;
 
+        }
+
+        private static JsonObject DecodeIsoName(ulong rawValue)
+        {
+            var deviceClass = (int)ExtractRawBits(rawValue, 49, 7);
+
+            return new JsonObject
+            {
+                ["Unique Number"] = (double)ExtractRawBits(rawValue, 0, 21),
+                ["Manufacturer Code"] = Lookup("MANUFACTURER_CODE", (int)ExtractRawBits(rawValue, 21, 11)),
+                ["Device Instance Lower"] = (double)ExtractRawBits(rawValue, 32, 3),
+                ["Device Instance Upper"] = (double)ExtractRawBits(rawValue, 35, 5),
+                ["Device Function"] = LookupIndirect("DEVICE_FUNCTION", deviceClass, (int)ExtractRawBits(rawValue, 40, 8)),
+                ["Device Class"] = Lookup("DEVICE_CLASS", deviceClass),
+                ["System Instance"] = (double)ExtractRawBits(rawValue, 56, 4),
+                ["Industry Group"] = Lookup("INDUSTRY_CODE", (int)ExtractRawBits(rawValue, 60, 3)),
+                ["Arbitrary address capable"] = Lookup("YES_NO", (int)ExtractRawBits(rawValue, 63, 1))
+            };
+        }
+
+        private static ulong ExtractRawBits(ulong value, int bitOffset, int bitLength)
+        {
+            if (bitLength <= 0)
+            {
+                return 0;
+            }
+
+            if (bitLength >= 64)
+            {
+                return value >> bitOffset;
+            }
+
+            return (value >> bitOffset) & ((1UL << bitLength) - 1);
         }
 
         private static double DecodeSignedOrUnsignedNumber(ulong rawValue, Canboat.Field field)
@@ -1062,6 +1303,8 @@ namespace NMEA2000Analyzer
         {
             if (decodedValue is double numericValue)
             {
+                numericValue = RoundByResolution(numericValue, field);
+
                 if (field.Unit == "m/s")
                 {
                     // Convert to knots
@@ -1110,12 +1353,49 @@ namespace NMEA2000Analyzer
                 else if (!string.IsNullOrEmpty(field.Unit))
                 {
                     // If a unit exists but no special conversion is needed
-                    return $"{numericValue:F2} {field.Unit}";
+                    return $"{numericValue.ToString(BuildFixedPointFormat(field), CultureInfo.InvariantCulture)} {field.Unit}";
                 }
+
+                return numericValue;
             }
 
             // If the value doesn't require conversion, return it as-is
             return decodedValue;
+        }
+
+        private static double RoundByResolution(double value, Canboat.Field field)
+        {
+            int decimals = GetDisplayDecimals(field);
+            if (decimals <= 0)
+            {
+                return Math.Round(value, 0, MidpointRounding.AwayFromZero);
+            }
+
+            return Math.Round(value, decimals, MidpointRounding.AwayFromZero);
+        }
+
+        private static string BuildFixedPointFormat(Canboat.Field field)
+        {
+            int decimals = GetDisplayDecimals(field);
+            return decimals <= 0 ? "F0" : $"F{decimals}";
+        }
+
+        private static int GetDisplayDecimals(Canboat.Field field)
+        {
+            double resolution = Math.Abs(field.Resolution);
+            if (resolution <= 0)
+            {
+                return 0;
+            }
+
+            int decimals = 0;
+            while (resolution < 1 && decimals < 6)
+            {
+                resolution *= 10;
+                decimals++;
+            }
+
+            return decimals;
         }
 
         public static Canboat.Pgn MatchPgnFromRecord(
@@ -1218,11 +1498,12 @@ namespace NMEA2000Analyzer
 
         public static void GenerateDeviceInfo(List<Nmea2000Record> records)
         {
-            // PGN 126996: Product Information
-            var filteredRecords = records.Where(record => record.PGN == "126996").ToList();
+            // PGN 60928: ISO Address Claim. Every NMEA 2000 device should send this,
+            // so use it as the baseline device identity when Product Information is absent.
+            var filteredRecords = records.Where(record => record.PGN == "60928").ToList();
             foreach (var record in filteredRecords)
             {
-                var dataBytes = record.Data.Split(' ').Select(b => Convert.ToByte(b, 16)).ToArray();
+                var dataBytes = record.PayloadBytes;
                 var pgnDefinition = ((App)Application.Current).CanboatRoot.PGNs
                     .FirstOrDefault(q => q.PGN.ToString() == record.PGN);
                 var jsonObject = pgnDefinition == null ? null : DecodePgnData(dataBytes, pgnDefinition);
@@ -1233,40 +1514,75 @@ namespace NMEA2000Analyzer
                 }
 
                 var fields = fieldsArray.OfType<JsonObject>().ToList();
-                var dev = new Device
+                var address = Convert.ToByte(record.Source);
+                Globals.Devices[address] = new Device
                 {
-                    Address = Convert.ToByte(record.Source),
-                    ProductCode = fields.FirstOrDefault(obj => obj.ContainsKey("Product Code"))?["Product Code"]?.GetValue<double>(),
-                    ModelID = fields.FirstOrDefault(obj => obj.ContainsKey("Model ID"))?["Model ID"]?.GetValue<string>(),
-                    SoftwareVersionCode = fields.FirstOrDefault(obj => obj.ContainsKey("Software Version Code"))?["Software Version Code"]?.GetValue<string>(),
-                    ModelVersion = fields.FirstOrDefault(obj => obj.ContainsKey("Model Version"))?["Model Version"]?.GetValue<string>(),
-                    ModelSerialCode = fields.FirstOrDefault(obj => obj.ContainsKey("Model Serial Code"))?["Model Serial Code"]?.GetValue<string>(),
+                    Address = address,
+                    MfgCode = GetDecodedFieldString(fields, "Manufacturer Code"),
+                    DeviceClass = GetDecodedFieldString(fields, "Device Class"),
+                    DeviceFunction = GetDecodedFieldString(fields, "Device Function")
                 };
-
-                Globals.Devices.TryAdd(Convert.ToByte(record.Source), dev);
             }
 
-            /*
-            // PGN 60928: ISO Address Claim
-            filteredRecords = records.Where(record => record.PGN == "60928").ToList();
+            // PGN 126996: Product Information. This is richer but not always present;
+            // when it appears, merge it into the baseline 60928 device entry.
+            filteredRecords = records.Where(record => record.PGN == "126996").ToList();
             foreach (var record in filteredRecords)
             {
-                var dataBytes = record.Data.Split(' ').Select(b => Convert.ToByte(b, 16)).ToArray();
-                var JSONObject = DecodePgnData(dataBytes, ((App)Application.Current).CanboatRoot.PGNs.FirstOrDefault(q => q.PGN.ToString() == record.PGN));
+                var dataBytes = record.PayloadBytes;
+                var pgnDefinition = ((App)Application.Current).CanboatRoot.PGNs
+                    .FirstOrDefault(q => q.PGN.ToString() == record.PGN);
+                var jsonObject = pgnDefinition == null ? null : DecodePgnData(dataBytes, pgnDefinition);
 
-                var fields = ((JsonArray)JSONObject["Fields"]!).OfType<JsonObject>();
-
-                Device dev = new Device
+                if (jsonObject?["Fields"] is not JsonArray fieldsArray)
                 {
-                    Address = Convert.ToByte(record.Source),
-                    MfgCode = fields.FirstOrDefault(obj => obj.ContainsKey("Manufacturer Code"))?["Manufacturer Code"]?.GetValue<string>(),
-                    DeviceClass = fields.FirstOrDefault(obj => obj.ContainsKey("Device Class"))?["Device Class"]?.GetValue<string>(),
-                    DeviceFunction = fields.FirstOrDefault(obj => obj.ContainsKey("Device Function"))?["Device Function"]?.GetValue<string>()
-                };
-                
-                Globals.Devices.TryAdd(Convert.ToByte(record.Source), dev);
+                    continue;
+                }
+
+                var fields = fieldsArray.OfType<JsonObject>().ToList();
+                var address = Convert.ToByte(record.Source);
+                if (!Globals.Devices.TryGetValue(address, out var dev))
+                {
+                    dev = new Device { Address = address };
+                    Globals.Devices[address] = dev;
+                }
+
+                dev.ProductCode = GetDecodedFieldDouble(fields, "Product Code") ?? dev.ProductCode;
+                dev.ModelID = GetDecodedFieldString(fields, "Model ID") ?? dev.ModelID;
+                dev.SoftwareVersionCode = GetDecodedFieldString(fields, "Software Version Code") ?? dev.SoftwareVersionCode;
+                dev.ModelVersion = GetDecodedFieldString(fields, "Model Version") ?? dev.ModelVersion;
+                dev.ModelSerialCode = GetDecodedFieldString(fields, "Model Serial Code") ?? dev.ModelSerialCode;
+                dev.MfgCode = GetDecodedFieldString(fields, "Manufacturer Code") ?? dev.MfgCode;
             }
-            */
+        }
+
+        private static string? GetDecodedFieldString(IEnumerable<JsonObject> fields, string fieldName)
+        {
+            var value = fields.FirstOrDefault(obj => obj.ContainsKey(fieldName))?[fieldName];
+            if (value == null)
+            {
+                return null;
+            }
+
+            return value.GetValue<object>()?.ToString();
+        }
+
+        private static double? GetDecodedFieldDouble(IEnumerable<JsonObject> fields, string fieldName)
+        {
+            var value = fields.FirstOrDefault(obj => obj.ContainsKey(fieldName))?[fieldName];
+            if (value == null)
+            {
+                return null;
+            }
+
+            if (value.GetValue<object>() is double doubleValue)
+            {
+                return doubleValue;
+            }
+
+            return double.TryParse(value.ToString(), CultureInfo.InvariantCulture, out var parsedValue)
+                ? parsedValue
+                : null;
         }
         public static void ComputeMatchValueAndBitmask(List<Canboat.Pgn> pgnDefinitions)
         {

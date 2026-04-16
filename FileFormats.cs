@@ -18,6 +18,7 @@ namespace NMEA2000Analyzer
             Unknown,
             TwoCanCsv,
             Actisense,
+            ActisenseEbl,
             CanDump1,
             CanDump2,
             YDWG,
@@ -30,6 +31,12 @@ namespace NMEA2000Analyzer
         {
             try
             {
+                if (IsActisenseEblFormat(filePath))
+                {
+                    Debug.WriteLine("Actisense EBL format detected");
+                    return FileFormat.ActisenseEbl;
+                }
+
                 /*
                 if (IsBinaryYDFormat(filePath))
                 {
@@ -101,6 +108,11 @@ namespace NMEA2000Analyzer
             }
 
             return FileFormat.Unknown; // Default to unknown format
+        }
+
+        public static bool ContainsPreassembledPgnPayloads(FileFormat format)
+        {
+            return format == FileFormat.ActisenseEbl;
         }
 
         public static List<Nmea2000Record> LoadTwoCanCsv(string filePath, IProgress<FileLoadProgress>? progress = null)
@@ -270,6 +282,39 @@ namespace NMEA2000Analyzer
                         payloadBytes: values.Skip(6).Select(ParseHexByte).ToArray()));
                 }
             }
+
+            return records;
+        }
+
+        public static List<Nmea2000Record> LoadActisenseEbl(string filePath, IProgress<FileLoadProgress>? progress = null)
+        {
+            progress?.Report(new FileLoadProgress
+            {
+                Stage = "Reading File",
+                Message = "Loading Actisense EBL records...",
+                Percent = 10
+            });
+
+            var frames = ActisenseEblParser.ParseFile(filePath);
+            var records = new List<Nmea2000Record>(frames.Count);
+
+            foreach (var frame in frames)
+            {
+                records.Add(CreateRecord(
+                    timestamp: ActisenseEblParser.FormatTimestamp(frame.Timestamp),
+                    priority: frame.Priority.ToString(CultureInfo.InvariantCulture),
+                    pgn: frame.Pgn.ToString(CultureInfo.InvariantCulture),
+                    source: frame.Source.ToString(CultureInfo.InvariantCulture),
+                    destination: frame.Destination.ToString(CultureInfo.InvariantCulture),
+                    payloadBytes: frame.Data));
+            }
+
+            progress?.Report(new FileLoadProgress
+            {
+                Stage = "Reading File",
+                Message = $"{records.Count:N0} Actisense EBL records parsed",
+                Percent = 75
+            });
 
             return records;
         }
@@ -517,6 +562,36 @@ namespace NMEA2000Analyzer
                 }
             }
             return records;
+        }
+
+        private static bool IsActisenseEblFormat(string filePath)
+        {
+            if (!string.Equals(Path.GetExtension(filePath), ".ebl", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            try
+            {
+                Span<byte> header = stackalloc byte[32];
+                using var stream = File.OpenRead(filePath);
+                var bytesRead = stream.Read(header);
+                var end = Math.Min(bytesRead - 1, header.Length - 1);
+
+                for (var i = 0; i < end; i++)
+                {
+                    if (header[i] == 0x1B && header[i + 1] == 0x01)
+                    {
+                        return true;
+                    }
+                }
+            }
+            catch
+            {
+                return false;
+            }
+
+            return false;
         }
 
         private static Nmea2000Record CreateRecord(string? timestamp, string priority, string pgn, string source, string destination, byte[] payloadBytes)

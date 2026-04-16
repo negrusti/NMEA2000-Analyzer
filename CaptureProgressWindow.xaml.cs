@@ -6,10 +6,17 @@ namespace NMEA2000Analyzer
     public partial class CaptureProgressWindow : Window
     {
         private readonly DispatcherTimer _timer;
+        private readonly Func<int> _getCapturedCount;
 
         public CaptureProgressWindow()
+            : this(() => PCAN.GetCapturedCount())
+        {
+        }
+
+        public CaptureProgressWindow(Func<int> getCapturedCount, string? sourceLabel = null, bool canRequestDeviceInfo = true)
         {
             InitializeComponent();
+            _getCapturedCount = getCapturedCount;
             _timer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromMilliseconds(200)
@@ -21,6 +28,15 @@ namespace NMEA2000Analyzer
                 _timer.Start();
             };
             Closed += (_, _) => _timer.Stop();
+
+            if (!string.IsNullOrWhiteSpace(sourceLabel))
+            {
+                SourceTextBlock.Text = sourceLabel;
+                SourceTextBlock.Visibility = Visibility.Visible;
+            }
+
+            RequestDeviceInfoButton.IsEnabled = canRequestDeviceInfo;
+            RequestDeviceInfoButton.Visibility = canRequestDeviceInfo ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void Timer_Tick(object? sender, EventArgs e)
@@ -51,7 +67,7 @@ namespace NMEA2000Analyzer
 
         private void UpdatePacketCount()
         {
-            PacketCountRun.Text = PCAN.GetCapturedCount().ToString("N0");
+            PacketCountRun.Text = _getCapturedCount().ToString("N0");
         }
     }
 }

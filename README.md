@@ -11,7 +11,7 @@ Windows 10/11 only
 ## Supported log formats
 
 * TwoCan CSV
-* Actisense
+* Actisense EBL binary log
 * CanDump
 * Yacht Devices Wireless Gateway
 * PCANView

@@ -252,7 +252,7 @@ namespace NMEA2000Analyzer
                     ["openFileSync"] = "The open_file tool uses the main WPF load path and updates both the visible UI and the shared analysis session.",
                     ["pgnAndAddressTypes"] = "PGNs, source addresses, and destination addresses are represented as strings in tool arguments and results.",
                     ["assembledDefault"] = "When omitted, assembled defaults to true for analysis tools.",
-                    ["uiMutatingTools"] = new JsonArray("open_file", "highlight_packets", "set_pgn_filters", "clear_filters"),
+                    ["uiMutatingTools"] = new JsonArray("open_file", "reload_definitions", "highlight_packets", "set_pgn_filters", "clear_filters"),
                     ["sessionHeader"] = SessionHeader
                 },
                 ["examples"] = new JsonArray
@@ -338,6 +338,13 @@ namespace NMEA2000Analyzer
                     "get_open_data_summary",
                     "Get summary metadata for the current open data session, including file name, format, counts, and timestamp range.",
                     new JsonObject()),
+                BuildTool(
+                    "reload_definitions",
+                    "Reload merged canboat/local PGN definitions and refresh the currently open UI/session records. Use after editing local.json so new pattern matches apply without restarting the app.",
+                    new JsonObject
+                    {
+                        ["type"] = "object"
+                    }),
                 BuildTool(
                     "get_current_packet",
                     "Get the current row selection from the main UI grid. This reflects manual user selection or MCP-driven highlighting.",
@@ -516,6 +523,7 @@ namespace NMEA2000Analyzer
                         ?? throw new InvalidOperationException("Missing required argument 'path'."),
                     cancellationToken),
                 "get_open_data_summary" => PacketAnalysisService.GetOpenDataSummary(),
+                "reload_definitions" => await PacketAnalysisService.ReloadDefinitionsAsync(cancellationToken),
                 "get_current_packet" => await PacketAnalysisService.GetCurrentPacketAsync(cancellationToken) ?? new JsonObject(),
                 "get_selected_packets" => await PacketAnalysisService.GetSelectedPacketsAsync(cancellationToken),
                 "list_unknown_pgns" => PacketAnalysisService.ListUnknownPgns(arguments["assembled"]?.GetValue<bool?>() ?? true),

@@ -1,326 +1,5997 @@
 {
-	"PGNs": [
-		{
-			"PGN": 65096,
-			"Id": "WheelSpeedDistance",
-			"Description": "Wheel-based Speed and Distance",
-			"Type": "Single"
-		},
-		{
-			"PGN": 65130,
-			"Id": "EngineFuelLube",
-			"Description": "Engine Fuel/Lube Systems",
-			"Type": "Single"
-		},
-		{
-			"PGN": 126243,
-			"Id": "Unknown126243",
-			"Description": "MFG-Specific PGN (Custom)",
-			"Type": "Fast",
-			"Fields": [
-				{
-					"Order": 1,
-					"Id": "manufacturerCode",
-					"Name": "Manufacturer Code",
-					"BitLength": 11,
-					"BitOffset": 0,
-					"BitStart": 0,
-					"Resolution": 1,
-					"Signed": false,
-					"RangeMin": 0,
-					"RangeMax": 2045,
-					"FieldType": "LOOKUP",
-					"LookupEnumeration": "MANUFACTURER_CODE"
-				},
-				{
-					"Order": 2,
-					"Id": "reserved",
-					"Name": "Reserved",
-					"BitLength": 2,
-					"BitOffset": 11,
-					"BitStart": 3,
-					"Resolution": 1,
-					"FieldType": "RESERVED"
-				},
-				{
-					"Order": 3,
-					"Id": "industryCode",
-					"Name": "Industry Code",
-					"Description": "Marine Industry",
-					"BitLength": 3,
-					"BitOffset": 13,
-					"BitStart": 5,
-					"Match": 4,
-					"Resolution": 1,
-					"Signed": false,
-					"RangeMin": 0,
-					"RangeMax": 6,
-					"FieldType": "LOOKUP",
-					"LookupEnumeration": "INDUSTRY_CODE"
-				}
-			]
-		},
-		{
-			"PGN": 126975,
-			"Id": "Unknown126975",
-			"Description": "MFG-Specific PGN (Custom)",
-			"Type": "Fast",
-			"Fields": [
-				{
-					"Order": 1,
-					"Id": "manufacturerCode",
-					"Name": "Manufacturer Code",
-					"BitLength": 11,
-					"BitOffset": 0,
-					"BitStart": 0,
-					"Resolution": 1,
-					"Signed": false,
-					"RangeMin": 0,
-					"RangeMax": 2045,
-					"FieldType": "LOOKUP",
-					"LookupEnumeration": "MANUFACTURER_CODE"
-				},
-				{
-					"Order": 2,
-					"Id": "reserved",
-					"Name": "Reserved",
-					"BitLength": 2,
-					"BitOffset": 11,
-					"BitStart": 3,
-					"Resolution": 1,
-					"FieldType": "RESERVED"
-				},
-				{
-					"Order": 3,
-					"Id": "industryCode",
-					"Name": "Industry Code",
-					"Description": "Marine Industry",
-					"BitLength": 3,
-					"BitOffset": 13,
-					"BitStart": 5,
-					"Match": 4,
-					"Resolution": 1,
-					"Signed": false,
-					"RangeMin": 0,
-					"RangeMax": 6,
-					"FieldType": "LOOKUP",
-					"LookupEnumeration": "INDUSTRY_CODE"
-				}
-			]
-		},
-		{
-			"PGN": 61183,
-			"Id": "AddressClaimResponse",
-			"Description": "Address Claim Response",
-			"Type": "Simple",
-			"Fields": [
-				{
-					"Order": 1,
-					"Id": "manufacturerSerial",
-					"Name": "Manufacturer Serial",
-					"BitLength": 21,
-					"BitOffset": 0,
-					"BitStart": 0,
-					"Resolution": 1,
-					"Signed": false,
-					"FieldType": "NUMBER"
-				},
-				{
-					"Order": 2,
-					"Id": "manufacturerCode",
-					"Name": "Manufacturer Code",
-					"BitLength": 11,
-					"BitOffset": 21,
-					"BitStart": 0,
-					"Resolution": 1,
-					"Signed": false,
-					"RangeMin": 0,
-					"RangeMax": 2045,
-					"FieldType": "LOOKUP",
-					"LookupEnumeration": "MANUFACTURER_CODE"
-				}
-			]
-		},
-		{
-			"PGN": 130916,
-			"Id": "Unknown130916",
-			"Description": "MFG-Specific PGN (Custom)",
-			"Type": "Fast",
-			"Fields": [
-				{
-					"Order": 1,
-					"Id": "manufacturerCode",
-					"Name": "Manufacturer Code",
-					"BitLength": 11,
-					"BitOffset": 0,
-					"BitStart": 0,
-					"Resolution": 1,
-					"Signed": false,
-					"RangeMin": 0,
-					"RangeMax": 2045,
-					"FieldType": "LOOKUP",
-					"LookupEnumeration": "MANUFACTURER_CODE"
-				},
-				{
-					"Order": 2,
-					"Id": "reserved",
-					"Name": "Reserved",
-					"BitLength": 2,
-					"BitOffset": 11,
-					"BitStart": 3,
-					"Resolution": 1,
-					"FieldType": "RESERVED"
-				},
-				{
-					"Order": 3,
-					"Id": "industryCode",
-					"Name": "Industry Code",
-					"Description": "Marine Industry",
-					"BitLength": 3,
-					"BitOffset": 13,
-					"BitStart": 5,
-					"Match": 4,
-					"Resolution": 1,
-					"Signed": false,
-					"RangeMin": 0,
-					"RangeMax": 6,
-					"FieldType": "LOOKUP",
-					"LookupEnumeration": "INDUSTRY_CODE"
-				}
-			]
-		},
-		{
-			"PGN": 65384,
-			"Id": "Seatalk65384",
-			"Description": "Unknown Seatalk PGN",
-			"Type": "Fast"
-		},
-		{
-			"PGN": 65311,
-			"Id": "MagnetciVariationRaymarine",
-			"Description": "Magnetic Variation (Raymarine)",
-			"Type": "Simple"
-		},
-		{
-			"PGN": 60159,
-			"Id": "SAEJ1939-21",
-			"Description": "SAEJ1939-21 Request",
-			"Type": "Simple",
-			"Priority": 6,
-			"FieldCount": 1,
-			"Length": 3,
-			"Fields": [
-				{
-					"Order": 1,
-					"Id": "pgn",
-					"Name": "PGN",
-					"Description": "Requested PGN",
-					"BitLength": 24,
-					"BitOffset": 0,
-					"BitStart": 0,
-					"Resolution": 1,
-					"Signed": false,
-					"RangeMin": 0,
-					"RangeMax": 16777213,
-					"FieldType": "NUMBER"
-				}
-			]
-		},
-		{
-			"PGN": 131056,
-			"Id": "Unknown131056",
-			"Description": "MFG-Specific PGN (Custom)",
-			"Type": "Fast",
-			"Fields": [
-				{
-					"Order": 1,
-					"Id": "manufacturerCode",
-					"Name": "Manufacturer Code",
-					"BitLength": 11,
-					"BitOffset": 0,
-					"BitStart": 0,
-					"Resolution": 1,
-					"Signed": false,
-					"RangeMin": 0,
-					"RangeMax": 2045,
-					"FieldType": "LOOKUP",
-					"LookupEnumeration": "MANUFACTURER_CODE"
-				},
-				{
-					"Order": 2,
-					"Id": "reserved",
-					"Name": "Reserved",
-					"BitLength": 2,
-					"BitOffset": 11,
-					"BitStart": 3,
-					"Resolution": 1,
-					"FieldType": "RESERVED"
-				},
-				{
-					"Order": 3,
-					"Id": "industryCode",
-					"Name": "Industry Code",
-					"Description": "Marine Industry",
-					"BitLength": 3,
-					"BitOffset": 13,
-					"BitStart": 5,
-					"Match": 4,
-					"Resolution": 1,
-					"Signed": false,
-					"RangeMin": 0,
-					"RangeMax": 6,
-					"FieldType": "LOOKUP",
-					"LookupEnumeration": "INDUSTRY_CODE"
-				}
-			]
-		},
-		{
-			"PGN": 126471,
-			"Id": "Unknown126471",
-			"Description": "MFG-Specific PGN (Custom)",
-			"Type": "Fast"
-		},
-		{
-			"PGN": 126719,
-			"Id": "Unknown126719",
-			"Description": "MFG-Specific PGN (Custom)",
-			"Type": "Fast"
-		},
-		{
-			"PGN": 126323,
-			"Id": "Unknown126323",
-			"Description": "MFG-Specific PGN (Custom)",
-			"Type": "Fast"
-		},
-		{
-			"PGN": 126722,
-			"Id": "Unknown126722",
-			"Description": "MFG-Specific PGN (Custom)",
-			"Type": "Fast"
-		},
-		{
-			"PGN": 126318,
-			"Id": "Unknown126318",
-			"Description": "MFG-Specific PGN (Custom)",
-			"Type": "Fast"
-		},
-		{
-			"PGN": 126319,
-			"Id": "Unknown126319",
-			"Description": "MFG-Specific PGN (Custom)",
-			"Type": "Fast"
-		},
-		{
-			"PGN": 126320,
-			"Id": "Unknown126320",
-			"Description": "MFG-Specific PGN (Custom)",
-			"Type": "Fast"
-		},
-		{
-			"PGN": 126466,
-			"Id": "Unknown126466",
-			"Description": "MFG-Specific PGN (Custom)",
-			"Type": "Fast"
-		}
-	]
+  "PGNs": [
+    {
+      "PGN": 65096,
+      "Id": "WheelSpeedDistance",
+      "Description": "Wheel-based Speed and Distance",
+      "Type": "Single"
+    },
+    {
+      "PGN": 65130,
+      "Id": "EngineFuelLube",
+      "Description": "Engine Fuel/Lube Systems",
+      "Type": "Single"
+    },
+    {
+      "PGN": 126243,
+      "Id": "Unknown126243",
+      "Description": "MFG-Specific PGN (Custom)",
+      "Type": "Fast",
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "BitLength": 11,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "Resolution": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2045,
+          "FieldType": "LOOKUP",
+          "LookupEnumeration": "MANUFACTURER_CODE"
+        },
+        {
+          "Order": 2,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "BitLength": 2,
+          "BitOffset": 11,
+          "BitStart": 3,
+          "Resolution": 1,
+          "FieldType": "RESERVED"
+        },
+        {
+          "Order": 3,
+          "Id": "industryCode",
+          "Name": "Industry Code",
+          "Description": "Marine Industry",
+          "BitLength": 3,
+          "BitOffset": 13,
+          "BitStart": 5,
+          "Match": 4,
+          "Resolution": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 6,
+          "FieldType": "LOOKUP",
+          "LookupEnumeration": "INDUSTRY_CODE"
+        }
+      ]
+    },
+    {
+      "PGN": 126975,
+      "Id": "Unknown126975",
+      "Description": "MFG-Specific PGN (Custom)",
+      "Type": "Fast",
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "BitLength": 11,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "Resolution": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2045,
+          "FieldType": "LOOKUP",
+          "LookupEnumeration": "MANUFACTURER_CODE"
+        },
+        {
+          "Order": 2,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "BitLength": 2,
+          "BitOffset": 11,
+          "BitStart": 3,
+          "Resolution": 1,
+          "FieldType": "RESERVED"
+        },
+        {
+          "Order": 3,
+          "Id": "industryCode",
+          "Name": "Industry Code",
+          "Description": "Marine Industry",
+          "BitLength": 3,
+          "BitOffset": 13,
+          "BitStart": 5,
+          "Match": 4,
+          "Resolution": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 6,
+          "FieldType": "LOOKUP",
+          "LookupEnumeration": "INDUSTRY_CODE"
+        }
+      ]
+    },
+    {
+      "PGN": 61183,
+      "Id": "AddressClaimResponse",
+      "Description": "Address Claim Response",
+      "Type": "Simple",
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerSerial",
+          "Name": "Manufacturer Serial",
+          "BitLength": 21,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "Resolution": 1,
+          "Signed": false,
+          "FieldType": "NUMBER"
+        },
+        {
+          "Order": 2,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "BitLength": 11,
+          "BitOffset": 21,
+          "BitStart": 0,
+          "Resolution": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2045,
+          "FieldType": "LOOKUP",
+          "LookupEnumeration": "MANUFACTURER_CODE"
+        }
+      ]
+    },
+    {
+      "PGN": 130916,
+      "Id": "Unknown130916",
+      "Description": "MFG-Specific PGN (Custom)",
+      "Type": "Fast",
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "BitLength": 11,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "Resolution": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2045,
+          "FieldType": "LOOKUP",
+          "LookupEnumeration": "MANUFACTURER_CODE"
+        },
+        {
+          "Order": 2,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "BitLength": 2,
+          "BitOffset": 11,
+          "BitStart": 3,
+          "Resolution": 1,
+          "FieldType": "RESERVED"
+        },
+        {
+          "Order": 3,
+          "Id": "industryCode",
+          "Name": "Industry Code",
+          "Description": "Marine Industry",
+          "BitLength": 3,
+          "BitOffset": 13,
+          "BitStart": 5,
+          "Match": 4,
+          "Resolution": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 6,
+          "FieldType": "LOOKUP",
+          "LookupEnumeration": "INDUSTRY_CODE"
+        }
+      ]
+    },
+    {
+      "PGN": 65384,
+      "Id": "Seatalk65384",
+      "Description": "Unknown Seatalk PGN",
+      "Type": "Fast"
+    },
+    {
+      "PGN": 65311,
+      "Id": "MagnetciVariationRaymarine",
+      "Description": "Magnetic Variation (Raymarine)",
+      "Type": "Simple"
+    },
+    {
+      "PGN": 60159,
+      "Id": "SAEJ1939-21",
+      "Description": "SAEJ1939-21 Request",
+      "Type": "Simple",
+      "Priority": 6,
+      "FieldCount": 1,
+      "Length": 3,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "pgn",
+          "Name": "PGN",
+          "Description": "Requested PGN",
+          "BitLength": 24,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "Resolution": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 16777213,
+          "FieldType": "NUMBER"
+        }
+      ]
+    },
+    {
+      "PGN": 131056,
+      "Id": "Unknown131056",
+      "Description": "MFG-Specific PGN (Custom)",
+      "Type": "Fast",
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "BitLength": 11,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "Resolution": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2045,
+          "FieldType": "LOOKUP",
+          "LookupEnumeration": "MANUFACTURER_CODE"
+        },
+        {
+          "Order": 2,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "BitLength": 2,
+          "BitOffset": 11,
+          "BitStart": 3,
+          "Resolution": 1,
+          "FieldType": "RESERVED"
+        },
+        {
+          "Order": 3,
+          "Id": "industryCode",
+          "Name": "Industry Code",
+          "Description": "Marine Industry",
+          "BitLength": 3,
+          "BitOffset": 13,
+          "BitStart": 5,
+          "Match": 4,
+          "Resolution": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 6,
+          "FieldType": "LOOKUP",
+          "LookupEnumeration": "INDUSTRY_CODE"
+        }
+      ]
+    },
+    {
+      "PGN": 126471,
+      "Id": "Unknown126471",
+      "Description": "MFG-Specific PGN (Custom)",
+      "Type": "Fast"
+    },
+    {
+      "PGN": 126719,
+      "Id": "Unknown126719",
+      "Description": "MFG-Specific PGN (Custom)",
+      "Type": "Fast"
+    },
+    {
+      "PGN": 126323,
+      "Id": "Unknown126323",
+      "Description": "MFG-Specific PGN (Custom)",
+      "Type": "Fast"
+    },
+    {
+      "PGN": 126722,
+      "Id": "Unknown126722",
+      "Description": "MFG-Specific PGN (Custom)",
+      "Type": "Fast"
+    },
+    {
+      "PGN": 126318,
+      "Id": "Unknown126318",
+      "Description": "MFG-Specific PGN (Custom)",
+      "Type": "Fast"
+    },
+    {
+      "PGN": 126319,
+      "Id": "Unknown126319",
+      "Description": "MFG-Specific PGN (Custom)",
+      "Type": "Fast"
+    },
+    {
+      "PGN": 126320,
+      "Id": "Unknown126320",
+      "Description": "MFG-Specific PGN (Custom)",
+      "Type": "Fast"
+    },
+    {
+      "PGN": 126466,
+      "Id": "Unknown126466",
+      "Description": "MFG-Specific PGN (Custom)",
+      "Type": "Fast"
+    },
+    {
+      "PGN": 65282,
+      "Id": "parkerVillageMarineWatermakerRejectPermeateFlow",
+      "Description": "Parker/Village Marine: Watermaker Reject/Permeate Flow",
+      "Type": "Fast",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 5,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "BitLength": 11,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "Match": 451,
+          "Resolution": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "FieldType": "LOOKUP",
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "PartOfPrimaryKey": true,
+          "Description": "Parker Hannifin aka Village Marine Tech"
+        },
+        {
+          "Order": 2,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "BitLength": 2,
+          "BitOffset": 11,
+          "BitStart": 3,
+          "Resolution": 1,
+          "FieldType": "RESERVED"
+        },
+        {
+          "Order": 3,
+          "Id": "industryCode",
+          "Name": "Industry Code",
+          "BitLength": 3,
+          "BitOffset": 13,
+          "BitStart": 5,
+          "Match": 4,
+          "Resolution": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 6,
+          "FieldType": "LOOKUP",
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "PartOfPrimaryKey": true,
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 4,
+          "Id": "watermakerRejectFlow",
+          "Name": "Watermaker Reject Flow",
+          "BitLength": 16,
+          "BitOffset": 16,
+          "BitStart": 0,
+          "Resolution": 0.1,
+          "Signed": true,
+          "RangeMin": -32768,
+          "RangeMax": 32764,
+          "FieldType": "NUMBER",
+          "PhysicalQuantity": "VOLUMETRIC_FLOW"
+        },
+        {
+          "Order": 5,
+          "Id": "watermakerPermeateFlow",
+          "Name": "Watermaker Permeate Flow",
+          "BitLength": 16,
+          "BitOffset": 32,
+          "BitStart": 0,
+          "Resolution": 0.1,
+          "Signed": true,
+          "RangeMin": -32768,
+          "RangeMax": 32764,
+          "FieldType": "NUMBER",
+          "PhysicalQuantity": "VOLUMETRIC_FLOW"
+        }
+      ]
+    },
+    {
+      "PGN": 65282,
+      "Id": "watermakerStatus",
+      "Description": "Watermaker Status",
+      "Type": "Fast",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 5,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 11,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "Match": 137,
+          "PartOfPrimaryKey": true,
+          "Description": "Maretron"
+        },
+        {
+          "Order": 2,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 2,
+          "BitOffset": 11,
+          "BitStart": 3
+        },
+        {
+          "Order": 3,
+          "Id": "industryCode",
+          "Name": "Industry Group",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 3,
+          "BitOffset": 13,
+          "BitStart": 5,
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4,
+          "Match": 4,
+          "PartOfPrimaryKey": true,
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 4,
+          "Id": "pgn",
+          "Name": "PGN",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 24,
+          "BitOffset": 16,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 16777212
+        },
+        {
+          "Order": 5,
+          "Id": "numberOfChannels",
+          "Name": "Number of Channels",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitOffset": 40,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252
+        }
+      ]
+    },
+    {
+      "PGN": 65283,
+      "Id": "watermakerFlow",
+      "Description": "Watermaker Flow",
+      "Type": "Fast",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 5,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 16,
+          "BitOffset": 0,
+          "BitStart": 0
+        },
+        {
+          "Order": 2,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 11,
+          "BitOffset": 16,
+          "BitStart": 0,
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "Match": 451,
+          "PartOfPrimaryKey": true,
+          "Description": "Parker Hannifin aka Village Marine Tech"
+        },
+        {
+          "Order": 3,
+          "Id": "reserved2",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 2,
+          "BitOffset": 27,
+          "BitStart": 3
+        },
+        {
+          "Order": 4,
+          "Id": "industryCode",
+          "Name": "Industry Group",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 3,
+          "BitOffset": 29,
+          "BitStart": 5,
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4,
+          "Match": 4,
+          "PartOfPrimaryKey": true,
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 5,
+          "Id": "watermakerHourMeter",
+          "Name": "Watermaker Hour Meter",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitOffset": 32,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 32,
+          "RangeMax": 4294967295,
+          "PhysicalQuantity": "DURATION"
+        }
+      ]
+    },
+    {
+      "PGN": 65291,
+      "Id": "maretronRotationalRate",
+      "Description": "Rotational Rate (Maretron Proprietary)",
+      "Type": "Fast",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 7,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 16,
+          "BitOffset": 0,
+          "BitStart": 0
+        },
+        {
+          "Order": 2,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 11,
+          "BitOffset": 16,
+          "BitStart": 0,
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "Match": 137,
+          "PartOfPrimaryKey": true,
+          "Description": "Maretron"
+        },
+        {
+          "Order": 3,
+          "Id": "reserved2",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 2,
+          "BitOffset": 27,
+          "BitStart": 3
+        },
+        {
+          "Order": 4,
+          "Id": "industryCode",
+          "Name": "Industry Group",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 3,
+          "BitOffset": 29,
+          "BitStart": 5,
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4,
+          "Match": 4,
+          "PartOfPrimaryKey": true,
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 5,
+          "Id": "sid",
+          "Name": "SID",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitOffset": 32,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252
+        },
+        {
+          "Order": 6,
+          "Id": "dataInstance",
+          "Name": "Data Instance",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "BitOffset": 40,
+          "BitStart": 0
+        },
+        {
+          "Order": 7,
+          "Id": "resistance",
+          "Name": "Resistance",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 16,
+          "RangeMax": 65532,
+          "BitOffset": 48,
+          "BitStart": 0
+        }
+      ]
+    },
+    {
+      "PGN": 65300,
+      "Id": "carlingAutomationFunctionMaster",
+      "Description": "Carling: Automation Function Master",
+      "Type": "Fast",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 9,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 11,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "Match": 176,
+          "PartOfPrimaryKey": true,
+          "Description": "Carling Technologies Inc. (Moritz Aerospace)"
+        },
+        {
+          "Order": 2,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 2,
+          "BitOffset": 11,
+          "BitStart": 3
+        },
+        {
+          "Order": 3,
+          "Id": "industryCode",
+          "Name": "Industry Group",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 3,
+          "BitOffset": 13,
+          "BitStart": 5,
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4,
+          "Match": 4,
+          "PartOfPrimaryKey": true,
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 4,
+          "Id": "messageType",
+          "Name": "Message Type",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 8,
+          "BitOffset": 16,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "Match": 1,
+          "PartOfPrimaryKey": true,
+          "LookupEnumeration": "LOCAL_CARLING_65300_MESSAGE_TYPE"
+        },
+        {
+          "Order": 5,
+          "Id": "boxCurrentHighByte",
+          "Name": "Box Current (High Byte)",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 24,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 6,
+          "Id": "boxCurrentLowByte",
+          "Name": "Box Current (Low Byte)",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 32,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 7,
+          "Id": "boxTemperature",
+          "Name": "Box Temperature",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 40,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "PhysicalQuantity": "TEMPERATURE"
+        },
+        {
+          "Order": 8,
+          "Id": "boxVoltageInputType",
+          "Name": "Box Voltage Input Type",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 48,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 9,
+          "Id": "boxStatus",
+          "Name": "Box Status",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 56,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        }
+      ]
+    },
+    {
+      "PGN": 65300,
+      "Id": "carlingACInputLineVoltagesACGenII",
+      "Description": "Carling AC Input Line Voltages, ACGenII",
+      "Type": "Fast",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 9,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 11,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "Match": 176,
+          "PartOfPrimaryKey": true,
+          "Description": "Carling Technologies Inc. (Moritz Aerospace)"
+        },
+        {
+          "Order": 2,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 2,
+          "BitOffset": 11,
+          "BitStart": 3
+        },
+        {
+          "Order": 3,
+          "Id": "industryCode",
+          "Name": "Industry Group",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 3,
+          "BitOffset": 13,
+          "BitStart": 5,
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4,
+          "Match": 4,
+          "PartOfPrimaryKey": true,
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 4,
+          "Id": "boardTemperature",
+          "Name": "Board Temperature",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 16,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "PhysicalQuantity": "TEMPERATURE"
+        },
+        {
+          "Order": 5,
+          "Id": "messageType",
+          "Name": "Message Type",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 8,
+          "BitOffset": 24,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "Match": 130,
+          "PartOfPrimaryKey": true,
+          "LookupEnumeration": "LOCAL_CARLING_65300_MESSAGE_TYPE"
+        },
+        {
+          "Order": 6,
+          "Id": "heatSinkTemperature",
+          "Name": "Heat Sink Temperature",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 32,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "PhysicalQuantity": "TEMPERATURE"
+        },
+        {
+          "Order": 7,
+          "Id": "12vSupplyVoltage",
+          "Name": "12V Supply Voltage",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 40,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "PhysicalQuantity": "POTENTIAL_DIFFERENCE"
+        },
+        {
+          "Order": 8,
+          "Id": "reserved2",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 8,
+          "BitOffset": 48,
+          "BitStart": 0
+        },
+        {
+          "Order": 9,
+          "Id": "reserved3",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 8,
+          "BitOffset": 56,
+          "BitStart": 0
+        }
+      ]
+    },
+    {
+      "PGN": 65300,
+      "Id": "carlingACGenIIBreakerConfigurationResponse",
+      "Description": "Carling ACGenII Breaker Configuration Response",
+      "Type": "Fast",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "FieldLengths",
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 5,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "BitLength": 11,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "Match": 176,
+          "Resolution": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "FieldType": "LOOKUP",
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Description": "Carling Technologies Inc. (Moritz Aerospace)"
+        },
+        {
+          "Order": 2,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "BitLength": 2,
+          "BitOffset": 11,
+          "BitStart": 3,
+          "Resolution": 1,
+          "FieldType": "RESERVED"
+        },
+        {
+          "Order": 3,
+          "Id": "industryCode",
+          "Name": "Industry Code",
+          "BitLength": 3,
+          "BitOffset": 13,
+          "BitStart": 5,
+          "Match": 4,
+          "Resolution": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 6,
+          "FieldType": "LOOKUP",
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 4,
+          "Id": "messageType",
+          "Name": "Message Type",
+          "BitLength": 8,
+          "BitOffset": 16,
+          "BitStart": 0,
+          "Match": 104,
+          "Resolution": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "FieldType": "LOOKUP",
+          "PartOfPrimaryKey": true,
+          "LookupEnumeration": "LOCAL_CARLING_65300_MESSAGE_TYPE"
+        },
+        {
+          "Order": 5,
+          "Id": "data",
+          "Name": "Data",
+          "Resolution": 1,
+          "FieldType": "BINARY",
+          "BitOffset": 24,
+          "BitStart": 0
+        }
+      ]
+    },
+    {
+      "PGN": 65300,
+      "Id": "carlingACGenIIBreakerStatusBroadcast",
+      "Description": "Carling ACGenII Breaker Status Broadcast",
+      "Type": "Fast",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 10,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 11,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "Match": 176,
+          "PartOfPrimaryKey": true,
+          "Description": "Carling Technologies Inc. (Moritz Aerospace)"
+        },
+        {
+          "Order": 2,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 2,
+          "BitOffset": 11,
+          "BitStart": 3
+        },
+        {
+          "Order": 3,
+          "Id": "industryCode",
+          "Name": "Industry Group",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 3,
+          "BitOffset": 13,
+          "BitStart": 5,
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4,
+          "Match": 4,
+          "PartOfPrimaryKey": true,
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 4,
+          "Id": "messageType",
+          "Name": "Message Type",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 8,
+          "BitOffset": 16,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "Match": 67,
+          "PartOfPrimaryKey": true,
+          "LookupEnumeration": "LOCAL_CARLING_65300_MESSAGE_TYPE"
+        },
+        {
+          "Order": 5,
+          "Id": "breakerMapping1To8",
+          "Name": "Breaker Mapping 1 to 8",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 24,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 6,
+          "Id": "breakerMapping9To16",
+          "Name": "Breaker Mapping 9 to 16",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 32,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 7,
+          "Id": "breakerMapping17To19",
+          "Name": "Breaker Mapping 17 to 19",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 3,
+          "BitOffset": 40,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4
+        },
+        {
+          "Order": 8,
+          "Id": "reserved2",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 5,
+          "BitOffset": 43,
+          "BitStart": 3
+        },
+        {
+          "Order": 9,
+          "Id": "configurationFlags",
+          "Name": "Configuration Flags",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 48,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 10,
+          "Id": "breakerGroup",
+          "Name": "Breaker Group",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 56,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        }
+      ]
+    },
+    {
+      "PGN": 65300,
+      "Id": "carlingBoardTemperaturesAndVoltageACGenII",
+      "Description": "Carling Board Temperatures and Voltage, ACGenII",
+      "Type": "Fast",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 10,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 11,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "Match": 176,
+          "PartOfPrimaryKey": true,
+          "Description": "Carling Technologies Inc. (Moritz Aerospace)"
+        },
+        {
+          "Order": 2,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 2,
+          "BitOffset": 11,
+          "BitStart": 3
+        },
+        {
+          "Order": 3,
+          "Id": "industryCode",
+          "Name": "Industry Group",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 3,
+          "BitOffset": 13,
+          "BitStart": 5,
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4,
+          "Match": 4,
+          "PartOfPrimaryKey": true,
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 4,
+          "Id": "messageType",
+          "Name": "Message Type",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 8,
+          "BitOffset": 16,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "Match": 254,
+          "PartOfPrimaryKey": true,
+          "LookupEnumeration": "LOCAL_CARLING_65300_MESSAGE_TYPE"
+        },
+        {
+          "Order": 5,
+          "Id": "dataInstance",
+          "Name": "Data Instance",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 24,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 6,
+          "Id": "manufacturerCodeHighByte",
+          "Name": "Manufacturer Code (High Byte)",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 32,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 7,
+          "Id": "manufacturerCodeLower3Bits",
+          "Name": "Manufacturer Code (Lower 3 Bits)",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 3,
+          "BitOffset": 40,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4
+        },
+        {
+          "Order": 8,
+          "Id": "reserved2",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 5,
+          "BitOffset": 43,
+          "BitStart": 3
+        },
+        {
+          "Order": 9,
+          "Id": "primaryCANAddress",
+          "Name": " Primary CAN Address",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 48,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 10,
+          "Id": "secondaryCANAddress",
+          "Name": "Secondary CAN Address",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 56,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        }
+      ]
+    },
+    {
+      "PGN": 65300,
+      "Id": "carlingBoxConfigurationResponse",
+      "Description": "Carling Box Configuration Response",
+      "Type": "Fast",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "FieldLengths",
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 5,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "BitLength": 11,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "Match": 176,
+          "Resolution": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "FieldType": "LOOKUP",
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Description": "Carling Technologies Inc. (Moritz Aerospace)"
+        },
+        {
+          "Order": 2,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "BitLength": 2,
+          "BitOffset": 11,
+          "BitStart": 3,
+          "Resolution": 1,
+          "FieldType": "RESERVED"
+        },
+        {
+          "Order": 3,
+          "Id": "industryCode",
+          "Name": "Industry Code",
+          "BitLength": 3,
+          "BitOffset": 13,
+          "BitStart": 5,
+          "Match": 4,
+          "Resolution": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 6,
+          "FieldType": "LOOKUP",
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 4,
+          "Id": "messageType",
+          "Name": "Message Type",
+          "BitLength": 8,
+          "BitOffset": 16,
+          "BitStart": 0,
+          "Match": 16,
+          "Resolution": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "FieldType": "LOOKUP",
+          "PartOfPrimaryKey": true,
+          "LookupEnumeration": "LOCAL_CARLING_65300_MESSAGE_TYPE"
+        },
+        {
+          "Order": 5,
+          "Id": "data",
+          "Name": "Data",
+          "Resolution": 1,
+          "FieldType": "BINARY",
+          "BitOffset": 24,
+          "BitStart": 0
+        }
+      ]
+    },
+    {
+      "PGN": 65300,
+      "Id": "carlingBoxPowerInformation",
+      "Description": "Carling Box Power Information",
+      "Type": "Fast",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 6,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 11,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "Match": 176,
+          "PartOfPrimaryKey": true,
+          "Description": "Carling Technologies Inc. (Moritz Aerospace)"
+        },
+        {
+          "Order": 2,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 2,
+          "BitOffset": 11,
+          "BitStart": 3
+        },
+        {
+          "Order": 3,
+          "Id": "industryCode",
+          "Name": "Industry Group",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 3,
+          "BitOffset": 13,
+          "BitStart": 5,
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4,
+          "Match": 4,
+          "PartOfPrimaryKey": true,
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 4,
+          "Id": "messageType",
+          "Name": "Message Type",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 8,
+          "BitOffset": 16,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "Match": 14,
+          "PartOfPrimaryKey": true,
+          "LookupEnumeration": "LOCAL_CARLING_65300_MESSAGE_TYPE"
+        },
+        {
+          "Order": 5,
+          "Id": "boxInputType",
+          "Name": "Box Input Type",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 24,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 6,
+          "Id": "reserved2",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 32,
+          "BitOffset": 32,
+          "BitStart": 0
+        }
+      ]
+    },
+    {
+      "PGN": 65300,
+      "Id": "carlingBoxStatus",
+      "Description": "Carling Box Status",
+      "Type": "Fast",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 12,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 11,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "Match": 176,
+          "PartOfPrimaryKey": true,
+          "Description": "Carling Technologies Inc. (Moritz Aerospace)"
+        },
+        {
+          "Order": 2,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 2,
+          "BitOffset": 11,
+          "BitStart": 3
+        },
+        {
+          "Order": 3,
+          "Id": "industryCode",
+          "Name": "Industry Group",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 3,
+          "BitOffset": 13,
+          "BitStart": 5,
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4,
+          "Match": 4,
+          "PartOfPrimaryKey": true,
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 4,
+          "Id": "messageType",
+          "Name": "Message Type",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 8,
+          "BitOffset": 16,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "Match": 4,
+          "PartOfPrimaryKey": true,
+          "LookupEnumeration": "LOCAL_CARLING_65300_MESSAGE_TYPE"
+        },
+        {
+          "Order": 5,
+          "Id": "serialNumberLowByte",
+          "Name": "Serial Number (Low Byte)",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 24,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 6,
+          "Id": "generation",
+          "Name": "Generation",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 32,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 7,
+          "Id": "serialNumberUpper6Bits",
+          "Name": "Serial Number (Upper 6 Bits)",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 40,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 8,
+          "Id": "reserved2",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 3,
+          "BitOffset": 48,
+          "BitStart": 0
+        },
+        {
+          "Order": 9,
+          "Id": "deviceType5Bits",
+          "Name": "Device Type (5 Bits)",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 5,
+          "BitOffset": 51,
+          "BitStart": 3,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 28
+        },
+        {
+          "Order": 10,
+          "Id": "reserved3",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 4,
+          "BitOffset": 56,
+          "BitStart": 0
+        },
+        {
+          "Order": 11,
+          "Id": "systemInstance4Bits",
+          "Name": "System Instance (4 Bits)",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 4,
+          "BitOffset": 60,
+          "BitStart": 4,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 12
+        },
+        {
+          "Order": 12,
+          "Id": "deviceInstanceUpper5Bits",
+          "Name": "Device Instance Upper (5 Bits)",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 5,
+          "BitOffset": 64,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 28
+        }
+      ]
+    },
+    {
+      "PGN": 65300,
+      "Id": "carlingExtendedBoxConfiguration",
+      "Description": "Carling Extended Box Configuration",
+      "Type": "Fast",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 9,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 11,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "Match": 176,
+          "PartOfPrimaryKey": true,
+          "Description": "Carling Technologies Inc. (Moritz Aerospace)"
+        },
+        {
+          "Order": 2,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 2,
+          "BitOffset": 11,
+          "BitStart": 3
+        },
+        {
+          "Order": 3,
+          "Id": "industryCode",
+          "Name": "Industry Group",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 3,
+          "BitOffset": 13,
+          "BitStart": 5,
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4,
+          "Match": 4,
+          "PartOfPrimaryKey": true,
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 4,
+          "Id": "messageType",
+          "Name": "Message Type",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 8,
+          "BitOffset": 16,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "Match": 18,
+          "PartOfPrimaryKey": true,
+          "LookupEnumeration": "LOCAL_CARLING_65300_MESSAGE_TYPE"
+        },
+        {
+          "Order": 5,
+          "Id": "hardwareInformation",
+          "Name": "Hardware Information",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 24,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 6,
+          "Id": "extendedStatus",
+          "Name": "Extended Status",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 32,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 7,
+          "Id": "primaryCANHardwareStatus",
+          "Name": "Primary CAN Hardware Status",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 40,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 8,
+          "Id": "secondaryCANHardwareStatus",
+          "Name": "Secondary CAN Hardware Status",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 48,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 9,
+          "Id": "canStackStatus",
+          "Name": "CAN Stack Status",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 56,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        }
+      ]
+    },
+    {
+      "PGN": 65300,
+      "Id": "carlingExtendedBoxStatus",
+      "Description": "Carling Extended Box Status",
+      "Type": "Fast",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 9,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 11,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "Match": 176,
+          "PartOfPrimaryKey": true,
+          "Description": "Carling Technologies Inc. (Moritz Aerospace)"
+        },
+        {
+          "Order": 2,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 2,
+          "BitOffset": 11,
+          "BitStart": 3
+        },
+        {
+          "Order": 3,
+          "Id": "industryCode",
+          "Name": "Industry Group",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 3,
+          "BitOffset": 13,
+          "BitStart": 5,
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4,
+          "Match": 4,
+          "PartOfPrimaryKey": true,
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 4,
+          "Id": "messageType",
+          "Name": "Message Type",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 8,
+          "BitOffset": 16,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "Match": 20,
+          "PartOfPrimaryKey": true,
+          "LookupEnumeration": "LOCAL_CARLING_65300_MESSAGE_TYPE"
+        },
+        {
+          "Order": 5,
+          "Id": "daysHighByte",
+          "Name": "Days (High Byte)",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 24,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 6,
+          "Id": "daysLowByte",
+          "Name": "Days (Low Byte)",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 32,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 7,
+          "Id": "hours",
+          "Name": "Hours",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 40,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "PhysicalQuantity": "DURATION"
+        },
+        {
+          "Order": 8,
+          "Id": "minutes",
+          "Name": "Minutes",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 48,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 9,
+          "Id": "seconds",
+          "Name": "Seconds",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 56,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        }
+      ]
+    },
+    {
+      "PGN": 65300,
+      "Id": "carlingFlashTableConfigurationResponse",
+      "Description": "Carling Flash Table Configuration Response",
+      "Type": "Fast",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 6,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 11,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "Match": 176,
+          "PartOfPrimaryKey": true,
+          "Description": "Carling Technologies Inc. (Moritz Aerospace)"
+        },
+        {
+          "Order": 2,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 2,
+          "BitOffset": 11,
+          "BitStart": 3
+        },
+        {
+          "Order": 3,
+          "Id": "industryCode",
+          "Name": "Industry Group",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 3,
+          "BitOffset": 13,
+          "BitStart": 5,
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4,
+          "Match": 4,
+          "PartOfPrimaryKey": true,
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 4,
+          "Id": "messageType",
+          "Name": "Message Type",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 8,
+          "BitOffset": 16,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "Match": 17,
+          "PartOfPrimaryKey": true,
+          "LookupEnumeration": "LOCAL_CARLING_65300_MESSAGE_TYPE"
+        },
+        {
+          "Order": 5,
+          "Id": "configurationByte1",
+          "Name": "Configuration Byte 1",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 24,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 6,
+          "Id": "reserved2",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 32,
+          "BitOffset": 32,
+          "BitStart": 0
+        }
+      ]
+    },
+    {
+      "PGN": 65300,
+      "Id": "carlingReportTotalHours",
+      "Description": "Carling Report Total Hours",
+      "Type": "Fast",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 8,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 11,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "Match": 176,
+          "PartOfPrimaryKey": true,
+          "Description": "Carling Technologies Inc. (Moritz Aerospace)"
+        },
+        {
+          "Order": 2,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 2,
+          "BitOffset": 11,
+          "BitStart": 3
+        },
+        {
+          "Order": 3,
+          "Id": "industryCode",
+          "Name": "Industry Group",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 3,
+          "BitOffset": 13,
+          "BitStart": 5,
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4,
+          "Match": 4,
+          "PartOfPrimaryKey": true,
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 4,
+          "Id": "messageType",
+          "Name": "Message Type",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 8,
+          "BitOffset": 16,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "Match": 25,
+          "PartOfPrimaryKey": true,
+          "LookupEnumeration": "LOCAL_CARLING_65300_MESSAGE_TYPE"
+        },
+        {
+          "Order": 5,
+          "Id": "keypadIndicatorLEDIndex",
+          "Name": "Keypad Indicator LED Index",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 24,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 6,
+          "Id": "dataInstanceOfControllingNode",
+          "Name": "Data instance of controlling node",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 32,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 7,
+          "Id": "indicatorChannelOfControllingNode",
+          "Name": "Indicator channel of controlling node",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 40,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 8,
+          "Id": "reserved2",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 16,
+          "BitOffset": 48,
+          "BitStart": 0
+        }
+      ]
+    },
+    {
+      "PGN": 65300,
+      "Id": "carlingReportUptime",
+      "Description": "Carling Report Uptime",
+      "Type": "Fast",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 8,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 11,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "Match": 176,
+          "PartOfPrimaryKey": true,
+          "Description": "Carling Technologies Inc. (Moritz Aerospace)"
+        },
+        {
+          "Order": 2,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 2,
+          "BitOffset": 11,
+          "BitStart": 3
+        },
+        {
+          "Order": 3,
+          "Id": "industryCode",
+          "Name": "Industry Group",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 3,
+          "BitOffset": 13,
+          "BitStart": 5,
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4,
+          "Match": 4,
+          "PartOfPrimaryKey": true,
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 4,
+          "Id": "messageType",
+          "Name": "Message Type",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 8,
+          "BitOffset": 16,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "Match": 21,
+          "PartOfPrimaryKey": true,
+          "LookupEnumeration": "LOCAL_CARLING_65300_MESSAGE_TYPE"
+        },
+        {
+          "Order": 5,
+          "Id": "totalDeviceHoursHighByte",
+          "Name": "Total Device Hours (High Byte)",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 24,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 6,
+          "Id": "totalDeviceHoursLowByte",
+          "Name": "Total Device Hours (Low Byte)",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 32,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 7,
+          "Id": "numberOfBoxPowerUpsHighByte",
+          "Name": "Number of Box Power-Ups (High Byte)",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 40,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 8,
+          "Id": "numberOfBoxPowerUpsLowByte",
+          "Name": "Number of Box Power-Ups (Low Byte)",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 48,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        }
+      ]
+    },
+    {
+      "PGN": 65300,
+      "Id": "carlingSerialNumberDeviceInstanceSystemInstanceChangeResponse",
+      "Description": "Carling Serial Number / Device Instance / System Instance Change Response",
+      "Type": "Fast",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 9,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 11,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "Match": 176,
+          "PartOfPrimaryKey": true,
+          "Description": "Carling Technologies Inc. (Moritz Aerospace)"
+        },
+        {
+          "Order": 2,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 2,
+          "BitOffset": 11,
+          "BitStart": 3
+        },
+        {
+          "Order": 3,
+          "Id": "industryCode",
+          "Name": "Industry Group",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 3,
+          "BitOffset": 13,
+          "BitStart": 5,
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4,
+          "Match": 4,
+          "PartOfPrimaryKey": true,
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 4,
+          "Id": "messageType",
+          "Name": "Message Type",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 8,
+          "BitOffset": 16,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "Match": 7,
+          "PartOfPrimaryKey": true,
+          "LookupEnumeration": "LOCAL_CARLING_65300_MESSAGE_TYPE"
+        },
+        {
+          "Order": 5,
+          "Id": "mainBoxVoltageHighByte",
+          "Name": "Main Box Voltage (High Byte)",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 24,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 6,
+          "Id": "mainBoxVoltageLowByte",
+          "Name": "Main Box Voltage (Low Byte)",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 32,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 7,
+          "Id": "primaryBusVoltage",
+          "Name": "Primary Bus Voltage",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 40,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "PhysicalQuantity": "POTENTIAL_DIFFERENCE"
+        },
+        {
+          "Order": 8,
+          "Id": "secondaryBusVoltage",
+          "Name": "Secondary Bus Voltage",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitOffset": 48,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252,
+          "PhysicalQuantity": "POTENTIAL_DIFFERENCE"
+        },
+        {
+          "Order": 9,
+          "Id": "inputPowerFlags",
+          "Name": "Input Power Flags",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "BitOffset": 56,
+          "BitStart": 0
+        }
+      ]
+    },
+    {
+      "PGN": 65300,
+      "Id": "carlingSolenoidProfile",
+      "Description": "Carling Solenoid Profile",
+      "Type": "Fast",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "FieldLengths",
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 5,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "BitLength": 11,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "Match": 176,
+          "Resolution": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "FieldType": "LOOKUP",
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Description": "Carling Technologies Inc. (Moritz Aerospace)"
+        },
+        {
+          "Order": 2,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "BitLength": 2,
+          "BitOffset": 11,
+          "BitStart": 3,
+          "Resolution": 1,
+          "FieldType": "RESERVED"
+        },
+        {
+          "Order": 3,
+          "Id": "industryCode",
+          "Name": "Industry Code",
+          "BitLength": 3,
+          "BitOffset": 13,
+          "BitStart": 5,
+          "Match": 4,
+          "Resolution": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 6,
+          "FieldType": "LOOKUP",
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 4,
+          "Id": "messageType",
+          "Name": "Message Type",
+          "BitLength": 8,
+          "BitOffset": 16,
+          "BitStart": 0,
+          "Match": 129,
+          "Resolution": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "FieldType": "LOOKUP",
+          "PartOfPrimaryKey": true,
+          "LookupEnumeration": "LOCAL_CARLING_65300_MESSAGE_TYPE"
+        },
+        {
+          "Order": 5,
+          "Id": "data",
+          "Name": "Data",
+          "Resolution": 1,
+          "FieldType": "BINARY",
+          "BitOffset": 24,
+          "BitStart": 0
+        }
+      ]
+    },
+    {
+      "PGN": 65300,
+      "Id": "carlingKeypadFunctionLEDConfigurationResponse",
+      "Description": "Carling: Keypad Function LED Configuration Response",
+      "Type": "Fast",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 11,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 11,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "Match": 176,
+          "PartOfPrimaryKey": true,
+          "Description": "Carling Technologies Inc. (Moritz Aerospace)"
+        },
+        {
+          "Order": 2,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 2,
+          "BitOffset": 11,
+          "BitStart": 3
+        },
+        {
+          "Order": 3,
+          "Id": "industryCode",
+          "Name": "Industry Group",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 3,
+          "BitOffset": 13,
+          "BitStart": 5,
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4,
+          "Match": 4,
+          "PartOfPrimaryKey": true,
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 4,
+          "Id": "messageType",
+          "Name": "Message Type",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 8,
+          "BitOffset": 16,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "Match": 66,
+          "PartOfPrimaryKey": true,
+          "LookupEnumeration": "LOCAL_CARLING_65300_MESSAGE_TYPE"
+        },
+        {
+          "Order": 5,
+          "Id": "breakerMapping1To8",
+          "Name": "Breaker Mapping 1 to 8",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 24,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 6,
+          "Id": "breakerMapping9To16",
+          "Name": "Breaker Mapping 9 to 16",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 32,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 7,
+          "Id": "breakerMapping17To19",
+          "Name": "Breaker Mapping 17 to 19",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 3,
+          "BitOffset": 40,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4
+        },
+        {
+          "Order": 8,
+          "Id": "reserved2",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 5,
+          "BitOffset": 43,
+          "BitStart": 3
+        },
+        {
+          "Order": 9,
+          "Id": "breakerStatus",
+          "Name": "Breaker Status",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 48,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 10,
+          "Id": "breakerProfileVoltage",
+          "Name": "Breaker Profile, Voltage",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 4,
+          "BitOffset": 56,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 12
+        },
+        {
+          "Order": 11,
+          "Id": "breakerProfileCurrent",
+          "Name": "Breaker Profile, Current",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 4,
+          "BitOffset": 60,
+          "BitStart": 4,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 12
+        }
+      ]
+    },
+    {
+      "PGN": 129811,
+      "Id": "aisClassBCSStaticDataReportPartB",
+      "Description": "AIS Class B \"CS\" Static Data Report, Part B",
+      "Type": "Fast",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 11,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "sequenceID",
+          "Name": "Sequence ID",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitOffset": 0,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252
+        },
+        {
+          "Order": 2,
+          "Id": "sequenceID2",
+          "Name": "Sequence ID",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252,
+          "BitOffset": 8,
+          "BitStart": 0
+        },
+        {
+          "Order": 3,
+          "Id": "messageID",
+          "Name": "Message ID",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 6,
+          "LookupEnumeration": "AIS_MESSAGE_ID",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 60,
+          "BitOffset": 16,
+          "BitStart": 0
+        },
+        {
+          "Order": 4,
+          "Id": "repeatIndicator",
+          "Name": "Repeat Indicator",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 2,
+          "LookupEnumeration": "REPEAT_INDICATOR",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 0,
+          "BitOffset": 22,
+          "BitStart": 6
+        },
+        {
+          "Order": 5,
+          "Id": "sourceID",
+          "Name": "Source ID",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 32,
+          "RangeMax": 4294967295,
+          "BitOffset": 24,
+          "BitStart": 0
+        },
+        {
+          "Order": 6,
+          "Id": "destinationIndicator",
+          "Name": "Destination Indicator",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": -2,
+          "BitOffset": 56,
+          "BitStart": 0
+        },
+        {
+          "Order": 7,
+          "Id": "binaryDataFlag",
+          "Name": "Binary data flag",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": -2,
+          "BitOffset": 57,
+          "BitStart": 1
+        },
+        {
+          "Order": 8,
+          "Id": "aisSpare",
+          "Name": "AIS Spare",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 2,
+          "BitOffset": 58,
+          "BitStart": 2
+        },
+        {
+          "Order": 9,
+          "Id": "nmeaReserved",
+          "Name": "NMEA Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 4,
+          "BitOffset": 60,
+          "BitStart": 4
+        },
+        {
+          "Order": 10,
+          "Id": "destinationID",
+          "Name": "Destination ID",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 32,
+          "RangeMax": 4294967295,
+          "BitOffset": 64,
+          "BitStart": 0
+        },
+        {
+          "Order": 11,
+          "Id": "numberOfBitsInBinaryDataField",
+          "Name": "Number of bits in Binary Data Field",
+          "Resolution": 1,
+          "FieldType": "BINARY",
+          "BitLength": 8,
+          "BitOffset": 96,
+          "BitStart": 0
+        }
+      ]
+    },
+    {
+      "PGN": 129812,
+      "Id": "aisSingleSlotBinaryMessage",
+      "Description": "AIS Single Slot Binary Message",
+      "Type": "Fast",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "FieldLengths",
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 14,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "binaryData",
+          "Name": "Binary Data",
+          "Resolution": 1,
+          "FieldType": "BINARY",
+          "BitOffset": 0,
+          "BitStart": 0,
+          "VariableLength": true
+        },
+        {
+          "Order": 2,
+          "Id": "sequenceID",
+          "Name": "Sequence ID",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252
+        },
+        {
+          "Order": 3,
+          "Id": "messageID",
+          "Name": "Message ID",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 6,
+          "LookupEnumeration": "AIS_MESSAGE_ID",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 60
+        },
+        {
+          "Order": 4,
+          "Id": "repeatIndicator",
+          "Name": "Repeat Indicator",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 2,
+          "LookupEnumeration": "REPEAT_INDICATOR",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 0
+        },
+        {
+          "Order": 5,
+          "Id": "sourceID",
+          "Name": "Source ID",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 32,
+          "RangeMax": 4294967295
+        },
+        {
+          "Order": 6,
+          "Id": "destinationIndicator",
+          "Name": "Destination Indicator",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": -2
+        },
+        {
+          "Order": 7,
+          "Id": "binaryDataFlag",
+          "Name": "Binary data flag",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": -2
+        },
+        {
+          "Order": 8,
+          "Id": "nmeaReserved",
+          "Name": "NMEA Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 6
+        },
+        {
+          "Order": 9,
+          "Id": "destinationID",
+          "Name": "Destination ID",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 32,
+          "RangeMax": 4294967295
+        },
+        {
+          "Order": 10,
+          "Id": "aisSpare",
+          "Name": "AIS Spare",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 2
+        },
+        {
+          "Order": 11,
+          "Id": "communicationStateSelectorFlag",
+          "Name": "Communication state selector flag",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": -2,
+          "LookupEnumeration": "AIS_COMMUNICATION_STATE"
+        },
+        {
+          "Order": 12,
+          "Id": "communicationState",
+          "Name": "Communication state",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 19,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 524284
+        },
+        {
+          "Order": 13,
+          "Id": "aisSpare2",
+          "Name": "AIS Spare",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 4
+        },
+        {
+          "Order": 14,
+          "Id": "nmeaReserved2",
+          "Name": "NMEA Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 6
+        }
+      ]
+    },
+    {
+      "PGN": 129813,
+      "Id": "aisMultiSlotBinaryMessage",
+      "Description": "AIS Multi Slot Binary Message",
+      "Type": "Fast",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 12,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "sequenceID",
+          "Name": "Sequence ID",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitOffset": 0,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252
+        },
+        {
+          "Order": 2,
+          "Id": "messageID",
+          "Name": "Message ID",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 6,
+          "LookupEnumeration": "AIS_MESSAGE_ID",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 60,
+          "BitOffset": 8,
+          "BitStart": 0
+        },
+        {
+          "Order": 3,
+          "Id": "repeatIndicator",
+          "Name": "Repeat Indicator",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 2,
+          "LookupEnumeration": "REPEAT_INDICATOR",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 0,
+          "BitOffset": 14,
+          "BitStart": 6
+        },
+        {
+          "Order": 4,
+          "Id": "userID",
+          "Name": "User ID",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 32,
+          "RangeMax": 4294967295,
+          "BitOffset": 16,
+          "BitStart": 0
+        },
+        {
+          "Order": 5,
+          "Id": "longitude",
+          "Name": "Longitude",
+          "Resolution": 1e-07,
+          "FieldType": "GEO_LONGITUDE",
+          "Signed": true,
+          "BitLength": 32,
+          "BitOffset": 48,
+          "BitStart": 0,
+          "PhysicalQuantity": "GEOGRAPHICAL_LONGITUDE"
+        },
+        {
+          "Order": 6,
+          "Id": "latitude",
+          "Name": "Latitude",
+          "Resolution": 1e-07,
+          "FieldType": "GEO_LATITUDE",
+          "Signed": true,
+          "BitLength": 32,
+          "BitOffset": 80,
+          "BitStart": 0,
+          "PhysicalQuantity": "GEOGRAPHICAL_LATITUDE"
+        },
+        {
+          "Order": 7,
+          "Id": "positionAccuracy",
+          "Name": "Position Accuracy",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": -2,
+          "BitOffset": 112,
+          "BitStart": 0,
+          "LookupEnumeration": "POSITION_ACCURACY"
+        },
+        {
+          "Order": 8,
+          "Id": "raimFlag",
+          "Name": "Raim Flag",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": -2,
+          "BitOffset": 113,
+          "BitStart": 1,
+          "LookupEnumeration": "RAIM_FLAG"
+        },
+        {
+          "Order": 9,
+          "Id": "navigationStatus",
+          "Name": "Navigation Status",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 4,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 12,
+          "BitOffset": 114,
+          "BitStart": 2,
+          "LookupEnumeration": "NAV_STATUS"
+        },
+        {
+          "Order": 10,
+          "Id": "positionLatency",
+          "Name": "Position Latency",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": -2,
+          "BitOffset": 118,
+          "BitStart": 6
+        },
+        {
+          "Order": 11,
+          "Id": "aisSpare",
+          "Name": "AIS Spare",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 1,
+          "BitOffset": 119,
+          "BitStart": 7
+        },
+        {
+          "Order": 12,
+          "Id": "speedOverGround",
+          "Name": "Speed Over Ground",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 16,
+          "RangeMax": 65532,
+          "BitOffset": 120,
+          "BitStart": 0,
+          "PhysicalQuantity": "SPEED"
+        }
+      ]
+    },
+    {
+      "PGN": 130826,
+      "Id": "maretronDataInstanceChannelCorrelation",
+      "Description": "Data Instance/Channel Correlation (Maretron Proprietary)",
+      "Type": "Single",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 33,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "dataIndicator",
+          "Name": "Data Indicator",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 2,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 11,
+          "BitOffset": 8,
+          "BitStart": 0,
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "Match": 137,
+          "PartOfPrimaryKey": true,
+          "Description": "Maretron"
+        },
+        {
+          "Order": 3,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 2,
+          "BitOffset": 19,
+          "BitStart": 3
+        },
+        {
+          "Order": 4,
+          "Id": "industryCode",
+          "Name": "Industry Group",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 3,
+          "BitOffset": 21,
+          "BitStart": 5,
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4,
+          "Match": 4,
+          "PartOfPrimaryKey": true,
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 5,
+          "Id": "indicatorBankInstance",
+          "Name": "Indicator Bank Instance",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitOffset": 24,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252
+        },
+        {
+          "Order": 6,
+          "Id": "numberOfIndicators",
+          "Name": "Number of Indicators",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252,
+          "BitOffset": 32,
+          "BitStart": 0
+        },
+        {
+          "Order": 7,
+          "Id": "indic1",
+          "Name": "Indic. 1",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252,
+          "BitOffset": 40,
+          "BitStart": 0
+        },
+        {
+          "Order": 8,
+          "Id": "indic2",
+          "Name": "Indic. 2",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252,
+          "BitOffset": 48,
+          "BitStart": 0
+        },
+        {
+          "Order": 9,
+          "Id": "indic3",
+          "Name": "Indic. 3",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252,
+          "BitOffset": 56,
+          "BitStart": 0
+        },
+        {
+          "Order": 10,
+          "Id": "indic4",
+          "Name": "Indic. 4",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252,
+          "BitOffset": 64,
+          "BitStart": 0
+        },
+        {
+          "Order": 11,
+          "Id": "indic5",
+          "Name": "Indic. 5",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252,
+          "BitOffset": 72,
+          "BitStart": 0
+        },
+        {
+          "Order": 12,
+          "Id": "indic6",
+          "Name": "Indic. 6",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252,
+          "BitOffset": 80,
+          "BitStart": 0
+        },
+        {
+          "Order": 13,
+          "Id": "indic7",
+          "Name": "Indic. 7",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252,
+          "BitOffset": 88,
+          "BitStart": 0
+        },
+        {
+          "Order": 14,
+          "Id": "indic8",
+          "Name": "Indic. 8",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252,
+          "BitOffset": 96,
+          "BitStart": 0
+        },
+        {
+          "Order": 15,
+          "Id": "indic9",
+          "Name": "Indic. 9",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252,
+          "BitOffset": 104,
+          "BitStart": 0
+        },
+        {
+          "Order": 16,
+          "Id": "indic10",
+          "Name": "Indic. 10",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252,
+          "BitOffset": 112,
+          "BitStart": 0
+        },
+        {
+          "Order": 17,
+          "Id": "indic11",
+          "Name": "Indic. 11",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252,
+          "BitOffset": 120,
+          "BitStart": 0
+        },
+        {
+          "Order": 18,
+          "Id": "indic12",
+          "Name": "Indic. 12",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252,
+          "BitOffset": 128,
+          "BitStart": 0
+        },
+        {
+          "Order": 19,
+          "Id": "indic13",
+          "Name": "Indic. 13",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252,
+          "BitOffset": 136,
+          "BitStart": 0
+        },
+        {
+          "Order": 20,
+          "Id": "indic14",
+          "Name": "Indic. 14",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252,
+          "BitOffset": 144,
+          "BitStart": 0
+        },
+        {
+          "Order": 21,
+          "Id": "indic15",
+          "Name": "Indic. 15",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252,
+          "BitOffset": 152,
+          "BitStart": 0
+        },
+        {
+          "Order": 22,
+          "Id": "indic16",
+          "Name": "Indic. 16",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252,
+          "BitOffset": 160,
+          "BitStart": 0
+        },
+        {
+          "Order": 23,
+          "Id": "indic17",
+          "Name": "Indic. 17",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252,
+          "BitOffset": 168,
+          "BitStart": 0
+        },
+        {
+          "Order": 24,
+          "Id": "indic18",
+          "Name": "Indic. 18",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252,
+          "BitOffset": 176,
+          "BitStart": 0
+        },
+        {
+          "Order": 25,
+          "Id": "indic19",
+          "Name": "Indic. 19",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252,
+          "BitOffset": 184,
+          "BitStart": 0
+        },
+        {
+          "Order": 26,
+          "Id": "indic20",
+          "Name": "Indic. 20",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252,
+          "BitOffset": 192,
+          "BitStart": 0
+        },
+        {
+          "Order": 27,
+          "Id": "indic21",
+          "Name": "Indic. 21",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252,
+          "BitOffset": 200,
+          "BitStart": 0
+        },
+        {
+          "Order": 28,
+          "Id": "indic22",
+          "Name": "Indic. 22",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252,
+          "BitOffset": 208,
+          "BitStart": 0
+        },
+        {
+          "Order": 29,
+          "Id": "indic23",
+          "Name": "Indic. 23",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252,
+          "BitOffset": 216,
+          "BitStart": 0
+        },
+        {
+          "Order": 30,
+          "Id": "indic24",
+          "Name": "Indic. 24",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252,
+          "BitOffset": 224,
+          "BitStart": 0
+        },
+        {
+          "Order": 31,
+          "Id": "indic25",
+          "Name": "Indic. 25",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252,
+          "BitOffset": 232,
+          "BitStart": 0
+        },
+        {
+          "Order": 32,
+          "Id": "indic26",
+          "Name": "Indic. 26",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252,
+          "BitOffset": 240,
+          "BitStart": 0
+        },
+        {
+          "Order": 33,
+          "Id": "indic27",
+          "Name": "Indic. 27",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 8,
+          "RangeMax": 252,
+          "BitOffset": 248,
+          "BitStart": 0
+        }
+      ]
+    },
+    {
+      "PGN": 130830,
+      "Id": "maretronDometicHVACStatus",
+      "Description": "Maretron: Dometic HVAC Status",
+      "Type": "Single",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 10,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "additionalSensorTemperatures",
+          "Name": "Additional Sensor Temperatures",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "PhysicalQuantity": "TEMPERATURE"
+        },
+        {
+          "Order": 2,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 11,
+          "BitOffset": 8,
+          "BitStart": 0,
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "Match": 137,
+          "PartOfPrimaryKey": true,
+          "Description": "Maretron"
+        },
+        {
+          "Order": 3,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 2,
+          "BitOffset": 19,
+          "BitStart": 3
+        },
+        {
+          "Order": 4,
+          "Id": "industryCode",
+          "Name": "Industry Group",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 3,
+          "BitOffset": 21,
+          "BitStart": 5,
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4,
+          "Match": 4,
+          "PartOfPrimaryKey": true,
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 5,
+          "Id": "canID",
+          "Name": "CAN ID",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitOffset": 24,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "BitLength": 32,
+          "RangeMax": 4294967295
+        },
+        {
+          "Order": 6,
+          "Id": "state",
+          "Name": "State",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "BitOffset": 56,
+          "BitStart": 0
+        },
+        {
+          "Order": 7,
+          "Id": "hardwareStatus",
+          "Name": "Hardware Status",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "BitOffset": 64,
+          "BitStart": 0
+        },
+        {
+          "Order": 8,
+          "Id": "faults",
+          "Name": "Faults",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "BitOffset": 72,
+          "BitStart": 0
+        },
+        {
+          "Order": 9,
+          "Id": "lineVoltage",
+          "Name": "Line Voltage",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "BitOffset": 80,
+          "BitStart": 0,
+          "PhysicalQuantity": "POTENTIAL_DIFFERENCE"
+        },
+        {
+          "Order": 10,
+          "Id": "compressorCurrent",
+          "Name": "Compressor Current",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "BitOffset": 88,
+          "BitStart": 0,
+          "PhysicalQuantity": "ELECTRICAL_CURRENT"
+        }
+      ]
+    },
+    {
+      "PGN": 130841,
+      "Id": "maretronGenericSensor",
+      "Description": "Generic Sensor (Maretron Proprietary)",
+      "Type": "Single",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "FieldLengths",
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 7,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "sensorData",
+          "Name": "Sensor Data",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitOffset": 0,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "VariableLength": true
+        },
+        {
+          "Order": 2,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 11,
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "Match": 137,
+          "PartOfPrimaryKey": true,
+          "Description": "Maretron"
+        },
+        {
+          "Order": 3,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 2
+        },
+        {
+          "Order": 4,
+          "Id": "industryCode",
+          "Name": "Industry Group",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 3,
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4,
+          "Match": 4,
+          "PartOfPrimaryKey": true,
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 5,
+          "Id": "packageType",
+          "Name": "Package Type",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 16,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 65532,
+          "LookupEnumeration": "LOCAL_MARETRON_GENERIC_SENSOR_PACKAGE_TYPE"
+        },
+        {
+          "Order": 6,
+          "Id": "canFrameID",
+          "Name": "CAN Frame ID",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 29,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 536870908
+        },
+        {
+          "Order": 7,
+          "Id": "reserved2",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 3
+        }
+      ]
+    },
+    {
+      "PGN": 130844,
+      "Id": "maretronWindlassOperatingStatus",
+      "Description": "Windlass Operating Status (Maretron Proprietary)",
+      "Type": "Single",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 16,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "windlassOperatingEvents",
+          "Name": "Windlass Operating Events",
+          "Resolution": 1,
+          "FieldType": "BITLOOKUP",
+          "BitLength": 6,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 60,
+          "LookupBitEnumeration": "LOCAL_WINDLASS_OPERATING_EVENTS"
+        },
+        {
+          "Order": 2,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 11,
+          "BitOffset": 6,
+          "BitStart": 6,
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "Match": 137,
+          "PartOfPrimaryKey": true,
+          "Description": "Maretron"
+        },
+        {
+          "Order": 3,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 2,
+          "BitOffset": 17,
+          "BitStart": 1
+        },
+        {
+          "Order": 4,
+          "Id": "industryCode",
+          "Name": "Industry Group",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 3,
+          "BitOffset": 19,
+          "BitStart": 3,
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4,
+          "Match": 4,
+          "PartOfPrimaryKey": true,
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 5,
+          "Id": "windlassInstance",
+          "Name": "Windlass Instance",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 4,
+          "BitOffset": 22,
+          "BitStart": 6,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 12,
+          "LookupEnumeration": "LOCAL_WINDLASS_INSTANCE"
+        },
+        {
+          "Order": 6,
+          "Id": "windlassDirectionControl",
+          "Name": "Windlass Direction Control",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 4,
+          "BitOffset": 26,
+          "BitStart": 2,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 12,
+          "LookupEnumeration": "LOCAL_WINDLASS_DIRECTION_CONTROL"
+        },
+        {
+          "Order": 7,
+          "Id": "speedControl",
+          "Name": "Speed Control",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 30,
+          "BitStart": 6,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 8,
+          "Id": "powerEnable",
+          "Name": "Power Enable",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 2,
+          "BitOffset": 38,
+          "BitStart": 6,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 0,
+          "LookupEnumeration": "OFF_ON_CONTROL"
+        },
+        {
+          "Order": 9,
+          "Id": "mechanicalEnable",
+          "Name": "Mechanical Enable",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 2,
+          "BitOffset": 40,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 0,
+          "LookupEnumeration": "OFF_ON_CONTROL"
+        },
+        {
+          "Order": 10,
+          "Id": "anchorDockingControl",
+          "Name": "Anchor Docking Control",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 2,
+          "BitOffset": 42,
+          "BitStart": 2,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 0,
+          "LookupEnumeration": "OFF_ON_CONTROL"
+        },
+        {
+          "Order": 11,
+          "Id": "deckAndAnchorWash",
+          "Name": "Deck and Anchor Wash",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 2,
+          "BitOffset": 44,
+          "BitStart": 4,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 0,
+          "LookupEnumeration": "OFF_ON_CONTROL"
+        },
+        {
+          "Order": 12,
+          "Id": "anchorLight",
+          "Name": "Anchor Light",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 2,
+          "BitOffset": 46,
+          "BitStart": 6,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 0,
+          "LookupEnumeration": "OFF_ON_CONTROL"
+        },
+        {
+          "Order": 13,
+          "Id": "auxiliaryAControl",
+          "Name": "Auxiliary A Control",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 2,
+          "BitOffset": 48,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 0,
+          "LookupEnumeration": "OFF_ON_CONTROL"
+        },
+        {
+          "Order": 14,
+          "Id": "auxiliaryBControl",
+          "Name": "Auxiliary B Control",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 2,
+          "BitOffset": 50,
+          "BitStart": 2,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 0,
+          "LookupEnumeration": "OFF_ON_CONTROL"
+        },
+        {
+          "Order": 15,
+          "Id": "auxiliaryCControl",
+          "Name": "Auxiliary C Control",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 2,
+          "BitOffset": 52,
+          "BitStart": 4,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 0,
+          "LookupEnumeration": "OFF_ON_CONTROL"
+        },
+        {
+          "Order": 16,
+          "Id": "auxiliaryDControl",
+          "Name": "Auxiliary D Control",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 2,
+          "BitOffset": 54,
+          "BitStart": 6,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 0,
+          "LookupEnumeration": "OFF_ON_CONTROL"
+        }
+      ]
+    },
+    {
+      "PGN": 130921,
+      "Id": "carlingBreakerStatusAndElectricalValues",
+      "Description": "Carling: Breaker Status and Electrical Values",
+      "Type": "Single",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 17,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 11,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "Match": 176,
+          "PartOfPrimaryKey": true,
+          "Description": "Carling Technologies Inc. (Moritz Aerospace)"
+        },
+        {
+          "Order": 2,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 2,
+          "BitOffset": 11,
+          "BitStart": 3
+        },
+        {
+          "Order": 3,
+          "Id": "industryCode",
+          "Name": "Industry Group",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 3,
+          "BitOffset": 13,
+          "BitStart": 5,
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4,
+          "Match": 4,
+          "PartOfPrimaryKey": true,
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 4,
+          "Id": "messageType",
+          "Name": "Message Type",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 8,
+          "BitOffset": 16,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "Match": 2,
+          "PartOfPrimaryKey": true,
+          "LookupEnumeration": "LOCAL_CARLING_130921_MESSAGE_TYPE"
+        },
+        {
+          "Order": 5,
+          "Id": "breakerMapping1To8",
+          "Name": "Breaker Mapping 1 to 8",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 24,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 6,
+          "Id": "breakerMapping9To16",
+          "Name": "Breaker Mapping 9 to 16",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 32,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 7,
+          "Id": "breakerMapping17To19",
+          "Name": "Breaker Mapping 17 to 19",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 3,
+          "BitOffset": 40,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4
+        },
+        {
+          "Order": 8,
+          "Id": "breakerStatus1",
+          "Name": "Breaker Status 1",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 5,
+          "BitOffset": 43,
+          "BitStart": 3,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 28
+        },
+        {
+          "Order": 9,
+          "Id": "voltage",
+          "Name": "Voltage",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 48,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "PhysicalQuantity": "POTENTIAL_DIFFERENCE"
+        },
+        {
+          "Order": 10,
+          "Id": "current",
+          "Name": "Current",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 56,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "PhysicalQuantity": "ELECTRICAL_CURRENT"
+        },
+        {
+          "Order": 11,
+          "Id": "dimValue",
+          "Name": "Dim Value",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 64,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 12,
+          "Id": "breakerStatus2",
+          "Name": "Breaker Status 2",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 72,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 13,
+          "Id": "breakerStatus3",
+          "Name": "Breaker Status 3",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 80,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 14,
+          "Id": "breakerModelNumber",
+          "Name": "Breaker Model Number",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 4,
+          "BitOffset": 88,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 12
+        },
+        {
+          "Order": 15,
+          "Id": "reserved2",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 4,
+          "BitOffset": 92,
+          "BitStart": 4
+        },
+        {
+          "Order": 16,
+          "Id": "ecbSoftwareVersion",
+          "Name": "ECB Software Version",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 96,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 17,
+          "Id": "breakerGroupNumber",
+          "Name": "Breaker Group Number",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 104,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        }
+      ]
+    },
+    {
+      "PGN": 130921,
+      "Id": "carlingBreakerConfigurationResponse",
+      "Description": "Carling Breaker Configuration Response",
+      "Type": "Single",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 15,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 11,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "Match": 176,
+          "PartOfPrimaryKey": true,
+          "Description": "Carling Technologies Inc. (Moritz Aerospace)"
+        },
+        {
+          "Order": 2,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 2,
+          "BitOffset": 11,
+          "BitStart": 3
+        },
+        {
+          "Order": 3,
+          "Id": "industryCode",
+          "Name": "Industry Group",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 3,
+          "BitOffset": 13,
+          "BitStart": 5,
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4,
+          "Match": 4,
+          "PartOfPrimaryKey": true,
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 4,
+          "Id": "messageType",
+          "Name": "Message Type",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 8,
+          "BitOffset": 16,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "Match": 10,
+          "PartOfPrimaryKey": true,
+          "LookupEnumeration": "LOCAL_CARLING_130921_MESSAGE_TYPE"
+        },
+        {
+          "Order": 5,
+          "Id": "discreteIOIndexHighNibble",
+          "Name": "Discrete I/O Index (High Nibble)",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 4,
+          "BitOffset": 24,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 12
+        },
+        {
+          "Order": 6,
+          "Id": "discreteIOFunctionLowNibble",
+          "Name": "Discrete I/O Function (Low Nibble)",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 4,
+          "BitOffset": 28,
+          "BitStart": 4,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 12
+        },
+        {
+          "Order": 7,
+          "Id": "reserved2",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 8,
+          "BitOffset": 32,
+          "BitStart": 0
+        },
+        {
+          "Order": 8,
+          "Id": "manufacturerCodeHighByte",
+          "Name": "Manufacturer Code (High Byte)",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 40,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 9,
+          "Id": "manufacturerCodeLower3Bites",
+          "Name": "Manufacturer Code (Lower 3 Bites)",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 48,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 10,
+          "Id": "binarySwitchBankStatusIndicator",
+          "Name": "Binary Switch Bank Status Indicator",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 5,
+          "BitOffset": 56,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 28
+        },
+        {
+          "Order": 11,
+          "Id": "dataInstance",
+          "Name": "Data Instance",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 61,
+          "BitStart": 5,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 12,
+          "Id": "breakerMapping1To8",
+          "Name": "Breaker Mapping 1 to 8",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 69,
+          "BitStart": 5,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 13,
+          "Id": "breakerMapping9To16",
+          "Name": "Breaker Mapping 9 to 16",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 77,
+          "BitStart": 5,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 14,
+          "Id": "breakerMapping17To19",
+          "Name": "Breaker Mapping 17 to 19",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 3,
+          "BitOffset": 85,
+          "BitStart": 5,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4
+        },
+        {
+          "Order": 15,
+          "Id": "reserved3",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 5,
+          "BitOffset": 88,
+          "BitStart": 0
+        }
+      ]
+    },
+    {
+      "PGN": 130921,
+      "Id": "carlingBreakerStatusBroadcast",
+      "Description": "Carling Breaker Status Broadcast",
+      "Type": "Single",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 18,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 11,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "Match": 176,
+          "PartOfPrimaryKey": true,
+          "Description": "Carling Technologies Inc. (Moritz Aerospace)"
+        },
+        {
+          "Order": 2,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 2,
+          "BitOffset": 11,
+          "BitStart": 3
+        },
+        {
+          "Order": 3,
+          "Id": "industryCode",
+          "Name": "Industry Group",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 3,
+          "BitOffset": 13,
+          "BitStart": 5,
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4,
+          "Match": 4,
+          "PartOfPrimaryKey": true,
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 4,
+          "Id": "messageType",
+          "Name": "Message Type",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 8,
+          "BitOffset": 16,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "Match": 3,
+          "PartOfPrimaryKey": true,
+          "LookupEnumeration": "LOCAL_CARLING_130921_MESSAGE_TYPE"
+        },
+        {
+          "Order": 5,
+          "Id": "breakerMapping1To8",
+          "Name": "Breaker Mapping 1 to 8",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 24,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 6,
+          "Id": "breakerMapping9To16",
+          "Name": "Breaker Mapping 9 to 16",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 32,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 7,
+          "Id": "breakerMapping17To19",
+          "Name": "Breaker Mapping 17 to 19",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 3,
+          "BitOffset": 40,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4
+        },
+        {
+          "Order": 8,
+          "Id": "reserved2",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 5,
+          "BitOffset": 43,
+          "BitStart": 3
+        },
+        {
+          "Order": 9,
+          "Id": "tripDelay",
+          "Name": "Trip Delay",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 4,
+          "BitOffset": 48,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 12
+        },
+        {
+          "Order": 10,
+          "Id": "inrushDelay",
+          "Name": "Inrush Delay",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 4,
+          "BitOffset": 52,
+          "BitStart": 4,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 12
+        },
+        {
+          "Order": 11,
+          "Id": "configurationFlags",
+          "Name": "Configuration Flags",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 56,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 12,
+          "Id": "currentRating",
+          "Name": "Current Rating",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 64,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "PhysicalQuantity": "ELECTRICAL_CURRENT"
+        },
+        {
+          "Order": 13,
+          "Id": "factoryMaximumRating",
+          "Name": "Factory Maximum Rating",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 72,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 14,
+          "Id": "scheduleALoadShedPriorityHighNibble",
+          "Name": "Schedule A Load Shed Priority (High Nibble)",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 4,
+          "BitOffset": 80,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 12
+        },
+        {
+          "Order": 15,
+          "Id": "scheduleBLoadShedPriorityLowNibble",
+          "Name": "Schedule B Load Shed Priority (Low Nibble)",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 4,
+          "BitOffset": 84,
+          "BitStart": 4,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 12
+        },
+        {
+          "Order": 16,
+          "Id": "dimValue",
+          "Name": "Dim Value",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 88,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 17,
+          "Id": "flashMapIndex",
+          "Name": "Flash Map Index",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 4,
+          "BitOffset": 96,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 12
+        },
+        {
+          "Order": 18,
+          "Id": "reserved3",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 4,
+          "BitOffset": 100,
+          "BitStart": 4
+        }
+      ]
+    },
+    {
+      "PGN": 130921,
+      "Id": "carlingDiscreteIOConfigurationResponse",
+      "Description": "Carling Discrete I/O Configuration Response",
+      "Type": "Single",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 11,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 11,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "Match": 176,
+          "PartOfPrimaryKey": true,
+          "Description": "Carling Technologies Inc. (Moritz Aerospace)"
+        },
+        {
+          "Order": 2,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 2,
+          "BitOffset": 11,
+          "BitStart": 3
+        },
+        {
+          "Order": 3,
+          "Id": "industryCode",
+          "Name": "Industry Group",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 3,
+          "BitOffset": 13,
+          "BitStart": 5,
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4,
+          "Match": 4,
+          "PartOfPrimaryKey": true,
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 4,
+          "Id": "messageType",
+          "Name": "Message Type",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 8,
+          "BitOffset": 16,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "Match": 16,
+          "PartOfPrimaryKey": true,
+          "LookupEnumeration": "LOCAL_CARLING_130921_MESSAGE_TYPE"
+        },
+        {
+          "Order": 5,
+          "Id": "flashMapEntryHighNibble",
+          "Name": "Flash Map Entry (High Nibble)",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 4,
+          "BitOffset": 24,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 12
+        },
+        {
+          "Order": 6,
+          "Id": "flashMapEntryLowNibble",
+          "Name": "Flash Map Entry (Low Nibble)",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 4,
+          "BitOffset": 28,
+          "BitStart": 4,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 12
+        },
+        {
+          "Order": 7,
+          "Id": "onTimeHighByte",
+          "Name": "ON Time High Byte",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 32,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 8,
+          "Id": "onTimeLowByte",
+          "Name": "ON Time Low Byte",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 40,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 9,
+          "Id": "offTimeHighByte",
+          "Name": "OFF Time High Byte",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 48,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 10,
+          "Id": "offTimeLowByte",
+          "Name": "OFF Time Low Byte",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 56,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 11,
+          "Id": "cycles",
+          "Name": "Cycles",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 64,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        }
+      ]
+    },
+    {
+      "PGN": 130921,
+      "Id": "carlingFlashTableConfigurationResponse",
+      "Description": "Carling Flash Table Configuration Response",
+      "Type": "Single",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 5,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 11,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "Match": 176,
+          "PartOfPrimaryKey": true,
+          "Description": "Carling Technologies Inc. (Moritz Aerospace)"
+        },
+        {
+          "Order": 2,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 2,
+          "BitOffset": 11,
+          "BitStart": 3
+        },
+        {
+          "Order": 3,
+          "Id": "industryCode",
+          "Name": "Industry Group",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 3,
+          "BitOffset": 13,
+          "BitStart": 5,
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4,
+          "Match": 4,
+          "PartOfPrimaryKey": true,
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 4,
+          "Id": "messageType",
+          "Name": "Message Type",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 8,
+          "BitOffset": 16,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "Match": 22,
+          "PartOfPrimaryKey": true,
+          "LookupEnumeration": "LOCAL_CARLING_130921_MESSAGE_TYPE"
+        },
+        {
+          "Order": 5,
+          "Id": "message",
+          "Name": "Message",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 24,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        }
+      ]
+    },
+    {
+      "PGN": 130921,
+      "Id": "carlingSolenoidDriveSequenceACGenII",
+      "Description": "Carling Solenoid Drive Sequence, ACGenII",
+      "Type": "Single",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 14,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 11,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "Match": 1046,
+          "PartOfPrimaryKey": true,
+          "Description": "Carling"
+        },
+        {
+          "Order": 2,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 2,
+          "BitOffset": 11,
+          "BitStart": 3
+        },
+        {
+          "Order": 3,
+          "Id": "industryCode",
+          "Name": "Industry Group",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 3,
+          "BitOffset": 13,
+          "BitStart": 5,
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4,
+          "Match": 0,
+          "PartOfPrimaryKey": true,
+          "Description": "Global"
+        },
+        {
+          "Order": 4,
+          "Id": "messageType",
+          "Name": "Message Type",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 8,
+          "BitOffset": 16,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "Match": 2,
+          "PartOfPrimaryKey": true,
+          "LookupEnumeration": "LOCAL_CARLING_130921_MESSAGE_TYPE"
+        },
+        {
+          "Order": 5,
+          "Id": "breakerMapping1",
+          "Name": "Breaker Mapping 1",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 24,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 6,
+          "Id": "breakerMapping2",
+          "Name": "Breaker Mapping 2",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 32,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 7,
+          "Id": "breakerMapping3",
+          "Name": "Breaker Mapping 3",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 40,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 8,
+          "Id": "voltage",
+          "Name": "Voltage",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 48,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "PhysicalQuantity": "POTENTIAL_DIFFERENCE"
+        },
+        {
+          "Order": 9,
+          "Id": "current",
+          "Name": "Current",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 56,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "PhysicalQuantity": "ELECTRICAL_CURRENT"
+        },
+        {
+          "Order": 10,
+          "Id": "dimValue",
+          "Name": "Dim Value",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 64,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 11,
+          "Id": "breakerStatus1",
+          "Name": "Breaker Status 1",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 72,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 12,
+          "Id": "breakerStatus2",
+          "Name": "Breaker Status 2",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 80,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 13,
+          "Id": "breakerModelGroup",
+          "Name": "Breaker Model/Group",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 88,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        },
+        {
+          "Order": 14,
+          "Id": "softwareVersion",
+          "Name": "Software Version",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 96,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        }
+      ]
+    },
+    {
+      "PGN": 130921,
+      "Id": "carlingSystemAlarmMessage",
+      "Description": "Carling System Alarm Message",
+      "Type": "Single",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "FieldLengths",
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 5,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "BitLength": 11,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "Match": 176,
+          "Resolution": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "FieldType": "LOOKUP",
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Description": "Carling Technologies Inc. (Moritz Aerospace)"
+        },
+        {
+          "Order": 2,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "BitLength": 2,
+          "BitOffset": 11,
+          "BitStart": 3,
+          "Resolution": 1,
+          "FieldType": "RESERVED"
+        },
+        {
+          "Order": 3,
+          "Id": "industryCode",
+          "Name": "Industry Code",
+          "BitLength": 3,
+          "BitOffset": 13,
+          "BitStart": 5,
+          "Match": 4,
+          "Resolution": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 6,
+          "FieldType": "LOOKUP",
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 4,
+          "Id": "messageType",
+          "Name": "Message Type",
+          "BitLength": 8,
+          "BitOffset": 16,
+          "BitStart": 0,
+          "Match": 128,
+          "Resolution": 1,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "FieldType": "LOOKUP",
+          "PartOfPrimaryKey": true,
+          "LookupEnumeration": "LOCAL_CARLING_130921_MESSAGE_TYPE"
+        },
+        {
+          "Order": 5,
+          "Id": "data",
+          "Name": "Data",
+          "Resolution": 1,
+          "FieldType": "BINARY",
+          "BitOffset": 24,
+          "BitStart": 0
+        }
+      ]
+    },
+    {
+      "PGN": 130921,
+      "Id": "carlingSystemAlertMessage",
+      "Description": "Carling System Alert Message",
+      "Type": "Single",
+      "Complete": false,
+      "Fallback": null,
+      "Missing": [
+        "Resolution",
+        "SampleData",
+        "Interval"
+      ],
+      "FieldCount": 5,
+      "Length": null,
+      "Fields": [
+        {
+          "Order": 1,
+          "Id": "manufacturerCode",
+          "Name": "Manufacturer Code",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 11,
+          "BitOffset": 0,
+          "BitStart": 0,
+          "LookupEnumeration": "MANUFACTURER_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 2044,
+          "Match": 176,
+          "PartOfPrimaryKey": true,
+          "Description": "Carling Technologies Inc. (Moritz Aerospace)"
+        },
+        {
+          "Order": 2,
+          "Id": "reserved",
+          "Name": "Reserved",
+          "Resolution": 1,
+          "FieldType": "RESERVED",
+          "BitLength": 2,
+          "BitOffset": 11,
+          "BitStart": 3
+        },
+        {
+          "Order": 3,
+          "Id": "industryCode",
+          "Name": "Industry Group",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 3,
+          "BitOffset": 13,
+          "BitStart": 5,
+          "LookupEnumeration": "INDUSTRY_CODE",
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 4,
+          "Match": 4,
+          "PartOfPrimaryKey": true,
+          "Description": "Marine Industry"
+        },
+        {
+          "Order": 4,
+          "Id": "messageType",
+          "Name": "Message Type",
+          "Resolution": 1,
+          "FieldType": "LOOKUP",
+          "BitLength": 8,
+          "BitOffset": 16,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252,
+          "Match": 23,
+          "PartOfPrimaryKey": true,
+          "LookupEnumeration": "LOCAL_CARLING_130921_MESSAGE_TYPE"
+        },
+        {
+          "Order": 5,
+          "Id": "message",
+          "Name": "Message",
+          "Resolution": 1,
+          "FieldType": "NUMBER",
+          "BitLength": 8,
+          "BitOffset": 24,
+          "BitStart": 0,
+          "Signed": false,
+          "RangeMin": 0,
+          "RangeMax": 252
+        }
+      ]
+    }
+  ],
+  "LookupEnumerations": [
+    {
+      "Name": "LOCAL_WINDLASS_INSTANCE",
+      "MaxValue": 6,
+      "EnumValues": [
+        {
+          "Value": 0,
+          "Name": "Generic Windlass"
+        },
+        {
+          "Value": 1,
+          "Name": "Single Bow Windlass"
+        },
+        {
+          "Value": 2,
+          "Name": "Bow Windlass PORT"
+        },
+        {
+          "Value": 3,
+          "Name": "Bow Windlass STARBOARD"
+        },
+        {
+          "Value": 4,
+          "Name": "Single Stern Windlass"
+        },
+        {
+          "Value": 5,
+          "Name": "Stern Windlass PORT"
+        },
+        {
+          "Value": 6,
+          "Name": "Stern Windlass STARBOARD"
+        }
+      ]
+    },
+    {
+      "Name": "LOCAL_WINDLASS_DIRECTION_CONTROL",
+      "MaxValue": 15,
+      "EnumValues": [
+        {
+          "Value": 0,
+          "Name": "Direction Control OFF"
+        },
+        {
+          "Value": 1,
+          "Name": "Windlass FAST DOWN"
+        },
+        {
+          "Value": 2,
+          "Name": "Windlass FAST UP"
+        },
+        {
+          "Value": 3,
+          "Name": "Windlass SLOW DOWN"
+        },
+        {
+          "Value": 4,
+          "Name": "Windlass SLOW UP"
+        },
+        {
+          "Value": 15,
+          "Name": "Not available"
+        }
+      ]
+    },
+    {
+      "Name": "LOCAL_CARLING_65300_MESSAGE_TYPE",
+      "MaxValue": 254,
+      "EnumValues": [
+        {
+          "Value": 1,
+          "Name": "Automation Function Master"
+        },
+        {
+          "Value": 4,
+          "Name": "Box Status"
+        },
+        {
+          "Value": 7,
+          "Name": "Serial Number / Device Instance / System Instance Change Response"
+        },
+        {
+          "Value": 14,
+          "Name": "Box Power Information"
+        },
+        {
+          "Value": 16,
+          "Name": "Box Configuration Response"
+        },
+        {
+          "Value": 17,
+          "Name": "Flash Table Configuration Response"
+        },
+        {
+          "Value": 18,
+          "Name": "Extended Box Configuration"
+        },
+        {
+          "Value": 20,
+          "Name": "Extended Box Status"
+        },
+        {
+          "Value": 21,
+          "Name": "Report Uptime"
+        },
+        {
+          "Value": 25,
+          "Name": "Report Total Hours"
+        },
+        {
+          "Value": 66,
+          "Name": "Keypad Function LED Configuration Response"
+        },
+        {
+          "Value": 67,
+          "Name": "ACGenII Breaker Status Broadcast"
+        },
+        {
+          "Value": 104,
+          "Name": "ACGenII Breaker Configuration Response"
+        },
+        {
+          "Value": 129,
+          "Name": "Solenoid Profile"
+        },
+        {
+          "Value": 130,
+          "Name": "AC Input Line Voltages, ACGenII"
+        },
+        {
+          "Value": 254,
+          "Name": "Board Temperatures and Voltage, ACGenII"
+        }
+      ]
+    },
+    {
+      "Name": "LOCAL_CARLING_130921_MESSAGE_TYPE",
+      "MaxValue": 128,
+      "EnumValues": [
+        {
+          "Value": 2,
+          "Name": "Breaker Status and Electrical Values / Solenoid Drive Sequence, ACGenII"
+        },
+        {
+          "Value": 3,
+          "Name": "Breaker Status Broadcast"
+        },
+        {
+          "Value": 10,
+          "Name": "Breaker Configuration Response"
+        },
+        {
+          "Value": 16,
+          "Name": "Discrete I/O Configuration Response"
+        },
+        {
+          "Value": 22,
+          "Name": "Flash Table Configuration Response"
+        },
+        {
+          "Value": 23,
+          "Name": "System Alert Message"
+        },
+        {
+          "Value": 128,
+          "Name": "System Alarm Message"
+        }
+      ]
+    },
+    {
+      "Name": "LOCAL_MARETRON_GENERIC_SENSOR_PACKAGE_TYPE",
+      "MaxValue": 60044,
+      "EnumValues": [
+        {
+          "Value": 1,
+          "Name": "Package Type 0x0001"
+        },
+        {
+          "Value": 4,
+          "Name": "Package Type 0x0004"
+        },
+        {
+          "Value": 5,
+          "Name": "Package Type 0x0005"
+        },
+        {
+          "Value": 7,
+          "Name": "Package Type 0x0007"
+        },
+        {
+          "Value": 16,
+          "Name": "Package Type 0x0010"
+        },
+        {
+          "Value": 18,
+          "Name": "Package Type 0x0012"
+        },
+        {
+          "Value": 20,
+          "Name": "Package Type 0x0014"
+        },
+        {
+          "Value": 29,
+          "Name": "Package Type 0x001D"
+        },
+        {
+          "Value": 30,
+          "Name": "Package Type 0x001E"
+        },
+        {
+          "Value": 31,
+          "Name": "Package Type 0x001F"
+        },
+        {
+          "Value": 32,
+          "Name": "Package Type 0x0020"
+        },
+        {
+          "Value": 34,
+          "Name": "Package Type 0x0022"
+        },
+        {
+          "Value": 36,
+          "Name": "Package Type 0x0024"
+        },
+        {
+          "Value": 38,
+          "Name": "Package Type 0x0026"
+        },
+        {
+          "Value": 39,
+          "Name": "Package Type 0x0027"
+        },
+        {
+          "Value": 42,
+          "Name": "Package Type 0x002A"
+        },
+        {
+          "Value": 47,
+          "Name": "Package Type 0x002F"
+        },
+        {
+          "Value": 59,
+          "Name": "Package Type 0x003B"
+        },
+        {
+          "Value": 61,
+          "Name": "Package Type 0x003D"
+        },
+        {
+          "Value": 68,
+          "Name": "Package Type 0x0044"
+        },
+        {
+          "Value": 72,
+          "Name": "Package Type 0x0048"
+        },
+        {
+          "Value": 73,
+          "Name": "Package Type 0x0049"
+        },
+        {
+          "Value": 79,
+          "Name": "Package Type 0x004F"
+        },
+        {
+          "Value": 84,
+          "Name": "Package Type 0x0054"
+        },
+        {
+          "Value": 85,
+          "Name": "Package Type 0x0055"
+        },
+        {
+          "Value": 86,
+          "Name": "Package Type 0x0056"
+        },
+        {
+          "Value": 103,
+          "Name": "Package Type 0x0067"
+        },
+        {
+          "Value": 104,
+          "Name": "Package Type 0x0068"
+        },
+        {
+          "Value": 105,
+          "Name": "Package Type 0x0069"
+        },
+        {
+          "Value": 106,
+          "Name": "Package Type 0x006A"
+        },
+        {
+          "Value": 114,
+          "Name": "Package Type 0x0072"
+        },
+        {
+          "Value": 60002,
+          "Name": "Package Type 0xEA62"
+        },
+        {
+          "Value": 60004,
+          "Name": "Package Type 0xEA64"
+        },
+        {
+          "Value": 60005,
+          "Name": "Package Type 0xEA65"
+        },
+        {
+          "Value": 60006,
+          "Name": "Package Type 0xEA66"
+        },
+        {
+          "Value": 60020,
+          "Name": "Package Type 0xEA74"
+        },
+        {
+          "Value": 60021,
+          "Name": "Package Type 0xEA75"
+        },
+        {
+          "Value": 60022,
+          "Name": "Package Type 0xEA76"
+        },
+        {
+          "Value": 60023,
+          "Name": "Package Type 0xEA77"
+        },
+        {
+          "Value": 60024,
+          "Name": "Package Type 0xEA78"
+        },
+        {
+          "Value": 60025,
+          "Name": "Package Type 0xEA79"
+        },
+        {
+          "Value": 60026,
+          "Name": "Package Type 0xEA7A"
+        },
+        {
+          "Value": 60027,
+          "Name": "Package Type 0xEA7B"
+        },
+        {
+          "Value": 60028,
+          "Name": "Package Type 0xEA7C"
+        },
+        {
+          "Value": 60029,
+          "Name": "Package Type 0xEA7D"
+        },
+        {
+          "Value": 60031,
+          "Name": "Package Type 0xEA7F"
+        },
+        {
+          "Value": 60032,
+          "Name": "Package Type 0xEA80"
+        },
+        {
+          "Value": 60033,
+          "Name": "Package Type 0xEA81"
+        },
+        {
+          "Value": 60034,
+          "Name": "Package Type 0xEA82"
+        },
+        {
+          "Value": 60035,
+          "Name": "Package Type 0xEA83"
+        },
+        {
+          "Value": 60036,
+          "Name": "Package Type 0xEA84"
+        },
+        {
+          "Value": 60037,
+          "Name": "Package Type 0xEA85"
+        },
+        {
+          "Value": 60038,
+          "Name": "Package Type 0xEA86"
+        },
+        {
+          "Value": 60039,
+          "Name": "Package Type 0xEA87"
+        },
+        {
+          "Value": 60040,
+          "Name": "Package Type 0xEA88"
+        },
+        {
+          "Value": 60041,
+          "Name": "Package Type 0xEA89"
+        },
+        {
+          "Value": 60042,
+          "Name": "Package Type 0xEA8A"
+        },
+        {
+          "Value": 60043,
+          "Name": "Package Type 0xEA8B"
+        },
+        {
+          "Value": 60044,
+          "Name": "Package Type 0xEA8C"
+        }
+      ]
+    }
+  ],
+  "LookupBitEnumerations": [
+    {
+      "Name": "LOCAL_WINDLASS_OPERATING_EVENTS",
+      "MaxValue": 5,
+      "EnumBitValues": [
+        {
+          "Bit": 0,
+          "Name": "System error"
+        },
+        {
+          "Bit": 1,
+          "Name": "Sensor error"
+        },
+        {
+          "Bit": 2,
+          "Name": "No windlass motion detected"
+        },
+        {
+          "Bit": 3,
+          "Name": "Another device controlling windlass"
+        },
+        {
+          "Bit": 4,
+          "Name": "Retrieval docking distance reached"
+        },
+        {
+          "Bit": 5,
+          "Name": "End of rode reached"
+        }
+      ]
+    }
+  ]
 }

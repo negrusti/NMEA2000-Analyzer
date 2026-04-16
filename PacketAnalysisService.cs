@@ -47,6 +47,29 @@ namespace NMEA2000Analyzer
             return GetOpenDataSummary();
         }
 
+        public static async Task<JsonObject> ReloadDefinitionsAsync(CancellationToken cancellationToken = default)
+        {
+            if (Application.Current?.Dispatcher == null)
+            {
+                throw new InvalidOperationException("Application dispatcher is not available.");
+            }
+
+            var reloadTask = await Application.Current.Dispatcher.InvokeAsync(
+                () =>
+                {
+                    if (Application.Current.MainWindow is not MainWindow mainWindow)
+                    {
+                        throw new InvalidOperationException("Main window is not available.");
+                    }
+
+                    return mainWindow.ReloadDefinitionsFromMcpAsync();
+                },
+                System.Windows.Threading.DispatcherPriority.Normal,
+                cancellationToken);
+
+            return await reloadTask;
+        }
+
         public static async Task<JsonObject> HighlightPacketsAsync(JsonObject arguments, CancellationToken cancellationToken = default)
         {
             var assembled = arguments["assembled"]?.GetValue<bool?>() ?? true;
@@ -667,6 +690,11 @@ namespace NMEA2000Analyzer
 
             try
             {
+                if (Seatalk1Parser.TryDecodeEmbeddedSeatalk1(record.PGN, record.PayloadBytes) is { } seatalk1Decode)
+                {
+                    return seatalk1Decode;
+                }
+
                 if (record.PGNListIndex.HasValue &&
                     record.PGNListIndex.Value >= 0 &&
                     record.PGNListIndex.Value < root.PGNs.Count)

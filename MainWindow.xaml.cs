@@ -438,7 +438,7 @@ namespace NMEA2000Analyzer
         {
             var openFileDialog = new OpenFileDialog
             {
-                Filter = "(*.csv, *.log, *.txt, *.dump, *.trc)|*.csv;*.log;*.txt;*.dump;*.trc|All Files (*.*)|*.*",
+                Filter = "NMEA logs (*.csv, *.log, *.txt, *.dump, *.trc, *.ebl)|*.csv;*.log;*.txt;*.dump;*.trc;*.ebl|All Files (*.*)|*.*",
                 Title = "Open File"
             };
 
@@ -494,6 +494,42 @@ namespace NMEA2000Analyzer
             {
                 MessageBox.Show($"Failed to save candump file: {ex.Message}", "Save", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private async void ReloadDefinitionsMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                await ReloadDefinitionsAsync();
+                MessageBox.Show("PGN definitions reloaded.", "Reload Definitions", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to reload PGN definitions: {ex.Message}", "Reload Definitions", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        internal async Task<JsonObject> ReloadDefinitionsFromMcpAsync()
+        {
+            return await ReloadDefinitionsAsync();
+        }
+
+        private async Task<JsonObject> ReloadDefinitionsAsync()
+        {
+            ((App)Application.Current).CanboatRoot = await LoadPgnDefinitionsAsync();
+            EnrichUnassembledRecords(_Data);
+            RefreshAssembledRecordDefinitions(_assembledData);
+            _indexedDataSource = null;
+            _filterIndexes = null;
+            RefreshGridView();
+            RefreshSelectedRecordDecode();
+
+            return new JsonObject
+            {
+                ["ok"] = true,
+                ["rawCount"] = _Data?.Count ?? 0,
+                ["assembledCount"] = _assembledData?.Count ?? 0
+            };
         }
 
         private void PopulateRecentFilesMenu()
@@ -589,6 +625,68 @@ namespace NMEA2000Analyzer
                                 );
             }
 
+        }
+
+        private void ActisenseCaptureMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            var detectedPort = ActisenseSerialCapture.AutoDetectPort();
+            if (string.IsNullOrWhiteSpace(detectedPort))
+            {
+                MessageBox.Show(
+                    this,
+                    "No Actisense COM port was detected.",
+                    "Actisense Capture",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            if (!ActisenseSerialCapture.StartCapture(detectedPort))
+            {
+                MessageBox.Show(
+                    this,
+                    $"Failed to start Actisense capture on {detectedPort}.",
+                    "Actisense Capture",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                return;
+            }
+
+            ClearData();
+            SetWindowTitle("Actisense Capture", $"Actisense {detectedPort}");
+
+            var captureWindow = new CaptureProgressWindow(
+                () => ActisenseSerialCapture.GetCapturedCount(),
+                $"Detected COM port: {detectedPort}",
+                canRequestDeviceInfo: false)
+            {
+                Owner = this,
+                Title = "Actisense Capture"
+            };
+            captureWindow.ShowDialog();
+
+            ActisenseSerialCapture.StopCapture();
+
+            _Data = ActisenseSerialCapture.LoadCapture();
+            var (firstTimestamp, lastTimestamp) = CaptureLoadService.GetTimestampBounds(_Data);
+            UpdateTimestampRange(firstTimestamp, lastTimestamp);
+            EnrichUnassembledRecords(_Data);
+            ApplyHighlights(_Data);
+
+            _assembledData = AssembleFrames(_Data);
+            ApplyHighlights(_assembledData);
+
+            GenerateDeviceInfo(_assembledData);
+            UpdateSrcDevices(_Data);
+            UpdateSrcDevices(_assembledData);
+            ActiveDataSessionService.SetCurrent(
+                "Actisense Capture",
+                $"Actisense {detectedPort}",
+                _Data,
+                _assembledData,
+                firstTimestamp,
+                lastTimestamp);
+            RefreshGridView();
         }
 
         private void FilterTextBoxes_TextChanged(object sender, TextChangedEventArgs e)
@@ -800,6 +898,49 @@ namespace NMEA2000Analyzer
                 }
             }
         }
+
+        internal static void RefreshAssembledRecordDefinitions(List<Nmea2000Record>? records)
+        {
+            if (records == null)
+            {
+                return;
+            }
+
+            foreach (var record in records)
+            {
+                RefreshRecordDefinition(record);
+            }
+        }
+
+        private static void RefreshRecordDefinition(Nmea2000Record record)
+        {
+            record.PGNListIndex = null;
+
+            if (!int.TryParse(record.PGN, out var pgn) ||
+                !Globals.UniquePGNs.TryGetValue(pgn, out var pgnDefinition))
+            {
+                record.Description = "Unknown PGN";
+                record.Type = "Unknown";
+                return;
+            }
+
+            record.Type = pgnDefinition.Type;
+
+            var defIndex = MatchDataAgainstLookup(record.PayloadBytes, pgn);
+            if (defIndex != null)
+            {
+                record.Description = ((App)Application.Current).CanboatRoot.PGNs[defIndex.Value].Description;
+                record.PGNListIndex = defIndex;
+            }
+            else if (Globals.PGNListLookup.Contains(pgn))
+            {
+                record.Description = Seatalk1Parser.TryGetEmbeddedSeatalk1Description(record.PayloadBytes) ?? "No pattern match";
+            }
+            else
+            {
+                record.Description = pgnDefinition.Description;
+            }
+        }
         
         internal static List<Nmea2000Record> AssembleFrames(List<Nmea2000Record> records)
         {
@@ -821,47 +962,15 @@ namespace NMEA2000Analyzer
                         if (assembled != null)
                         {
                             assembled.LogSequenceNumber = RowNumber;
-                            byte[] byteArray = assembled.PayloadBytes;
-
-                            int? defIndex = MatchDataAgainstLookup(byteArray, pgn);
-                            if (defIndex != null)
-                            {
-                                assembled.Description = ((App)Application.Current).CanboatRoot.PGNs[defIndex ?? 0].Description;
-                                assembled.PGNListIndex = defIndex;
-                            }
-                            else if (Globals.PGNListLookup.Contains(pgn))
-                            {
-                                assembled.Description = "No pattern match";
-                            }
-                            else
-                            {
-                                assembled.Description = pgnDefinition.Description;
-                            }
+                            RefreshRecordDefinition(assembled);
                             assembledRecords.Add(assembled);
                             RowNumber++;
                         }
                     }
                     else
                     {
-                        byte[] byteArray = record.PayloadBytes;
-
-                        int? defIndex = MatchDataAgainstLookup(byteArray, pgn);
-                        if (defIndex != null)
-                        {
-                            record.Description = ((App)Application.Current).CanboatRoot.PGNs[defIndex ?? 0].Description;
-                            record.PGNListIndex = defIndex;
-                        }
-                        else if (Globals.PGNListLookup.Contains(pgn))
-                        {
-                            record.Description = "No pattern match";
-                        }
-                        else
-                        {
-                            record.Description = pgnDefinition.Description;
-                        }
-
                         record.LogSequenceNumber = RowNumber;
-                        record.Type = pgnDefinition.Type;
+                        RefreshRecordDefinition(record);
                         assembledRecords.Add(record);
                         RowNumber++;
                     }
@@ -1132,11 +1241,91 @@ namespace NMEA2000Analyzer
                 return;
             }
 
-            var window = new AlarmsWindow(entries)
+            var window = new AlarmsWindow(entries, ShowAlarmPacket)
             {
                 Owner = this
             };
             window.Show();
+        }
+
+        private void ShowAlarmPacket(AlarmHistoryEntry entry)
+        {
+            if (_assembledData == null || _assembledData.Count == 0)
+            {
+                return;
+            }
+
+            var record = _assembledData.FirstOrDefault(item => item.LogSequenceNumber == entry.SequenceNumber);
+            if (record == null)
+            {
+                MessageBox.Show("The corresponding packet is no longer available.", "Alarms", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            NavigateToAssembledRecord(record);
+        }
+
+        private void NavigateToAssembledRecord(Nmea2000Record record)
+        {
+            if (_currentPacketView != PacketViewMode.Assembled)
+            {
+                SetPacketView(PacketViewMode.Assembled);
+            }
+
+            EnsureRecordVisible(record);
+
+            Dispatcher.BeginInvoke(
+                new Action(() => SelectAndScrollToRecord(record)),
+                DispatcherPriority.Background);
+        }
+
+        private void SelectAndScrollToRecord(Nmea2000Record record)
+        {
+            DataGrid.UnselectAll();
+            DataGrid.SelectedItem = record;
+            DataGrid.SelectedItems.Add(record);
+
+            if (DataGrid.Columns.Count > 0)
+            {
+                DataGrid.CurrentCell = new DataGridCellInfo(record, DataGrid.Columns[0]);
+            }
+
+            DataGrid.ScrollIntoView(record);
+            DataGrid.Focus();
+            Activate();
+        }
+
+        private void EnsureRecordVisible(Nmea2000Record record)
+        {
+            if (!AreFiltersActive() || IsRecordVisible(record))
+            {
+                return;
+            }
+
+            IncludePGNTextBox.Text = string.Empty;
+            ExcludePGNTextBox.Text = string.Empty;
+            IncludeAddressTextBox.Text = string.Empty;
+            DistinctFilterCheckBox.IsChecked = false;
+            _filterDebounceTimer.Stop();
+            RefreshFilterView();
+        }
+
+        private bool AreFiltersActive()
+        {
+            return !string.IsNullOrWhiteSpace(IncludePGNTextBox.Text) ||
+                !string.IsNullOrWhiteSpace(ExcludePGNTextBox.Text) ||
+                !string.IsNullOrWhiteSpace(IncludeAddressTextBox.Text) ||
+                DistinctFilterCheckBox.IsChecked == true;
+        }
+
+        private bool IsRecordVisible(Nmea2000Record record)
+        {
+            if (DistinctFilterCheckBox.IsChecked == true)
+            {
+                return _dataGridView?.Contains(record) != false;
+            }
+
+            return _visibleRecords == null || _visibleRecords.Contains(record);
         }
 
         private void ShowDeviceGraph(DeviceStatisticsEntry entry)
@@ -1246,6 +1435,7 @@ namespace NMEA2000Analyzer
 
                 entries.Add(new AlarmHistoryEntry
                 {
+                    SequenceNumber = record.LogSequenceNumber,
                     Timestamp = record.Timestamp ?? string.Empty,
                     Source = record.Source ?? string.Empty,
                     Device = record.DeviceInfo ?? string.Empty,
@@ -1377,6 +1567,11 @@ namespace NMEA2000Analyzer
         {
             try
             {
+                if (Seatalk1Parser.TryDecodeEmbeddedSeatalk1(record.PGN, record.PayloadBytes) is { } seatalk1Decode)
+                {
+                    return seatalk1Decode;
+                }
+
                 if (record.PGNListIndex.HasValue)
                 {
                     return DecodePgnData(record.PayloadBytes, ((App)Application.Current).CanboatRoot.PGNs[record.PGNListIndex.Value]);
@@ -2183,30 +2378,18 @@ namespace NMEA2000Analyzer
 
         private void DataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            RefreshSelectedRecordDecode();
+        }
+
+        private void RefreshSelectedRecordDecode()
+        {
             if (DataGrid.SelectedItem is Nmea2000Record selectedRecord)
             {
                 try
                 {
-                    // Convert the Data string to a byte array
-                    var dataBytes = selectedRecord.PayloadBytes;
+                    var decodedJson = TryDecodeRecord(selectedRecord) ?? new JsonObject();
 
-                    JsonObject decodedJson;
-                    
-                    // Decode the PGN data
-                    if (selectedRecord.PGNListIndex.HasValue)
-                    {
-                        decodedJson = DecodePgnData(dataBytes, ((App)Application.Current).CanboatRoot.PGNs[selectedRecord.PGNListIndex ?? 0]);
-                    }
-                    else if (selectedRecord.Description == "No pattern match")
-                    {
-                        decodedJson = new JsonObject();
-                    }
-                    else
-                    {
-                        decodedJson = DecodePgnData(dataBytes, ((App)Application.Current).CanboatRoot.PGNs.FirstOrDefault(q => q.PGN.ToString() == selectedRecord.PGN));
-                    }
-
-                    JsonViewerTextBox.Text = FormatDecodedYaml(decodedJson);
+                    JsonViewerTextBox.Text = FormatSelectedRecordYaml(selectedRecord, decodedJson);
                 }
                 catch (Exception ex)
                 {
@@ -2219,6 +2402,75 @@ namespace NMEA2000Analyzer
                     JsonViewerTextBox.Text = $"Failed to decode PGN data:\n{ex.Message}\n({fileName}:{lineNumber})";
                 }
             }
+        }
+
+        private static string FormatSelectedRecordYaml(Nmea2000Record record, JsonObject decodedJson)
+        {
+            var selectedRecordJson = new JsonObject
+            {
+                ["Packet"] = new JsonObject
+                {
+                    ["Seq"] = record.LogSequenceNumber,
+                    ["Timestamp"] = record.Timestamp ?? string.Empty,
+                    ["PGN"] = record.PGN ?? string.Empty,
+                    ["Description"] = record.Description ?? string.Empty,
+                    ["Type"] = record.Type ?? string.Empty,
+                    ["Priority"] = record.Priority ?? string.Empty,
+                    ["Source"] = record.Source ?? string.Empty,
+                    ["Device"] = record.DeviceInfo ?? string.Empty,
+                    ["Destination"] = record.DestinationDisplay,
+                    ["Raw"] = record.Data ?? string.Empty,
+                    ["ASCII"] = record.AsciiData
+                }
+            };
+
+            var summary = BuildSelectedRecordSummary(record, decodedJson);
+            if (!string.IsNullOrWhiteSpace(summary))
+            {
+                selectedRecordJson["Summary"] = summary;
+            }
+
+            selectedRecordJson["Decoded"] = BuildSelectedRecordDecodedJson(decodedJson);
+            return FormatDecodedYaml(selectedRecordJson);
+        }
+
+        private static JsonObject BuildSelectedRecordDecodedJson(JsonObject decodedJson)
+        {
+            var decodedClone = decodedJson.DeepClone() as JsonObject ?? new JsonObject();
+            decodedClone.Remove("PGN");
+            decodedClone.Remove("Description");
+            decodedClone.Remove("Type");
+            return decodedClone;
+        }
+
+        private static string BuildSelectedRecordSummary(Nmea2000Record record, JsonObject decodedJson)
+        {
+            var fields = ExtractDecodedFields(decodedJson);
+
+            return record.PGN switch
+            {
+                "126988" => BuildAlertValueSummary(fields),
+                "126983" => JoinNonEmpty(" | ",
+                    BuildAlertLabel(fields, new Dictionary<string, string>(StringComparer.Ordinal)),
+                    BuildAlarmDetails(record, fields)),
+                _ => string.Empty
+            };
+        }
+
+        private static string BuildAlertValueSummary(IReadOnlyDictionary<string, string> fields)
+        {
+            var alert = JoinNonEmpty(" / ",
+                GetField(fields, "Alert Type"),
+                GetField(fields, "Alert Category"),
+                JoinNonEmpty(".",
+                    GetField(fields, "Alert System"),
+                    GetField(fields, "Alert Sub-System"),
+                    GetField(fields, "Alert ID")));
+            var value = JoinNonEmpty(" = ",
+                ValueWithLabel("Parameter", GetField(fields, "Value Parameter Number")),
+                GetField(fields, "Value Data"));
+
+            return JoinNonEmpty(" | ", alert, value);
         }
 
         private static string FormatDecodedYaml(JsonObject? decodedJson)
@@ -2273,12 +2525,13 @@ namespace NMEA2000Analyzer
                 return;
             }
 
-            if (TryFlattenFieldArray(jsonArray, out var flattenedLines))
+            if (IsSinglePropertyObjectArray(jsonArray))
             {
                 builder.AppendLine($"{indent}{key}:");
-                foreach (var line in flattenedLines)
+                foreach (var item in jsonArray.OfType<JsonObject>())
                 {
-                    builder.AppendLine($"{indent}  {line}");
+                    var property = item.First();
+                    AppendYamlProperty(builder, property.Key, property.Value, indentLevel + 1);
                 }
                 return;
             }
@@ -2326,20 +2579,14 @@ namespace NMEA2000Analyzer
             }
         }
 
-        private static bool TryFlattenFieldArray(JsonArray jsonArray, out List<string> flattenedLines)
+        private static bool IsSinglePropertyObjectArray(JsonArray jsonArray)
         {
-            flattenedLines = new List<string>();
-
             foreach (var item in jsonArray)
             {
                 if (item is not JsonObject jsonObject || jsonObject.Count != 1)
                 {
-                    flattenedLines.Clear();
                     return false;
                 }
-
-                var property = jsonObject.First();
-                flattenedLines.Add($"{property.Key}: {FormatYamlNodeInline(property.Value)}");
             }
 
             return true;
@@ -2468,21 +2715,33 @@ namespace NMEA2000Analyzer
         {
             foreach (var record in data)
             {
-                Globals.Devices.TryGetValue(Convert.ToByte(record.Source), out var result);
-                if (result != null)
+                if (!byte.TryParse(record.Source, CultureInfo.InvariantCulture, out var source) ||
+                    !Globals.Devices.TryGetValue(source, out var result))
                 {
-                    // Raymarine product codes are not really informative, use ModelVersion instead
-                    if (!string.IsNullOrWhiteSpace(result.ModelID) && Regex.IsMatch(result.ModelID, @"^[A-Z]\d{5}$"))
-                    {
-                        record.DeviceInfo = result.ModelVersion;
-                    }
-                    else
-                    {
-                        record.DeviceInfo = result.ModelID;
-                    }
+                    continue;
                 }
+
+                record.DeviceInfo = GetDeviceDisplayName(result);
             }
         }
+
+        private static string? GetDeviceDisplayName(Device device)
+        {
+            // Raymarine product codes are not really informative, use ModelVersion instead.
+            if (!string.IsNullOrWhiteSpace(device.ModelID) && Regex.IsMatch(device.ModelID, @"^[A-Z]\d{5}$"))
+            {
+                return FirstNonEmpty(device.ModelVersion ?? string.Empty, device.ModelID);
+            }
+
+            var addressClaimName = JoinNonEmpty(" ", device.MfgCode ?? string.Empty, device.DeviceFunction ?? string.Empty);
+            return FirstNonEmpty(
+                device.ModelID ?? string.Empty,
+                device.ModelVersion ?? string.Empty,
+                addressClaimName,
+                device.DeviceClass ?? string.Empty,
+                device.MfgCode ?? string.Empty);
+        }
+
         private void CopyDataMenuItem_Click(object sender, RoutedEventArgs e)
         {
             // Find the DataGrid that triggered the context menu

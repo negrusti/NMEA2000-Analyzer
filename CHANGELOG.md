@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.3 - 2026-04-17
+
+- Added Actisense EBL binary log parsing and Actisense serial capture support.
+- Added a reload-definitions action and MCP hook so updated local/custom definitions can be applied without restarting.
+- Expanded proprietary decode coverage, including Seatalk1 embedded payloads, additional local PGN definitions, and Victron VREG register enrichment from public Victron documentation.
+- Added `victron.json` and Victron register decoding for PGN `61184`, including device state/mode, AC current limits, remote-control registers, and consumed Ah.
+- Improved selected-packet presentation by removing duplicate PGN/description/type fields from decoded details and rendering nested decoded subdata as YAML instead of compact JSON strings.
+- Improved alert value repeated-field decoding, including `STRING_LAU` alert values such as on/off state payloads.
+
 ## 1.4.2 - 2026-04-09
 
 - Fixed signed 64-bit numeric decoding, which corrected fields such as `Longitude` in `129029`.
