@@ -1141,7 +1141,7 @@ namespace NMEA2000Analyzer
                     return DecodeIsoName(rawValue);
 
                 case "LOOKUP":
-                    return Lookup(field.LookupEnumeration, (int)rawValue);
+                    return DecodeLookupValue(rawValue, field);
 
                 case "INDIRECT_LOOKUP":
                     return DecodeIndirectLookupValue(rawValue, field, pgnData, pgnDefinition);
@@ -1168,6 +1168,41 @@ namespace NMEA2000Analyzer
             }
             return null;
 
+        }
+
+        private static string DecodeLookupValue(ulong rawValue, Canboat.Field field)
+        {
+            var decoded = Lookup(field.LookupEnumeration, (int)rawValue);
+            if (!decoded.StartsWith("Unknown", StringComparison.Ordinal))
+            {
+                return decoded;
+            }
+
+            return IsNotAvailableLookupValue(rawValue, field)
+                ? "Not available"
+                : decoded;
+        }
+
+        private static bool IsNotAvailableLookupValue(ulong rawValue, Canboat.Field field)
+        {
+            if (field.BitLength is <= 0 or >= 64)
+            {
+                return false;
+            }
+
+            var allBitsSet = (1UL << field.BitLength) - 1;
+            if (rawValue == allBitsSet)
+            {
+                return true;
+            }
+
+            if (!field.RangeMax.HasValue)
+            {
+                return false;
+            }
+
+            var rangeMax = (ulong)field.RangeMax.Value;
+            return rawValue >= rangeMax;
         }
 
         private static JsonObject DecodeIsoName(ulong rawValue)

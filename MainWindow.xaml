@@ -117,7 +117,8 @@
               CanUserResizeRows="False"
               SelectionChanged="DataGrid_SelectionChanged">
                 <DataGrid.Resources>
-                    <ContextMenu x:Key="rowContextMenu">
+                    <ContextMenu x:Key="rowContextMenu"
+                                 Opened="RowContextMenu_Opened">
                         <MenuItem Header="Include PGN"
                                             Click="IncludePgnMenuItem_Click"
                                             CommandParameter="{Binding}" />
@@ -140,6 +141,8 @@
                     <Style TargetType="{x:Type DataGridRow}">
                         <Setter Property="ContextMenu" Value="{StaticResource rowContextMenu}"/>
                         <Setter Property="Background" Value="{Binding HighlightBackground}"/>
+                        <EventSetter Event="PreviewMouseRightButtonDown"
+                                     Handler="DataGridRow_PreviewMouseRightButtonDown" />
                     </Style>
                 </DataGrid.RowStyle>
                 <DataGrid.Columns>

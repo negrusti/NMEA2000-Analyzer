@@ -25,15 +25,18 @@ namespace NMEA2000Analyzer
         public double TotalPeakBpsValue { get; }
         public string TotalAvgBps { get; }
         public string TotalPeakBps { get; }
+        public int DeviceCount { get; }
 
         public Devices(
             IEnumerable<DeviceStatisticsEntry> statistics,
             Action<DeviceStatisticsEntry>? graphRequested = null,
-            Action<DeviceStatisticsEntry>? supportedPgnsRequested = null)
+            Action<DeviceStatisticsEntry>? supportedPgnsRequested = null,
+            string? titleSuffix = null)
         {
             _graphRequested = graphRequested;
             _supportedPgnsRequested = supportedPgnsRequested;
             var entries = statistics.ToList();
+            DeviceCount = entries.Count;
             TotalUnassembledCount = entries.Sum(device => device.UnassembledCount);
             TotalAssembledCount = entries.Sum(device => device.AssembledCount);
             TotalAvgBpsValue = entries.Sum(device => device.AvgBpsValue);
@@ -42,6 +45,11 @@ namespace NMEA2000Analyzer
             TotalPeakBps = FormatBps(TotalPeakBpsValue);
 
             InitializeComponent();
+            if (!string.IsNullOrWhiteSpace(titleSuffix))
+            {
+                Title = $"Devices - {titleSuffix}";
+            }
+
             DataContext = this;
             BindableDevices.Clear();
             foreach (var device in entries)

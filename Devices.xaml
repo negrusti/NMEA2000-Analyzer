@@ -70,6 +70,7 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
                 <TextBlock Grid.Column="0"
@@ -78,18 +79,22 @@
                            VerticalAlignment="Center" />
                 <TextBlock Grid.Column="1"
                            Margin="16,0,0,0"
-                           Text="{Binding TotalUnassembledCount, StringFormat=Raw Packets: {0}}"
+                           Text="{Binding DeviceCount, StringFormat=Devices: {0}}"
                            VerticalAlignment="Center" />
                 <TextBlock Grid.Column="2"
                            Margin="16,0,0,0"
-                           Text="{Binding TotalAssembledCount, StringFormat=Assembled Packets: {0}}"
+                           Text="{Binding TotalUnassembledCount, StringFormat=Raw Packets: {0}}"
                            VerticalAlignment="Center" />
                 <TextBlock Grid.Column="3"
+                           Margin="16,0,0,0"
+                           Text="{Binding TotalAssembledCount, StringFormat=Assembled Packets: {0}}"
+                           VerticalAlignment="Center" />
+                <TextBlock Grid.Column="4"
                            Margin="16,0,0,0"
                            Text="{Binding TotalAvgBps, StringFormat=Avg Bps: {0}}"
                            Foreground="{Binding TotalAvgBpsValue, Converter={StaticResource BpsHighlightConverter}}"
                            VerticalAlignment="Center" />
-                <TextBlock Grid.Column="4"
+                <TextBlock Grid.Column="5"
                            Margin="16,0,0,0"
                            Text="{Binding TotalPeakBps, StringFormat=Peak Bps: {0}}"
                            Foreground="{Binding TotalPeakBpsValue, Converter={StaticResource BpsHighlightConverter}}"

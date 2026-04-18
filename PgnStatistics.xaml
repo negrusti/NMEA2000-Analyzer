@@ -16,6 +16,8 @@
           VerticalGridLinesBrush="#F0F0F0">
             <DataGrid.RowStyle>
                 <Style TargetType="DataGridRow">
+                    <EventSetter Event="PreviewMouseRightButtonDown"
+                                 Handler="PgnRow_PreviewMouseRightButtonDown" />
                     <EventSetter Event="MouseDoubleClick"
                                  Handler="PgnRow_MouseDoubleClick" />
                 </Style>
@@ -39,9 +41,22 @@
                 BorderThickness="0,1,0,0"
                 Background="#FCFCFC"
                 Padding="8,6">
-            <TextBlock Foreground="#666666"
-                       Text="Double-click a row to open a packet graph. Right-click selected rows to include or exclude PGNs."
-                       VerticalAlignment="Center" />
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0"
+                           Foreground="#666666"
+                           Text="Double-click a row to open a packet graph. Right-click selected rows to include or exclude PGNs."
+                           VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1"
+                           Margin="16,0,0,0"
+                           Foreground="#666666"
+                           Text="{Binding PgnCount, StringFormat=PGNs: {0}}"
+                           VerticalAlignment="Center" />
+            </Grid>
         </Border>
     </Grid>
 </Window>

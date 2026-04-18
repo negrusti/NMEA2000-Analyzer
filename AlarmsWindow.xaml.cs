@@ -11,10 +11,16 @@ namespace NMEA2000Analyzer
 
         public AlarmsWindow(
             IEnumerable<AlarmHistoryEntry> entries,
-            Action<AlarmHistoryEntry>? packetRequested = null)
+            Action<AlarmHistoryEntry>? packetRequested = null,
+            string? titleSuffix = null)
         {
             _packetRequested = packetRequested;
             InitializeComponent();
+            if (!string.IsNullOrWhiteSpace(titleSuffix))
+            {
+                Title = $"Alarms - {titleSuffix}";
+            }
+
             AlarmsDataGrid.ItemsSource = entries;
         }
 

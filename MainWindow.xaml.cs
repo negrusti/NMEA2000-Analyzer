@@ -10,6 +10,7 @@ using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Input;
 using System.Windows.Threading;
 using System.Windows.Media;
 using static NMEA2000Analyzer.PgnDefinitions;
@@ -212,6 +213,19 @@ namespace NMEA2000Analyzer
             Title = string.IsNullOrWhiteSpace(formatLabel)
                 ? $"NMEA2000 Analyzer - {name}"
                 : $"NMEA2000 Analyzer - {name} ({formatLabel})";
+        }
+
+        private static string? GetActiveWindowTitleSuffix()
+        {
+            var session = ActiveDataSessionService.GetCurrent();
+            if (session == null || string.IsNullOrWhiteSpace(session.Name))
+            {
+                return null;
+            }
+
+            return string.IsNullOrWhiteSpace(session.Format)
+                ? session.Name
+                : $"{session.Name} ({session.Format})";
         }
 
 
@@ -1135,7 +1149,7 @@ namespace NMEA2000Analyzer
                 .ToList();
 
             // Open the statistics window
-            var statsWindow = new PgnStatistics(pgnCounts, ShowPgnGraph)
+            var statsWindow = new PgnStatistics(pgnCounts, ShowPgnGraph, GetActiveWindowTitleSuffix())
             {
                 Owner = this
             };
@@ -1222,7 +1236,10 @@ namespace NMEA2000Analyzer
                 .ToList();
 
               // Open the statistics window
-                var devicesWindow = new Devices(statistics, ShowDeviceGraph, ShowSupportedPgns);
+                var devicesWindow = new Devices(statistics, ShowDeviceGraph, ShowSupportedPgns, GetActiveWindowTitleSuffix())
+                {
+                    Owner = this
+                };
                 devicesWindow.Show();
             }
 
@@ -1241,7 +1258,7 @@ namespace NMEA2000Analyzer
                 return;
             }
 
-            var window = new AlarmsWindow(entries, ShowAlarmPacket)
+            var window = new AlarmsWindow(entries, ShowAlarmPacket, GetActiveWindowTitleSuffix())
             {
                 Owner = this
             };
@@ -2272,10 +2289,15 @@ namespace NMEA2000Analyzer
         {
             if (sender is MenuItem menuItem && menuItem.CommandParameter is Nmea2000Record selectedRow)
             {
-                // Set the Include Filter to the selected PGN
-                IncludePGNTextBox.Text = selectedRow.PGN;
+                var pgns = GetRecordsForContextAction(selectedRow)
+                    .Select(record => record.PGN)
+                    .Where(pgn => !string.IsNullOrWhiteSpace(pgn))
+                    .Distinct(StringComparer.Ordinal)
+                    .OrderBy(pgn => int.TryParse(pgn, out var value) ? value : int.MaxValue)
+                    .ThenBy(pgn => pgn, StringComparer.Ordinal);
 
-                // Apply the filter
+                IncludePGNTextBox.Text = string.Join(", ", pgns);
+
                 RefreshFilterView();
             }
         }
@@ -2284,16 +2306,26 @@ namespace NMEA2000Analyzer
         {
             if (sender is MenuItem menuItem && menuItem.CommandParameter is Nmea2000Record selectedRow)
             {
-                // Set the Include Filter to the selected PGN
-                IncludeAddressTextBox.Text = selectedRow.Source;
+                var addresses = GetRecordsForContextAction(selectedRow)
+                    .Select(record => record.Source)
+                    .Where(address => !string.IsNullOrWhiteSpace(address))
+                    .Distinct(StringComparer.Ordinal)
+                    .OrderBy(address => int.TryParse(address, out var value) ? value : int.MaxValue)
+                    .ThenBy(address => address, StringComparer.Ordinal);
 
-                // Apply the filter
+                IncludeAddressTextBox.Text = string.Join(", ", addresses);
+
                 RefreshFilterView();
             }
         }
 
         private void ReferencePgnMenuItem_Click(object sender, RoutedEventArgs e)
         {
+            if (DataGrid.SelectedItems.Count != 1)
+            {
+                return;
+            }
+
             if (sender is MenuItem menuItem && menuItem.CommandParameter is Nmea2000Record selectedRow)
             {
                 try
@@ -2317,6 +2349,11 @@ namespace NMEA2000Analyzer
 
         private void GoogleDeviceMenuItem_Click(object sender, RoutedEventArgs e)
         {
+            if (DataGrid.SelectedItems.Count != 1)
+            {
+                return;
+            }
+
             if (sender is MenuItem menuItem && menuItem.CommandParameter is Nmea2000Record selectedRow)
             {
                 try
@@ -2336,6 +2373,40 @@ namespace NMEA2000Analyzer
                     MessageBox.Show($"Failed to open the browser: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
+        }
+
+        private void RowContextMenu_Opened(object sender, RoutedEventArgs e)
+        {
+            if (sender is not ContextMenu contextMenu)
+            {
+                return;
+            }
+
+            var singleSelection = DataGrid.SelectedItems.Count == 1;
+            foreach (var item in contextMenu.Items.OfType<MenuItem>())
+            {
+                if (item.Header is string header &&
+                    (header == "Open PGN Reference" || header == "Google Device"))
+                {
+                    item.IsEnabled = singleSelection;
+                }
+            }
+        }
+
+        private void DataGridRow_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is not DataGridRow row)
+            {
+                return;
+            }
+
+            if (!row.IsSelected)
+            {
+                DataGrid.SelectedItems.Clear();
+                row.IsSelected = true;
+            }
+
+            row.Focus();
         }
 
         // Timestamp range in the footer bar 
@@ -2770,6 +2841,11 @@ namespace NMEA2000Analyzer
         }
 
         private IEnumerable<Nmea2000Record> GetRecordsForCsvExport(Nmea2000Record clickedRecord)
+        {
+            return GetRecordsForContextAction(clickedRecord);
+        }
+
+        private IEnumerable<Nmea2000Record> GetRecordsForContextAction(Nmea2000Record clickedRecord)
         {
             var selectedRecords = DataGrid.SelectedItems
                 .OfType<Nmea2000Record>()

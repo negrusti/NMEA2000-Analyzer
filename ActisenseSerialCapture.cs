@@ -7,10 +7,29 @@ namespace NMEA2000Analyzer
 {
     internal static class ActisenseSerialCapture
     {
-        // Reverse engineered from Actisense NMEA Reader and documented in canboat's
-        // actisense-serial.c. This clears the NGT transmit PGN list so the device
-        // starts sending all PGNs, and should be resent periodically.
-        private static readonly byte[] StartupSequence = { 0x11, 0x02, 0x00 };
+        // Captured from Actisense NMEA Reader startup traffic to an NGT-1.
+        private static readonly byte[] StartupControlCommands =
+        {
+            0x11, 0x42, 0x10, 0x41, 0x43, 0x44, 0x45,
+            0x13, 0x12, 0x16, 0x40, 0x4E, 0x4F, 0x4D
+        };
+
+        private static readonly TimeSpan[] StartupControlDelays =
+        {
+            TimeSpan.FromMilliseconds(501),
+            TimeSpan.FromMilliseconds(494),
+            TimeSpan.FromMilliseconds(249),
+            TimeSpan.FromMilliseconds(251),
+            TimeSpan.FromMilliseconds(203),
+            TimeSpan.FromMilliseconds(166),
+            TimeSpan.FromMilliseconds(1006),
+            TimeSpan.FromMilliseconds(311),
+            TimeSpan.FromMilliseconds(126),
+            TimeSpan.FromMilliseconds(249),
+            TimeSpan.FromMilliseconds(501),
+            TimeSpan.FromMilliseconds(376),
+            TimeSpan.FromMilliseconds(498)
+        };
 
         private const byte Dle = 0x10;
         private const byte Stx = 0x02;
@@ -18,20 +37,22 @@ namespace NMEA2000Analyzer
         private const byte N2kMsgReceived = 0x93;
         private const byte N2kMsgSend = 0x94;
         private const byte NgtMsgSend = 0xA1;
+        private const int SerialReadBufferSize = 1024 * 1024;
+        private const int SerialReadChunkSize = 4096;
 
         private const uint IsoRequestPgn = 59904;
         private const uint ProductInformationPgn = 126996;
         private const byte BroadcastAddress = 255;
         private const byte RequestPriority = 6;
-        private static readonly TimeSpan StartupKeepAliveInterval = TimeSpan.FromSeconds(20);
 
         private static readonly object SyncRoot = new();
+        private static readonly object WriteSyncRoot = new();
         private static string? _activePortName;
 
         private static SerialPort? _port;
         private static CancellationTokenSource? _captureCancellation;
         private static Task? _readerTask;
-        private static Timer? _startupTimer;
+        private static Task? _startupTask;
         private static List<Nmea2000Record>? _capture;
         private static int _capturedCount;
 
@@ -90,9 +111,8 @@ namespace NMEA2000Analyzer
                 _port.Open();
                 _activePortName = portName;
 
-                SendStartupSequence();
-                _startupTimer = new Timer(_ => TrySendStartupSequence(), null, StartupKeepAliveInterval, StartupKeepAliveInterval);
                 _readerTask = Task.Run(() => ReadLoop(_captureCancellation.Token), _captureCancellation.Token);
+                _startupTask = Task.Run(() => SendStartupControlSequence(_captureCancellation.Token), _captureCancellation.Token);
 
                 return true;
             }
@@ -105,9 +125,6 @@ namespace NMEA2000Analyzer
 
         public static void StopCapture()
         {
-            _startupTimer?.Dispose();
-            _startupTimer = null;
-
             if (_captureCancellation != null)
             {
                 try
@@ -127,7 +144,16 @@ namespace NMEA2000Analyzer
             {
             }
 
+            try
+            {
+                _startupTask?.Wait(TimeSpan.FromSeconds(1));
+            }
+            catch
+            {
+            }
+
             _readerTask = null;
+            _startupTask = null;
             _activePortName = null;
 
             if (_port != null)
@@ -199,6 +225,7 @@ namespace NMEA2000Analyzer
             return new SerialPort(portName, baudRate, Parity.None, 8, StopBits.One)
             {
                 Handshake = Handshake.None,
+                ReadBufferSize = SerialReadBufferSize,
                 ReadTimeout = 500,
                 WriteTimeout = 1000,
                 DtrEnable = false,
@@ -206,20 +233,27 @@ namespace NMEA2000Analyzer
             };
         }
 
-        private static void TrySendStartupSequence()
+        private static void SendStartupControlSequence(CancellationToken cancellationToken)
         {
             try
             {
-                SendStartupSequence();
+                for (var i = 0; i < StartupControlCommands.Length; i++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    WriteMessage(NgtMsgSend, new[] { StartupControlCommands[i] });
+
+                    if (i < StartupControlDelays.Length)
+                    {
+                        Task.Delay(StartupControlDelays[i], cancellationToken).Wait(cancellationToken);
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
             }
             catch
             {
             }
-        }
-
-        private static void SendStartupSequence()
-        {
-            WriteMessage(NgtMsgSend, StartupSequence);
         }
 
         private static void WriteMessage(byte command, IReadOnlyList<byte> payload)
@@ -257,7 +291,10 @@ namespace NMEA2000Analyzer
             frame.Add(Dle);
             frame.Add(Etx);
 
-            _port.Write(frame.ToArray(), 0, frame.Count);
+            lock (WriteSyncRoot)
+            {
+                _port.Write(frame.ToArray(), 0, frame.Count);
+            }
         }
 
         private static void AppendEscaped(List<byte> frame, byte value)
@@ -281,13 +318,14 @@ namespace NMEA2000Analyzer
             bool awaitingFrameStart = true;
             bool inFrame = false;
             bool escapePending = false;
+            var readBuffer = new byte[SerialReadChunkSize];
 
             while (!cancellationToken.IsCancellationRequested)
             {
-                int nextByte;
+                int bytesRead;
                 try
                 {
-                    nextByte = _port.ReadByte();
+                    bytesRead = _port.Read(readBuffer, 0, readBuffer.Length);
                 }
                 catch (TimeoutException)
                 {
@@ -298,51 +336,67 @@ namespace NMEA2000Analyzer
                     break;
                 }
 
-                if (nextByte < 0)
+                if (bytesRead <= 0)
                 {
                     continue;
                 }
 
-                var current = (byte)nextByte;
-
-                if (awaitingFrameStart)
+                for (var i = 0; i < bytesRead; i++)
                 {
-                    if (current == Dle)
-                    {
-                        escapePending = true;
-                        awaitingFrameStart = false;
-                    }
+                    var current = readBuffer[i];
 
-                    continue;
-                }
-
-                if (!inFrame)
-                {
-                    if (escapePending && current == Stx)
+                    if (awaitingFrameStart)
                     {
-                        messageBuffer.Clear();
-                        inFrame = true;
-                        escapePending = false;
+                        if (current == Dle)
+                        {
+                            escapePending = true;
+                            awaitingFrameStart = false;
+                        }
+
                         continue;
                     }
 
-                    awaitingFrameStart = current != Dle;
-                    escapePending = current == Dle;
-                    continue;
-                }
-
-                if (escapePending)
-                {
-                    if (current == Dle)
+                    if (!inFrame)
                     {
-                        messageBuffer.Add(Dle);
-                        escapePending = false;
+                        if (escapePending && current == Stx)
+                        {
+                            messageBuffer.Clear();
+                            inFrame = true;
+                            escapePending = false;
+                            continue;
+                        }
+
+                        awaitingFrameStart = current != Dle;
+                        escapePending = current == Dle;
                         continue;
                     }
 
-                    if (current == Etx)
+                    if (escapePending)
                     {
-                        ProcessIncomingMessage(messageBuffer);
+                        if (current == Dle)
+                        {
+                            messageBuffer.Add(Dle);
+                            escapePending = false;
+                            continue;
+                        }
+
+                        if (current == Etx)
+                        {
+                            ProcessIncomingMessage(messageBuffer);
+                            messageBuffer.Clear();
+                            inFrame = false;
+                            awaitingFrameStart = true;
+                            escapePending = false;
+                            continue;
+                        }
+
+                        if (current == Stx)
+                        {
+                            messageBuffer.Clear();
+                            escapePending = false;
+                            continue;
+                        }
+
                         messageBuffer.Clear();
                         inFrame = false;
                         awaitingFrameStart = true;
@@ -350,27 +404,14 @@ namespace NMEA2000Analyzer
                         continue;
                     }
 
-                    if (current == Stx)
+                    if (current == Dle)
                     {
-                        messageBuffer.Clear();
-                        escapePending = false;
+                        escapePending = true;
                         continue;
                     }
 
-                    messageBuffer.Clear();
-                    inFrame = false;
-                    awaitingFrameStart = true;
-                    escapePending = false;
-                    continue;
+                    messageBuffer.Add(current);
                 }
-
-                if (current == Dle)
-                {
-                    escapePending = true;
-                    continue;
-                }
-
-                messageBuffer.Add(current);
             }
         }
 
@@ -440,7 +481,7 @@ namespace NMEA2000Analyzer
                 Destination = destination.ToString(CultureInfo.InvariantCulture),
                 PGN = pgn.ToString(CultureInfo.InvariantCulture),
                 Priority = priority.ToString(CultureInfo.InvariantCulture),
-                Data = string.Join(" ", data.Select(value => $"0x{value:X2}"))
+                PayloadBytes = data
             };
 
             lock (SyncRoot)
@@ -461,7 +502,7 @@ namespace NMEA2000Analyzer
                 port.WriteTimeout = 500;
                 port.Open();
 
-                var frame = BuildMessageFrame(NgtMsgSend, StartupSequence);
+                var frame = BuildMessageFrame(NgtMsgSend, new[] { StartupControlCommands[0] });
                 port.Write(frame, 0, frame.Length);
 
                 var deadline = DateTime.UtcNow.AddSeconds(2);

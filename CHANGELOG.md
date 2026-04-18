@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.4 - 2026-04-19
+
+- Added active log filename suffixes to Devices, PGNs, and Alarms window titles.
+- Added PGN and device counts to the statistics totals footers.
+- Fixed right-click handling so multi-row selections are preserved, multi-row-only filters include values from all selected rows, and single-row reference actions are disabled for multi-selection.
+- Improved Actisense NGT-1 capture throughput by increasing the serial buffer, reading in chunks, and deferring decoded packet formatting off the read loop.
+- Changed Actisense NGT-1 startup control traffic to send the captured one-time Actisense control burst instead of periodically resending the old startup frame.
+- Improved unavailable lookup decoding for fields that use all-bits-set or range-limit sentinel values.
+
 ## 1.4.3 - 2026-04-17
 
 - Added Actisense EBL binary log parsing and Actisense serial capture support.

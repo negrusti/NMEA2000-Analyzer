@@ -9,11 +9,22 @@ namespace NMEA2000Analyzer
     public partial class PgnStatistics : Window
     {
         private readonly Action<PgnStatisticsEntry>? _graphRequested;
+        public int PgnCount { get; }
 
-        public PgnStatistics(List<PgnStatisticsEntry> statistics, Action<PgnStatisticsEntry>? graphRequested = null)
+        public PgnStatistics(
+            List<PgnStatisticsEntry> statistics,
+            Action<PgnStatisticsEntry>? graphRequested = null,
+            string? titleSuffix = null)
         {
             _graphRequested = graphRequested;
+            PgnCount = statistics.Count;
             InitializeComponent();
+            if (!string.IsNullOrWhiteSpace(titleSuffix))
+            {
+                Title = $"PGN Statistics - {titleSuffix}";
+            }
+
+            DataContext = this;
             PgnStatisticsDataGrid.ItemsSource = statistics;
         }
 
@@ -58,6 +69,22 @@ namespace NMEA2000Analyzer
             row.IsSelected = true;
             row.Focus();
             _graphRequested?.Invoke(entry);
+        }
+
+        private void PgnRow_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is not DataGridRow row)
+            {
+                return;
+            }
+
+            if (!row.IsSelected)
+            {
+                PgnStatisticsDataGrid.SelectedItems.Clear();
+                row.IsSelected = true;
+            }
+
+            row.Focus();
         }
     }
 
