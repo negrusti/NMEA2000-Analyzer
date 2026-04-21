@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.5 - 2026-04-21
+
+- Fixed raw 29-bit CAN PGN extraction across candump, YDWG, PCAN-View, and Yacht Devices imports so data-page PGNs such as `126208` are no longer misclassified.
+- Corrected PDU1 destination stripping for data-page PGNs when deriving PGNs from CAN identifiers.
+
 ## 1.4.4 - 2026-04-19
 
 - Added active log filename suffixes to Devices, PGNs, and Alarms window titles.

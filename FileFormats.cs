@@ -476,9 +476,15 @@ namespace NMEA2000Analyzer
                         {
                             // 29-bit identifier
                             priority = (int)((messageId >> 26) & 0x07);
-                            pgn = (messageId >> 8) & 0x1FFFF; // Extract PGN (middle 18 bits)
+                            pgn = (messageId >> 8) & 0x3FFFF; // Extract PGN (18 bits, including data page)
                             destination = (int)((messageId >> 8) & 0xFF);
                             source = (int)(messageId & 0xFF);
+
+                            var pf = (int)((pgn >> 8) & 0xFF);
+                            if (pf < 0xF0)
+                            {
+                                pgn &= 0x3FF00;
+                            }
                         }
 
                         if (pgn == 126996)
@@ -613,13 +619,14 @@ namespace NMEA2000Analyzer
         {
             var priority = (canId >> 26) & 0x7;
             var source = canId & 0xFF;
-            var pgn = (canId >> 8) & 0x1FFFF;
+            var pgn = (canId >> 8) & 0x3FFFF;
             var destination = 255;
 
-            if (pgn < 0xF000)
+            var pf = (pgn >> 8) & 0xFF;
+            if (pf < 0xF0)
             {
                 destination = pgn & 0xFF;
-                pgn &= 0x1FF00;
+                pgn &= 0x3FF00;
             }
 
             return CreateRecord(
