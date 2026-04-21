@@ -2136,7 +2136,8 @@ namespace NMEA2000Analyzer
             var source = int.TryParse(record.Source, out var parsedSource) ? parsedSource : 0;
             var destination = int.TryParse(record.Destination, out var parsedDestination) ? parsedDestination : 255;
 
-            if (pgn < 0xF000)
+            var pf = (pgn >> 8) & 0xFF;
+            if (pf < 0xF0)
             {
                 pgn |= destination & 0xFF;
             }

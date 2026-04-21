@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.6 - 2026-04-21
+
+- Fixed candump export CAN-ID reconstruction for data-page PGNs by using the PF byte to distinguish PDU1 from PDU2, matching the corrected import logic.
+
 ## 1.4.5 - 2026-04-21
 
 - Fixed raw 29-bit CAN PGN extraction across candump, YDWG, PCAN-View, and Yacht Devices imports so data-page PGNs such as `126208` are no longer misclassified.
