@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.7 - 2026-04-29
+
+- Added a `Data -> Anomalies` window that scans assembled `127250` heading PGNs for adjacent jumps greater than `10` degrees and lets you jump back to the flagged packet by double-clicking.
+- Added saved candump exports to the recent-files list immediately after a successful save.
+
 ## 1.4.6 - 2026-04-21
 
 - Fixed candump export CAN-ID reconstruction for data-page PGNs by using the PF byte to distinguish PDU1 from PDU2, matching the corrected import logic.

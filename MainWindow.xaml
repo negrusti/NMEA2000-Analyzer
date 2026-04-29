@@ -33,6 +33,7 @@
                 <MenuItem Header="PGNs" Click="PgnStatisticsMenuItem_Click" />
                 <MenuItem Header="Devices" Click="DevicesMenuItem_Click" />
                 <MenuItem Header="Alarms" Click="AlarmsMenuItem_Click" />
+                <MenuItem Header="Anomalies" Click="AnomaliesMenuItem_Click" />
             </MenuItem>
             <MenuItem Header="View">
                 <MenuItem x:Name="AssembledViewMenuItem"

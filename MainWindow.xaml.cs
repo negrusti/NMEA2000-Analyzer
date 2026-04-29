@@ -50,6 +50,8 @@ namespace NMEA2000Analyzer
             "130850",
             "130856"
         };
+        private const string HeadingPgn = "127250";
+        private const double HeadingJumpThresholdDegrees = 10.0;
 
         private enum PacketViewMode
         {
@@ -503,6 +505,8 @@ namespace NMEA2000Analyzer
                 }
 
                 SetWindowTitle(Path.GetFileName(saveFileDialog.FileName), "CanDump");
+                RecentFilesManager.RegisterFileOpen(saveFileDialog.FileName);
+                PopulateRecentFilesMenu();
             }
             catch (Exception ex)
             {
@@ -1265,6 +1269,28 @@ namespace NMEA2000Analyzer
             window.Show();
         }
 
+        private void AnomaliesMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (_assembledData == null || !_assembledData.Any())
+            {
+                MessageBox.Show("No assembled heading data available.", "Anomalies", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var entries = BuildHeadingAnomalies(_assembledData);
+            if (entries.Count == 0)
+            {
+                MessageBox.Show("No heading jump anomalies were found in the loaded capture.", "Anomalies", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var window = new AnomaliesWindow(entries, ShowAnomalyPacket, GetActiveWindowTitleSuffix())
+            {
+                Owner = this
+            };
+            window.Show();
+        }
+
         private void ShowAlarmPacket(AlarmHistoryEntry entry)
         {
             if (_assembledData == null || _assembledData.Count == 0)
@@ -1276,6 +1302,23 @@ namespace NMEA2000Analyzer
             if (record == null)
             {
                 MessageBox.Show("The corresponding packet is no longer available.", "Alarms", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            NavigateToAssembledRecord(record);
+        }
+
+        private void ShowAnomalyPacket(AnomalyEntry entry)
+        {
+            if (_assembledData == null || _assembledData.Count == 0)
+            {
+                return;
+            }
+
+            var record = _assembledData.FirstOrDefault(item => item.LogSequenceNumber == entry.SequenceNumber);
+            if (record == null)
+            {
+                MessageBox.Show("The corresponding packet is no longer available.", "Anomalies", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
@@ -1467,6 +1510,49 @@ namespace NMEA2000Analyzer
                 .OrderBy(entry => TryParseAlarmTimestamp(entry.Timestamp))
                 .ThenBy(entry => entry.Source, StringComparer.Ordinal)
                 .ToList();
+        }
+
+        private List<AnomalyEntry> BuildHeadingAnomalies(IEnumerable<Nmea2000Record> records)
+        {
+            var entries = new List<AnomalyEntry>();
+            var lastHeadingBySource = new Dictionary<string, (Nmea2000Record Record, double HeadingDegrees)>(StringComparer.Ordinal);
+
+            foreach (var record in records
+                .Where(record => string.Equals(record.PGN, HeadingPgn, StringComparison.Ordinal))
+                .OrderBy(record => record.LogSequenceNumber))
+            {
+                if (!TryGetHeadingDegrees(record, out var currentHeadingDegrees))
+                {
+                    continue;
+                }
+
+                var sourceKey = record.Source ?? string.Empty;
+                if (lastHeadingBySource.TryGetValue(sourceKey, out var previous))
+                {
+                    var deltaDegrees = GetAngularDifferenceDegrees(previous.HeadingDegrees, currentHeadingDegrees);
+                    if (deltaDegrees > HeadingJumpThresholdDegrees)
+                    {
+                        entries.Add(new AnomalyEntry
+                        {
+                            SequenceNumber = record.LogSequenceNumber,
+                            PreviousSequenceNumber = previous.Record.LogSequenceNumber,
+                            Timestamp = record.Timestamp ?? string.Empty,
+                            Source = record.Source ?? string.Empty,
+                            Device = record.DeviceInfo ?? string.Empty,
+                            Pgn = record.PGN ?? string.Empty,
+                            Anomaly = "Heading jump",
+                            PreviousValue = $"{previous.HeadingDegrees:F1} deg",
+                            CurrentValue = $"{currentHeadingDegrees:F1} deg",
+                            Delta = $"{deltaDegrees:F1} deg",
+                            Details = $"Jump from row {previous.Record.LogSequenceNumber} to {record.LogSequenceNumber}."
+                        });
+                    }
+                }
+
+                lastHeadingBySource[sourceKey] = (record, currentHeadingDegrees);
+            }
+
+            return entries;
         }
 
         private static bool ShouldIncludeAlarmHistoryEntry(string alarmKey, string alarmEvent, ISet<string> activeAlarmStates)
@@ -1874,6 +1960,37 @@ namespace NMEA2000Analyzer
             }
 
             return null;
+        }
+
+        private static bool TryGetHeadingDegrees(Nmea2000Record record, out double headingDegrees)
+        {
+            headingDegrees = 0;
+            var payloadBytes = record.PayloadBytes;
+            if (payloadBytes == null || payloadBytes.Length < 3)
+            {
+                return false;
+            }
+
+            ushort rawHeading = (ushort)(payloadBytes[1] | (payloadBytes[2] << 8));
+            if (rawHeading == ushort.MaxValue)
+            {
+                return false;
+            }
+
+            headingDegrees = rawHeading * 0.0001d * (180d / Math.PI);
+            headingDegrees %= 360d;
+            if (headingDegrees < 0)
+            {
+                headingDegrees += 360d;
+            }
+
+            return true;
+        }
+
+        private static double GetAngularDifferenceDegrees(double firstDegrees, double secondDegrees)
+        {
+            var delta = Math.Abs(secondDegrees - firstDegrees) % 360d;
+            return delta > 180d ? 360d - delta : delta;
         }
 
         private void ShowPgnGraph(PgnStatisticsEntry entry)
