@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.9 - 2026-04-30
+
+- Fixed device-emulation identity replies to deduplicate repeated assembled identity payloads from the log, which restored `YDTA-04` visibility on the MFD device list.
+- Improved the emulation window destination-mapping grid styling to match the main packet grid more closely.
+- Changed the emulation trace log to start fresh for each device-emulation run.
+
 ## 1.4.8 - 2026-04-30
 
 - Added device emulation from `Statistics -> Devices`, including device selection, source-address remapping, destination remapping, startup address claim, and looped replay of routine packets from the loaded log.

@@ -18,6 +18,12 @@ namespace NMEA2000Analyzer
         {
             lock (SyncRoot)
             {
+                if (string.Equals(reason, "device emulation", StringComparison.Ordinal))
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(LogPath)!);
+                    File.WriteAllText(LogPath, string.Empty, Encoding.ASCII);
+                }
+
                 _enabledScopeCount++;
             }
 

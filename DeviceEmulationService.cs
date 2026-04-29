@@ -102,11 +102,8 @@ namespace NMEA2000Analyzer
                 return null;
             }
 
-            var identityFrames = BuildReplayFrames(sourceRawRecords
-                .Where(record => IdentityPgns.Contains(record.PGN))
-                .OrderBy(record => IdentityPgnOrder.GetValueOrDefault(record.PGN, int.MaxValue))
-                .ThenBy(record => record.LogSequenceNumber)
-                .ToList(), TimeSpan.FromMilliseconds(80));
+            var identityRecords = BuildIdentityRecords(sourceAssembledRecords);
+            var identityFrames = BuildReplayFrames(identityRecords, TimeSpan.FromMilliseconds(80));
 
             var routinePgns = GetRoutinePgns(sourceAssembledRecords);
             var routineFrames = BuildReplayFrames(sourceRawRecords
@@ -169,6 +166,24 @@ namespace NMEA2000Analyzer
             return $"Addr {address}";
         }
 
+        private static IReadOnlyList<Nmea2000Record> BuildIdentityRecords(IReadOnlyList<Nmea2000Record> assembledRecords)
+        {
+            return assembledRecords
+                .Where(record => IdentityPgns.Contains(record.PGN))
+                .GroupBy(record => new IdentityRecordKey(
+                    record.PGN,
+                    NormalizePayload(record.PayloadBytes),
+                    NormalizeAddress(record.Destination)),
+                    IdentityRecordKeyComparer.Instance)
+                .Select(group => group
+                    .OrderBy(record => IdentityPgnOrder.GetValueOrDefault(record.PGN, int.MaxValue))
+                    .ThenBy(record => record.LogSequenceNumber)
+                    .First())
+                .OrderBy(record => IdentityPgnOrder.GetValueOrDefault(record.PGN, int.MaxValue))
+                .ThenBy(record => record.LogSequenceNumber)
+                .ToList();
+        }
+
         private static IReadOnlyList<DeviceReplayFrame> BuildReplayFrames(
             IReadOnlyList<Nmea2000Record> records,
             TimeSpan fallbackStep)
@@ -225,6 +240,43 @@ namespace NMEA2000Analyzer
             }
 
             return result;
+        }
+
+        private static string NormalizePayload(IReadOnlyList<byte>? payload)
+        {
+            if (payload == null || payload.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            return Convert.ToHexString(payload.ToArray());
+        }
+
+        private static string NormalizeAddress(string? addressText)
+        {
+            return CanBusUtilities.ParseAddressOrDefault(addressText, 255).ToString(CultureInfo.InvariantCulture);
+        }
+
+        private readonly record struct IdentityRecordKey(string Pgn, string PayloadHex, string Destination);
+
+        private sealed class IdentityRecordKeyComparer : IEqualityComparer<IdentityRecordKey>
+        {
+            public static IdentityRecordKeyComparer Instance { get; } = new();
+
+            public bool Equals(IdentityRecordKey x, IdentityRecordKey y)
+            {
+                return string.Equals(x.Pgn, y.Pgn, StringComparison.Ordinal) &&
+                    string.Equals(x.PayloadHex, y.PayloadHex, StringComparison.Ordinal) &&
+                    string.Equals(x.Destination, y.Destination, StringComparison.Ordinal);
+            }
+
+            public int GetHashCode(IdentityRecordKey obj)
+            {
+                return HashCode.Combine(
+                    obj.Pgn,
+                    obj.PayloadHex,
+                    obj.Destination);
+            }
         }
 
         private static bool IsRegularByDefinition(IGrouping<string, Nmea2000Record> group)

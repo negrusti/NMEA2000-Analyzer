@@ -83,10 +83,40 @@
                   IsReadOnly="False"
                   CanUserAddRows="False"
                   CanUserDeleteRows="False"
+                  Margin="3"
+                  HorizontalAlignment="Stretch"
+                  VerticalAlignment="Stretch"
+                  SelectionMode="Single"
+                  SelectionUnit="FullRow"
+                  EnableRowVirtualization="True"
+                  EnableColumnVirtualization="True"
+                  VirtualizingPanel.IsVirtualizing="True"
+                  VirtualizingPanel.VirtualizationMode="Recycling"
+                  GridLinesVisibility="All"
+                  HorizontalGridLinesBrush="#F0F0F0"
+                  VerticalGridLinesBrush="#F0F0F0"
+                  CanUserResizeRows="False"
                   ItemsSource="{Binding DestinationMappings}">
+            <DataGrid.CellStyle>
+                <Style TargetType="{x:Type DataGridCell}">
+                    <Setter Property="VerticalContentAlignment" Value="Center" />
+                </Style>
+            </DataGrid.CellStyle>
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Original Address" Binding="{Binding OriginalAddress}" IsReadOnly="True" Width="Auto" />
-                <DataGridTextColumn Header="Original Device" Binding="{Binding Label}" IsReadOnly="True" Width="2*" />
+                <DataGridTextColumn Header="Original Address" Binding="{Binding OriginalAddress}" IsReadOnly="True" Width="Auto">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="VerticalAlignment" Value="Center" />
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="Original Device" Binding="{Binding Label}" IsReadOnly="True" Width="2*">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="VerticalAlignment" Value="Center" />
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
                 <DataGridTemplateColumn Header="New Address" Width="2*">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
@@ -95,7 +125,8 @@
                                       SelectedValuePath="AddressText"
                                       SelectedValue="{Binding NewAddress, UpdateSourceTrigger=PropertyChanged}"
                                       IsEditable="False"
-                                      MinWidth="180" />
+                                      MinWidth="180"
+                                      VerticalAlignment="Center" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
