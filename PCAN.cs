@@ -22,13 +22,20 @@ namespace NMEA2000Analyzer
         private const byte RequestSourceAddress = 254;
         private const byte RequestPriority = 6;
         private static readonly Worker _worker = new Worker(PcanChannel.Usb01, Bitrate.Pcan250);
+        private static readonly object SessionSyncRoot = new();
+        private static readonly List<Action<Nmea2000Record>> _messageListeners = new();
         private static List<Nmea2000Record>? capture;
         private static int capturedCount;
+        private static bool _workerStarted;
+        private static bool _captureRunning;
+        private static int _transmitSessionCount;
+        private static int _monitorSessionCount;
         
         public static bool StartCapture()
         {
             try
             {
+                PcanTraceLog.LogNote("capture start");
                 if (capture == null)
                 {
                     capture = new List<Nmea2000Record>();
@@ -39,9 +46,11 @@ namespace NMEA2000Analyzer
                 }
 
                 capturedCount = 0;
-                _worker.MessageAvailable -= OnMessageAvailable;
-                _worker.MessageAvailable += OnMessageAvailable;
-                _worker.Start();
+                lock (SessionSyncRoot)
+                {
+                    EnsureWorkerStarted();
+                    _captureRunning = true;
+                }
                 Debug.WriteLine("Worker started successfully.");
                 return (true);
             }
@@ -58,11 +67,39 @@ namespace NMEA2000Analyzer
         {
             try
             {
-                _worker.Stop();
-                _worker.MessageAvailable -= OnMessageAvailable;
+                PcanTraceLog.LogNote("capture stop");
+                lock (SessionSyncRoot)
+                {
+                    if (_captureRunning)
+                    {
+                        _worker.MessageAvailable -= OnMessageAvailable;
+                        _captureRunning = false;
+                    }
+
+                    StopWorkerIfIdle();
+                }
             }
             catch (PcanBasicException e)
             {
+            }
+        }
+
+        public static void RegisterMessageListener(Action<Nmea2000Record> listener)
+        {
+            lock (SessionSyncRoot)
+            {
+                if (!_messageListeners.Contains(listener))
+                {
+                    _messageListeners.Add(listener);
+                }
+            }
+        }
+
+        public static void UnregisterMessageListener(Action<Nmea2000Record> listener)
+        {
+            lock (SessionSyncRoot)
+            {
+                _messageListeners.Remove(listener);
             }
         }
 
@@ -78,9 +115,19 @@ namespace NMEA2000Analyzer
 
         public static bool RequestProductInformationBroadcast(out string errorMessage)
         {
+            return RequestProductInformation(BroadcastAddress, out errorMessage);
+        }
+
+        public static bool RequestProductInformation(byte destinationAddress, out string errorMessage)
+        {
             try
             {
-                var requestCanId = BuildCanId(IsoRequestPgn, BroadcastAddress, RequestSourceAddress, RequestPriority);
+                if (!BeginTransmitSession(out errorMessage))
+                {
+                    return false;
+                }
+
+                var requestCanId = CanBusUtilities.BuildCanId(IsoRequestPgn, destinationAddress, RequestSourceAddress, RequestPriority);
                 var requestedPgnBytes = new byte[]
                 {
                     (byte)(ProductInformationPgn & 0xFF),
@@ -97,11 +144,129 @@ namespace NMEA2000Analyzer
 
                 if (_worker.Transmit(message, out var error))
                 {
+                    PcanTraceLog.LogOutgoing(requestCanId, requestedPgnBytes);
                     errorMessage = string.Empty;
+                    EndTransmitSession();
                     return true;
                 }
 
                 errorMessage = $"Failed to send request: {error}.";
+                EndTransmitSession();
+                return false;
+            }
+            catch (PcanBasicException ex)
+            {
+                errorMessage = ex.Message;
+                EndTransmitSession();
+                return false;
+            }
+            catch (DllNotFoundException ex)
+            {
+                errorMessage = ex.Message;
+                EndTransmitSession();
+                return false;
+            }
+        }
+
+        public static bool BeginTransmitSession(out string errorMessage)
+        {
+            try
+            {
+                lock (SessionSyncRoot)
+                {
+                    EnsureWorkerStarted();
+                    _transmitSessionCount++;
+                }
+
+                PcanTraceLog.LogNote($"begin transmit session count={_transmitSessionCount}");
+                errorMessage = string.Empty;
+                return true;
+            }
+            catch (PcanBasicException ex)
+            {
+                errorMessage = ex.Message;
+                return false;
+            }
+            catch (DllNotFoundException ex)
+            {
+                errorMessage = ex.Message;
+                return false;
+            }
+        }
+
+        public static bool BeginMonitorSession(out string errorMessage)
+        {
+            try
+            {
+                lock (SessionSyncRoot)
+                {
+                    EnsureWorkerStarted();
+                    _monitorSessionCount++;
+                }
+
+                PcanTraceLog.LogNote($"begin monitor session count={_monitorSessionCount}");
+                errorMessage = string.Empty;
+                return true;
+            }
+            catch (PcanBasicException ex)
+            {
+                errorMessage = ex.Message;
+                return false;
+            }
+            catch (DllNotFoundException ex)
+            {
+                errorMessage = ex.Message;
+                return false;
+            }
+        }
+
+        public static void EndMonitorSession()
+        {
+            lock (SessionSyncRoot)
+            {
+                if (_monitorSessionCount > 0)
+                {
+                    _monitorSessionCount--;
+                }
+
+                PcanTraceLog.LogNote($"end monitor session count={_monitorSessionCount}");
+                StopWorkerIfIdle();
+            }
+        }
+
+        public static void EndTransmitSession()
+        {
+            lock (SessionSyncRoot)
+            {
+                if (_transmitSessionCount > 0)
+                {
+                    _transmitSessionCount--;
+                }
+
+                PcanTraceLog.LogNote($"end transmit session count={_transmitSessionCount}");
+                StopWorkerIfIdle();
+            }
+        }
+
+        public static bool TryTransmit(uint canId, IReadOnlyList<byte> payload, out string errorMessage)
+        {
+            try
+            {
+                var message = new PcanMessage(
+                    canId,
+                    MessageType.Extended,
+                    (byte)Math.Min(payload.Count, 8),
+                    payload.ToArray(),
+                    false);
+
+                if (_worker.Transmit(message, out var error))
+                {
+                    PcanTraceLog.LogOutgoing(canId, payload.Take(8).ToArray());
+                    errorMessage = string.Empty;
+                    return true;
+                }
+
+                errorMessage = $"Failed to transmit frame: {error}.";
                 return false;
             }
             catch (PcanBasicException ex)
@@ -122,13 +287,15 @@ namespace NMEA2000Analyzer
             ulong timestamp;
             while (_worker.Dequeue(out msg, out timestamp))
             {
+                PcanTraceLog.LogIncoming(msg);
                 uint priority = (msg.ID >> 26) & 0x7;
                 uint source = msg.ID & 0xFF;
                 uint pgn = (msg.ID >> 8) & 0x1FFFF;
                 uint destination;
                 var now = DateTimeOffset.Now;
+                var pf = (pgn >> 8) & 0xFF;
 
-                if ((pgn & 0xFF00) == 0xEF00)            // Check if it's a PDU1 (destination-specific PGN)
+                if (pf < 0xF0)                           // PDU1: low byte of the PGN field is destination
                 {
                     destination = (pgn & 0xFF);          // Extract destination (last byte of PGN)
                     pgn &= 0x1FF00;                      // Remove destination from PGN
@@ -142,7 +309,7 @@ namespace NMEA2000Analyzer
                 byte[] data = msg.Data;
                 string dataHex = string.Join(" ", data.Select(b => $"0x{b:X2}"));
 
-                capture.Add(new Nmea2000Record
+                var record = new Nmea2000Record
                 {
                     Timestamp = now.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz", CultureInfo.InvariantCulture),
                     Source = source.ToString(),
@@ -150,21 +317,55 @@ namespace NMEA2000Analyzer
                     PGN = pgn.ToString(),
                     Priority = priority.ToString(),
                     Data = dataHex,
-                });
-                Interlocked.Increment(ref capturedCount);
+                };
+
+                Action<Nmea2000Record>[] listeners;
+                lock (SessionSyncRoot)
+                {
+                    listeners = _messageListeners.ToArray();
+                    if (_captureRunning && capture != null)
+                    {
+                        capture.Add(record);
+                        Interlocked.Increment(ref capturedCount);
+                    }
+                }
+
+                foreach (var listener in listeners)
+                {
+                    try
+                    {
+                        listener(record);
+                    }
+                    catch
+                    {
+                    }
+                }
                 // Debug.WriteLine($"TS: {timestamp}, Src: {source}, Len: {msg.DLC}, PGN: {pgn}");
             }
         }
 
-        private static uint BuildCanId(uint pgn, byte destination, byte source, byte priority)
+        private static void EnsureWorkerStarted()
         {
-            var pgnField = pgn;
-            if (pgnField < 0xF000)
+            if (_workerStarted)
             {
-                pgnField |= destination;
+                return;
             }
 
-            return ((uint)priority << 26) | (pgnField << 8) | source;
+            _worker.MessageAvailable -= OnMessageAvailable;
+            _worker.MessageAvailable += OnMessageAvailable;
+            _worker.Start();
+            _workerStarted = true;
+            PcanTraceLog.LogNote("worker started");
+        }
+
+        private static void StopWorkerIfIdle()
+        {
+            if (_workerStarted && !_captureRunning && _transmitSessionCount == 0 && _monitorSessionCount == 0)
+            {
+                _worker.Stop();
+                _workerStarted = false;
+                PcanTraceLog.LogNote("worker stopped");
+            }
         }
 
     }

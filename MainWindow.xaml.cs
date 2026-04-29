@@ -35,6 +35,7 @@ namespace NMEA2000Analyzer
         private HashSet<Nmea2000Record>? _visibleRecords;
         private List<Nmea2000Record>? _indexedDataSource;
         private FilterIndexes? _filterIndexes;
+        private readonly List<DeviceEmulationWindow> _deviceEmulationWindows = new();
         private bool _distinctFilterEnabled;
         private readonly Dictionary<string, Brush> _highlightBackgroundsByPgn = new(StringComparer.Ordinal);
         private static readonly HashSet<string> AlarmHistoryPgns = new(StringComparer.Ordinal)
@@ -1240,7 +1241,7 @@ namespace NMEA2000Analyzer
                 .ToList();
 
               // Open the statistics window
-                var devicesWindow = new Devices(statistics, ShowDeviceGraph, ShowSupportedPgns, GetActiveWindowTitleSuffix())
+                var devicesWindow = new Devices(statistics, ShowDeviceGraph, ShowSupportedPgns, PrepareDeviceEmulation, GetActiveWindowTitleSuffix())
                 {
                     Owner = this
                 };
@@ -1428,6 +1429,96 @@ namespace NMEA2000Analyzer
                 Owner = this
             };
             window.Show();
+        }
+
+        private async void PrepareDeviceEmulation(DeviceStatisticsEntry entry)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(entry.ModelID))
+                {
+                    MessageBox.Show("This row does not contain a Model ID, so device emulation is unavailable for it.", "Device Emulation", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                var plan = DeviceEmulationPlanBuilder.Build(entry, _Data, _assembledData);
+                if (plan == null)
+                {
+                    MessageBox.Show("No suitable identity or routine packets were found for this device in the loaded log.", "Device Emulation", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                var availableBusDevices = await DiscoverBusDevicesWithDialogAsync(plan.DeviceLabel);
+
+                var window = new DeviceEmulationWindow(plan, availableBusDevices)
+                {
+                    Owner = this
+                };
+                window.Closed += DeviceEmulationWindow_Closed;
+                _deviceEmulationWindows.Add(window);
+                window.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to open device emulation: {ex.Message}", "Device Emulation", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async Task<IReadOnlyList<DeviceBusAddressOption>> DiscoverBusDevicesWithDialogAsync(string deviceLabel)
+        {
+            var completionSource = new TaskCompletionSource<IReadOnlyList<DeviceBusAddressOption>>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            var progressWindow = new LoadingProgressWindow
+            {
+                Owner = this,
+                Title = "Scanning Bus"
+            };
+            progressWindow.UpdateProgress(
+                deviceLabel,
+                new FileLoadProgress
+                {
+                    Stage = "Scanning Bus",
+                    Message = "Collecting live device information from the current bus...",
+                    Percent = null
+                });
+
+            var progress = new Progress<FileLoadProgress>(report =>
+                progressWindow.UpdateProgress("Current PCAN Bus", report));
+
+            RoutedEventHandler? loadedHandler = null;
+            loadedHandler = async (_, _) =>
+            {
+                progressWindow.Loaded -= loadedHandler;
+
+                try
+                {
+                    var result = await BusDeviceDiscoveryService.DiscoverAsync(progress);
+                    completionSource.TrySetResult(result);
+                }
+                catch (Exception ex)
+                {
+                    completionSource.TrySetException(ex);
+                }
+                finally
+                {
+                    progressWindow.Close();
+                }
+            };
+
+            progressWindow.Loaded += loadedHandler;
+            progressWindow.ShowDialog();
+
+            return await completionSource.Task;
+        }
+
+        private void DeviceEmulationWindow_Closed(object? sender, EventArgs e)
+        {
+            if (sender is DeviceEmulationWindow window)
+            {
+                window.Closed -= DeviceEmulationWindow_Closed;
+                _deviceEmulationWindows.Remove(window);
+            }
         }
 
         private List<AlarmHistoryEntry> BuildAlarmHistory(IEnumerable<Nmea2000Record> records)
@@ -2248,18 +2339,7 @@ namespace NMEA2000Analyzer
 
         private static uint BuildCanId(Nmea2000Record record)
         {
-            var priority = int.TryParse(record.Priority, out var parsedPriority) ? parsedPriority : 0;
-            var pgn = int.TryParse(record.PGN, out var parsedPgn) ? parsedPgn : 0;
-            var source = int.TryParse(record.Source, out var parsedSource) ? parsedSource : 0;
-            var destination = int.TryParse(record.Destination, out var parsedDestination) ? parsedDestination : 255;
-
-            var pf = (pgn >> 8) & 0xFF;
-            if (pf < 0xF0)
-            {
-                pgn |= destination & 0xFF;
-            }
-
-            return (uint)((priority << 26) | (pgn << 8) | source);
+            return CanBusUtilities.BuildCanId(record);
         }
 
         private static double GetCandumpTimestamp(Nmea2000Record record, int exportIndex)

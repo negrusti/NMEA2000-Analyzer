@@ -16,6 +16,7 @@ namespace NMEA2000Analyzer
     {
         private readonly Action<DeviceStatisticsEntry>? _graphRequested;
         private readonly Action<DeviceStatisticsEntry>? _supportedPgnsRequested;
+        private readonly Action<DeviceStatisticsEntry>? _emulationRequested;
 
         public ObservableCollection<DeviceStatisticsEntry> BindableDevices { get; }
             = new ObservableCollection<DeviceStatisticsEntry>();
@@ -31,10 +32,12 @@ namespace NMEA2000Analyzer
             IEnumerable<DeviceStatisticsEntry> statistics,
             Action<DeviceStatisticsEntry>? graphRequested = null,
             Action<DeviceStatisticsEntry>? supportedPgnsRequested = null,
+            Action<DeviceStatisticsEntry>? emulationRequested = null,
             string? titleSuffix = null)
         {
             _graphRequested = graphRequested;
             _supportedPgnsRequested = supportedPgnsRequested;
+            _emulationRequested = emulationRequested;
             var entries = statistics.ToList();
             DeviceCount = entries.Count;
             TotalUnassembledCount = entries.Sum(device => device.UnassembledCount);
@@ -104,6 +107,39 @@ namespace NMEA2000Analyzer
             row.IsSelected = true;
             row.Focus();
             _supportedPgnsRequested?.Invoke(entry);
+        }
+
+        private void DeviceRowContextMenu_Opened(object sender, RoutedEventArgs e)
+        {
+            if (sender is not ContextMenu contextMenu ||
+                contextMenu.PlacementTarget is not DataGridRow row ||
+                row.Item is not DeviceStatisticsEntry entry)
+            {
+                return;
+            }
+
+            var emulateMenuItem = contextMenu.Items
+                .OfType<MenuItem>()
+                .FirstOrDefault(item => string.Equals(item.Header?.ToString(), "Emulate this device", StringComparison.Ordinal));
+            if (emulateMenuItem != null)
+            {
+                emulateMenuItem.IsEnabled = !string.IsNullOrWhiteSpace(entry.ModelID);
+            }
+        }
+
+        private void EmulateDeviceMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not MenuItem menuItem ||
+                menuItem.Parent is not ContextMenu contextMenu ||
+                contextMenu.PlacementTarget is not DataGridRow row ||
+                row.Item is not DeviceStatisticsEntry entry)
+            {
+                return;
+            }
+
+            row.IsSelected = true;
+            row.Focus();
+            _emulationRequested?.Invoke(entry);
         }
     }
 

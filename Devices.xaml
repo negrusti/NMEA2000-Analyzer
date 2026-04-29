@@ -27,11 +27,15 @@
                   VerticalGridLinesBrush="#F0F0F0"
                   ItemsSource="{Binding BindableDevices}">
             <DataGrid.Resources>
-                <ContextMenu x:Key="deviceRowContextMenu">
+                <ContextMenu x:Key="deviceRowContextMenu"
+                             Opened="DeviceRowContextMenu_Opened">
                     <MenuItem Header="Packet Graph"
                               Click="PacketGraphMenuItem_Click" />
                     <MenuItem Header="Supported PGNs"
                               Click="SupportedPgnsMenuItem_Click" />
+                    <MenuItem x:Name="EmulateDeviceMenuItem"
+                              Header="Emulate this device"
+                              Click="EmulateDeviceMenuItem_Click" />
                 </ContextMenu>
             </DataGrid.Resources>
             <DataGrid.RowStyle>
@@ -108,7 +112,7 @@
                 Background="#FCFCFC"
                 Padding="8,6">
             <TextBlock Foreground="#666666"
-                       Text="Double-click a row to open a packet graph. Right-click for supported PGNs."
+                       Text="Double-click a row to open a packet graph. Right-click for supported PGNs or device emulation."
                        VerticalAlignment="Center" />
         </Border>
     </Grid>

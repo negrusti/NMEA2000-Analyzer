@@ -50,8 +50,18 @@ In `Statistics`:
 In `Statistics -> Devices`:
 
 * right-click a device row and choose `Supported PGNs` to see transmit and receive PGN lists learned from `126464`
+* right-click a device row and choose `Emulate this device` to replay that device over PCAN from the currently loaded log
 
 ![Supported PGNs Screenshot](images/Screenshot3.png)
+
+## Device emulation
+
+Device emulation uses the currently loaded log as the replay source.
+
+* startup sends the device address claim from the selected emulated source address
+* routine packets from that device are replayed in a loop using the original raw-frame timing
+* destination remaps are learned from a short live bus scan before the emulation window opens
+* ISO Requests received during emulation are answered from the recorded device-information PGNs when available
 
 ## Highlighting
 

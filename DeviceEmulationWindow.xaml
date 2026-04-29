@@ -1,0 +1,132 @@
+<Window x:Class="NMEA2000Analyzer.DeviceEmulationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Device Emulation"
+        Width="760"
+        MinWidth="700"
+        MinHeight="220"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0"
+                BorderBrush="#D9D9D9"
+                BorderThickness="1"
+                Background="#FAFAFA"
+                Padding="10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="120" />
+                    <ColumnDefinition Width="24" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="120" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0"
+                           Text="Original Source"
+                           VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1"
+                           Margin="8,0,0,0"
+                           Text="{Binding OriginalSourceAddress}"
+                           VerticalAlignment="Center" />
+
+                <TextBlock Grid.Column="3"
+                           Text="Emulated Source"
+                           VerticalAlignment="Center" />
+                <TextBox Grid.Column="4"
+                         Margin="8,0,0,0"
+                         Width="80"
+                         Text="{Binding SourceAddressText, UpdateSourceTrigger=PropertyChanged}" />
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="1"
+                Margin="0,10,0,0"
+                BorderBrush="#D9D9D9"
+                BorderThickness="1"
+                Background="#FAFAFA"
+                Padding="10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0"
+                           Text="{Binding IdentitySummary}"
+                           VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1"
+                           Text="{Binding RoutineSummary}"
+                           VerticalAlignment="Center" />
+                <TextBlock Grid.Column="2"
+                           Text="{Binding CycleSummary}"
+                           VerticalAlignment="Center" />
+            </Grid>
+        </Border>
+
+        <TextBlock Grid.Row="2"
+                   Margin="0,10,0,6"
+                   Text="Destination Address Remapping For Destination-Specific Traffic"
+                   FontWeight="SemiBold" />
+
+        <DataGrid Grid.Row="3"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="False"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  ItemsSource="{Binding DestinationMappings}">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Original Address" Binding="{Binding OriginalAddress}" IsReadOnly="True" Width="Auto" />
+                <DataGridTextColumn Header="Original Device" Binding="{Binding Label}" IsReadOnly="True" Width="2*" />
+                <DataGridTemplateColumn Header="New Address" Width="2*">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <ComboBox ItemsSource="{Binding DataContext.AvailableBusDevices, RelativeSource={RelativeSource AncestorType=Window}}"
+                                      DisplayMemberPath="Label"
+                                      SelectedValuePath="AddressText"
+                                      SelectedValue="{Binding NewAddress, UpdateSourceTrigger=PropertyChanged}"
+                                      IsEditable="False"
+                                      MinWidth="180" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <DockPanel Grid.Row="4"
+                   Margin="0,10,0,0">
+            <TextBlock DockPanel.Dock="Left"
+                       Width="420"
+                       Text="{Binding StatusText}"
+                       VerticalAlignment="Center"
+                       TextWrapping="Wrap" />
+
+            <StackPanel DockPanel.Dock="Right"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right">
+                <Button Content="Start"
+                        Width="90"
+                        Margin="0,0,8,0"
+                        IsEnabled="{Binding CanStart}"
+                        Click="StartButton_Click" />
+                <Button Content="Stop"
+                        Width="90"
+                        Margin="0,0,8,0"
+                        IsEnabled="{Binding CanStop}"
+                        Click="StopButton_Click" />
+                <Button Content="Close"
+                        Width="90"
+                        Click="CloseButton_Click" />
+            </StackPanel>
+        </DockPanel>
+    </Grid>
+</Window>

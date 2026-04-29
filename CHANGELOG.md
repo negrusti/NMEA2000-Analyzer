@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.8 - 2026-04-30
+
+- Added device emulation from `Statistics -> Devices`, including device selection, source-address remapping, destination remapping, startup address claim, and looped replay of routine packets from the loaded log.
+- Added live bus discovery before emulation so destination remaps can target devices seen on the current bus rather than devices from the recorded log.
+- Added ISO Request handling during emulation so the emulated device can answer product-information queries such as `126996`.
+- Fixed incoming PDU1 PGN parsing for live PCAN traffic, which restored request/response handling for emulated devices on MFD refresh.
+
 ## 1.4.7 - 2026-04-29
 
 - Added a `Data -> Anomalies` window that scans assembled `127250` heading PGNs for adjacent jumps greater than `10` degrees and lets you jump back to the flagged packet by double-clicking.
