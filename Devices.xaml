@@ -36,6 +36,9 @@
                     <MenuItem x:Name="EmulateDeviceMenuItem"
                               Header="Emulate this device"
                               Click="EmulateDeviceMenuItem_Click" />
+                    <MenuItem x:Name="BuildEmulatorMenuItem"
+                              Header="Build device emulator in C#"
+                              Click="BuildEmulatorMenuItem_Click" />
                 </ContextMenu>
             </DataGrid.Resources>
             <DataGrid.RowStyle>
@@ -112,7 +115,7 @@
                 Background="#FCFCFC"
                 Padding="8,6">
             <TextBlock Foreground="#666666"
-                       Text="Double-click a row to open a packet graph. Right-click for supported PGNs or device emulation."
+                       Text="Double-click a row to open a packet graph. Right-click for supported PGNs, emulation, or a standalone emulator scaffold."
                        VerticalAlignment="Center" />
         </Border>
     </Grid>

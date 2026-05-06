@@ -8,10 +8,15 @@ namespace NMEA2000Analyzer
     internal static class ActisenseSerialCapture
     {
         // Captured from Actisense NMEA Reader startup traffic to an NGT-1.
+        // 0x4B (ActivatePGNEnableLists) appended: the captured sequence ends with three
+        // query commands (0x4D/0x4E/0x4F) that NMEA Reader uses to read the device's
+        // PGN filter state and then activate it. Without 0x4B the NGT-1 may stay in
+        // whatever filtered state was last saved to EEPROM, causing missed packets.
         private static readonly byte[] StartupControlCommands =
         {
             0x11, 0x42, 0x10, 0x41, 0x43, 0x44, 0x45,
-            0x13, 0x12, 0x16, 0x40, 0x4E, 0x4F, 0x4D
+            0x13, 0x12, 0x16, 0x40, 0x4E, 0x4F, 0x4D,
+            0x4B
         };
 
         private static readonly TimeSpan[] StartupControlDelays =
@@ -28,7 +33,8 @@ namespace NMEA2000Analyzer
             TimeSpan.FromMilliseconds(249),
             TimeSpan.FromMilliseconds(501),
             TimeSpan.FromMilliseconds(376),
-            TimeSpan.FromMilliseconds(498)
+            TimeSpan.FromMilliseconds(498),
+            TimeSpan.FromMilliseconds(500)
         };
 
         private const byte Dle = 0x10;
@@ -441,12 +447,13 @@ namespace NMEA2000Analyzer
                 return;
             }
 
+            var payload = frameBytes.Skip(2).Take(payloadLength).ToArray();
+
             if (command != N2kMsgReceived)
             {
                 return;
             }
 
-            var payload = frameBytes.Skip(2).Take(payloadLength).ToArray();
             ProcessReceivedN2kMessage(payload);
         }
 

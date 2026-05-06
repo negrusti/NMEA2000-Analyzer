@@ -281,6 +281,20 @@ namespace NMEA2000Analyzer
             }
         }
 
+        public static bool IsDeviceUnavailableError(string? errorMessage)
+        {
+            if (string.IsNullOrWhiteSpace(errorMessage))
+            {
+                return false;
+            }
+
+            return errorMessage.Contains("The value of a handle", StringComparison.OrdinalIgnoreCase) ||
+                errorMessage.Contains("PCAN-Channel", StringComparison.OrdinalIgnoreCase) ||
+                errorMessage.Contains("PCAN-Hardware", StringComparison.OrdinalIgnoreCase) ||
+                errorMessage.Contains("PCAN-Net", StringComparison.OrdinalIgnoreCase) ||
+                errorMessage.Contains("PCAN-Client", StringComparison.OrdinalIgnoreCase);
+        }
+
         private static void OnMessageAvailable(object? sender, MessageAvailableEventArgs e)
         {
             PcanMessage msg;

@@ -21,7 +21,7 @@
             <MenuItem Header="File" x:Name="FileMenu">
                 <MenuItem Header="Open" Click="OpenMenuItem_ClickAsync" />
                 <MenuItem Header="Save" Click="SaveAsCandumpMenuItem_Click" />
-                <MenuItem Header="Reload Definitions" Click="ReloadDefinitionsMenuItem_Click" />
+                <MenuItem Header="Save Selected" Click="SaveSelectedAsCandumpMenuItem_Click" />
                 <MenuItem Header="Capture">
                     <MenuItem x:Name="RecordMenuItem" Header="PCAN" Click="RecordMenuItem_ClickAsync" />
                     <MenuItem Header="Actisense" Click="ActisenseCaptureMenuItem_Click" />
@@ -126,9 +126,14 @@
                         <MenuItem Header="Include Address"
                                             Click="IncludeAddressMenuItem_Click"
                                             CommandParameter="{Binding}" />
-                        <MenuItem Header="Copy row as CSV" Click="CopyRowAsCsvMenuItem_Click"
+                        <MenuItem Header="Copy rows as CSV" Click="CopyRowAsCsvMenuItem_Click"
+                                            CommandParameter="{Binding}" />
+                        <MenuItem Header="Copy rows as JSON" Click="CopyRowsAsJsonMenuItem_Click"
                                             CommandParameter="{Binding}" />
                         <MenuItem Header="Copy Data" Click="CopyDataMenuItem_Click" CommandParameter="{Binding}" />
+                        <MenuItem Header="Edit definition"
+                                            Click="EditDefinitionMenuItem_Click"
+                                            CommandParameter="{Binding}" />
                         <MenuItem Header="Open PGN Reference"
                                             Click="ReferencePgnMenuItem_Click"                                  
                                             CommandParameter="{Binding}" />

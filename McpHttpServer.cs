@@ -113,15 +113,21 @@ namespace NMEA2000Analyzer
                 if (string.Equals(request.HttpMethod, "OPTIONS", StringComparison.OrdinalIgnoreCase))
                 {
                     response.StatusCode = (int)HttpStatusCode.NoContent;
-                    response.Headers["Allow"] = "POST, OPTIONS";
+                    response.Headers["Allow"] = "GET, POST, OPTIONS";
                     response.Close();
+                    return;
+                }
+
+                if (string.Equals(request.HttpMethod, "GET", StringComparison.OrdinalIgnoreCase))
+                {
+                    await WriteSseStreamAsync(response, cancellationToken);
                     return;
                 }
 
                 if (!string.Equals(request.HttpMethod, "POST", StringComparison.OrdinalIgnoreCase))
                 {
                     response.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
-                    response.Headers["Allow"] = "POST, OPTIONS";
+                    response.Headers["Allow"] = "GET, POST, OPTIONS";
                     response.Close();
                     return;
                 }
@@ -147,6 +153,7 @@ namespace NMEA2000Analyzer
 
                     var requestMethod = jsonRequest["method"]?.GetValue<string>();
                     var incomingSessionId = request.Headers[SessionHeader];
+                    var isNotification = IsJsonRpcNotification(jsonRequest);
 
                     if (string.Equals(requestMethod, "initialize", StringComparison.Ordinal))
                     {
@@ -165,6 +172,17 @@ namespace NMEA2000Analyzer
                                 sessionIdToReturn = incomingSessionId;
                             }
                         }
+                    }
+
+                    if (isNotification)
+                    {
+                        if (!string.IsNullOrWhiteSpace(sessionIdToReturn))
+                        {
+                            response.Headers[SessionHeader] = sessionIdToReturn;
+                        }
+
+                        await WriteNotificationResponseAsync(response);
+                        return;
                     }
 
                     jsonResponse = await HandleRequestAsync(jsonRequest, cancellationToken);
@@ -214,8 +232,22 @@ namespace NMEA2000Analyzer
                     },
                     ["capabilities"] = new JsonObject
                     {
-                        ["tools"] = new JsonObject()
+                        ["tools"] = new JsonObject(),
+                        ["resources"] = new JsonObject(),
+                        ["prompts"] = new JsonObject()
                     }
+                }),
+                "resources/list" => CreateResultResponse(idNode, new JsonObject
+                {
+                    ["resources"] = new JsonArray()
+                }),
+                "resources/templates/list" => CreateResultResponse(idNode, new JsonObject
+                {
+                    ["resourceTemplates"] = new JsonArray()
+                }),
+                "prompts/list" => CreateResultResponse(idNode, new JsonObject
+                {
+                    ["prompts"] = new JsonArray()
                 }),
                 "get_server_guide" => CreateResultResponse(idNode, BuildServerGuide()),
                 "tools/list" => CreateResultResponse(idNode, new JsonObject
@@ -590,6 +622,11 @@ namespace NMEA2000Analyzer
             };
         }
 
+        private static bool IsJsonRpcNotification(JsonObject request)
+        {
+            return request.ContainsKey("method") && !request.ContainsKey("id");
+        }
+
         private static JsonObject CreateResultResponse(JsonNode? id, JsonNode result)
         {
             var response = new JsonObject
@@ -621,6 +658,53 @@ namespace NMEA2000Analyzer
         private static async Task WriteErrorResponseAsync(HttpListenerResponse response, JsonNode? id, int code, string message)
         {
             await WriteJsonResponseAsync(response, CreateErrorResponse(id, code, message));
+        }
+
+        private static async Task WriteNotificationResponseAsync(HttpListenerResponse response)
+        {
+            // Some Streamable HTTP clients still try to decode a response body for
+            // notifications. A JSON null-id response keeps those clients connected.
+            await WriteJsonResponseAsync(response, new JsonObject
+            {
+                ["jsonrpc"] = "2.0",
+                ["result"] = new JsonObject(),
+                ["id"] = null
+            });
+        }
+
+        private static async Task WriteSseStreamAsync(HttpListenerResponse response, CancellationToken cancellationToken)
+        {
+            response.StatusCode = (int)HttpStatusCode.OK;
+            response.ContentType = "text/event-stream";
+            response.Headers["Cache-Control"] = "no-cache";
+            response.SendChunked = true;
+
+            var connectedBytes = Encoding.UTF8.GetBytes(": connected\n\n");
+            await response.OutputStream.WriteAsync(connectedBytes, 0, connectedBytes.Length, cancellationToken);
+            await response.OutputStream.FlushAsync(cancellationToken);
+
+            try
+            {
+                using var heartbeatTimer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+                while (await heartbeatTimer.WaitForNextTickAsync(cancellationToken))
+                {
+                    var heartbeatBytes = Encoding.UTF8.GetBytes($": heartbeat {DateTimeOffset.UtcNow:O}\n\n");
+                    await response.OutputStream.WriteAsync(heartbeatBytes, 0, heartbeatBytes.Length, cancellationToken);
+                    await response.OutputStream.FlushAsync(cancellationToken);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Normal shutdown.
+            }
+            catch
+            {
+                // The client closed the SSE stream.
+            }
+            finally
+            {
+                response.Close();
+            }
         }
 
         private static async Task WriteJsonResponseAsync(HttpListenerResponse response, JsonObject payload)

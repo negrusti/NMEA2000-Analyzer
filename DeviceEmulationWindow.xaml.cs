@@ -93,9 +93,26 @@ namespace NMEA2000Analyzer
                 return;
             }
 
-            if (!_service.Start(sourceAddress, destinationMap, out var errorMessage))
+            while (!_service.Start(sourceAddress, destinationMap, out var errorMessage))
             {
-                MessageBox.Show(errorMessage, "Device Emulation", MessageBoxButton.OK, MessageBoxImage.Error);
+                if (PCAN.IsDeviceUnavailableError(errorMessage))
+                {
+                    var result = MessageBox.Show(
+                        "Attach the PCAN device, then click OK to try again.",
+                        "Device Emulation",
+                        MessageBoxButton.OKCancel,
+                        MessageBoxImage.Information);
+
+                    if (result == MessageBoxResult.OK)
+                    {
+                        continue;
+                    }
+                }
+                else
+                {
+                    MessageBox.Show(errorMessage, "Device Emulation", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+
                 SetRunningState(false);
                 return;
             }

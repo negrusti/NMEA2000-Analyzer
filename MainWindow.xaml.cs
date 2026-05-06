@@ -13,6 +13,7 @@ using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Threading;
 using System.Windows.Media;
+using Newtonsoft.Json.Linq;
 using static NMEA2000Analyzer.PgnDefinitions;
 using Application = System.Windows.Application;
 using LiveChartsCore.Defaults;
@@ -28,6 +29,7 @@ namespace NMEA2000Analyzer
         private ICollectionView? _dataGridView;
         private PacketViewMode _currentPacketView = PacketViewMode.Assembled;
         private readonly DispatcherTimer _filterDebounceTimer;
+        private readonly DispatcherTimer _definitionsReloadDebounceTimer;
         private readonly HashSet<string> _distinctDataSeen = new HashSet<string>();
         private HashSet<string> _includePGNs = new HashSet<string>();
         private HashSet<string> _includeAddresses = new HashSet<string>();
@@ -36,6 +38,10 @@ namespace NMEA2000Analyzer
         private List<Nmea2000Record>? _indexedDataSource;
         private FilterIndexes? _filterIndexes;
         private readonly List<DeviceEmulationWindow> _deviceEmulationWindows = new();
+        private FileSystemWatcher? _localDefinitionsWatcher;
+        private string _lastLocalDefinitionsSnapshot = string.Empty;
+        private bool _definitionsReloadInProgress;
+        private bool _pendingDefinitionsReload;
         private bool _distinctFilterEnabled;
         private readonly Dictionary<string, Brush> _highlightBackgroundsByPgn = new(StringComparer.Ordinal);
         private static readonly HashSet<string> AlarmHistoryPgns = new(StringComparer.Ordinal)
@@ -68,11 +74,17 @@ namespace NMEA2000Analyzer
                 Interval = TimeSpan.FromMilliseconds(200)
             };
             _filterDebounceTimer.Tick += FilterDebounceTimer_Tick;
+            _definitionsReloadDebounceTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(500)
+            };
+            _definitionsReloadDebounceTimer.Tick += DefinitionsReloadDebounceTimer_Tick;
             Loaded += (s, e) => {
                 PopulatePresetsMenu();
                 PopulateRecentFilesMenu();
             };
             this.Loaded += MainWindow_Loaded;
+            Closed += MainWindow_Closed;
             LoadHighlights();
         }
 
@@ -81,6 +93,21 @@ namespace NMEA2000Analyzer
             if (((App)Application.Current).CanboatRoot == null)
             {
                 ((App)Application.Current).CanboatRoot = await LoadPgnDefinitionsAsync();
+            }
+
+            _lastLocalDefinitionsSnapshot = GetLocalDefinitionsSnapshot();
+            EnsureLocalDefinitionsWatcher();
+        }
+
+        private void MainWindow_Closed(object? sender, EventArgs e)
+        {
+            _definitionsReloadDebounceTimer.Stop();
+
+            if (_localDefinitionsWatcher != null)
+            {
+                _localDefinitionsWatcher.EnableRaisingEvents = false;
+                _localDefinitionsWatcher.Dispose();
+                _localDefinitionsWatcher = null;
             }
         }
 
@@ -121,6 +148,7 @@ namespace NMEA2000Analyzer
             }
             public string? DeviceInfo { get; set; }
             public int? PGNListIndex { get; set; }
+            public IReadOnlyList<Nmea2000Record>? SourceRecords { get; set; }
             public string DestinationDisplay => Destination == "255" ? "Bcast" : Destination;
             public Brush HighlightBackground { get; set; } = Brushes.Transparent;
 
@@ -167,6 +195,7 @@ namespace NMEA2000Analyzer
             public int TotalBytes { get; set; }
             public int ReceivedByteCount { get; set; }
             public Dictionary<int, byte[]> Frames { get; set; } = new Dictionary<int, byte[]>();
+            public Dictionary<int, Nmea2000Record> SourceRecordsBySequence { get; set; } = new Dictionary<int, Nmea2000Record>();
             public string? Timestamp { get; set; }
             public string Source { get; set; }
             public string Destination { get; set; }
@@ -474,12 +503,40 @@ namespace NMEA2000Analyzer
                 return;
             }
 
+            SaveRecordsAsCandump(_Data, "Save");
+        }
+
+        private void SaveSelectedAsCandumpMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            var selectedRecords = DataGrid.SelectedItems
+                .OfType<Nmea2000Record>()
+                .SelectMany(GetRecordsForCandumpExport)
+                .Distinct()
+                .OrderBy(record => record.LogSequenceNumber)
+                .ToList();
+
+            if (selectedRecords.Count == 0)
+            {
+                MessageBox.Show("No selected rows available to export.", "Save Selected", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            SaveRecordsAsCandump(selectedRecords, "Save Selected");
+        }
+
+        private void SaveRecordsAsCandump(IReadOnlyList<Nmea2000Record> records, string dialogTitle)
+        {
+            if (records.Count == 0)
+            {
+                return;
+            }
+
             var saveFileDialog = new SaveFileDialog
             {
                 Filter = "candump files (*.log)|*.log|Text files (*.txt)|*.txt|All files (*.*)|*.*",
                 DefaultExt = ".log",
                 FileName = "export.log",
-                Title = "Save"
+                Title = dialogTitle
             };
 
             if (saveFileDialog.ShowDialog() != true)
@@ -491,9 +548,9 @@ namespace NMEA2000Analyzer
             {
                 using var writer = new StreamWriter(saveFileDialog.FileName);
 
-                for (var exportIndex = 0; exportIndex < _Data.Count; exportIndex++)
+                for (var exportIndex = 0; exportIndex < records.Count; exportIndex++)
                 {
-                    var record = _Data[exportIndex];
+                    var record = records[exportIndex];
                     var data = ParseRecordData(record);
                     if (data.Length == 0)
                     {
@@ -511,21 +568,19 @@ namespace NMEA2000Analyzer
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Failed to save candump file: {ex.Message}", "Save", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Failed to save candump file: {ex.Message}", dialogTitle, MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        private async void ReloadDefinitionsMenuItem_Click(object sender, RoutedEventArgs e)
+        private IEnumerable<Nmea2000Record> GetRecordsForCandumpExport(Nmea2000Record record)
         {
-            try
+            if (_currentPacketView == PacketViewMode.Assembled &&
+                record.SourceRecords is { Count: > 0 } sourceRecords)
             {
-                await ReloadDefinitionsAsync();
-                MessageBox.Show("PGN definitions reloaded.", "Reload Definitions", MessageBoxButton.OK, MessageBoxImage.Information);
+                return sourceRecords;
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Failed to reload PGN definitions: {ex.Message}", "Reload Definitions", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+
+            return new[] { record };
         }
 
         internal async Task<JsonObject> ReloadDefinitionsFromMcpAsync()
@@ -549,6 +604,103 @@ namespace NMEA2000Analyzer
                 ["rawCount"] = _Data?.Count ?? 0,
                 ["assembledCount"] = _assembledData?.Count ?? 0
             };
+        }
+
+        private void EnsureLocalDefinitionsWatcher()
+        {
+            if (_localDefinitionsWatcher != null)
+            {
+                return;
+            }
+
+            var localDefinitionsPath = GetLocalDefinitionsPath();
+            var directory = Path.GetDirectoryName(localDefinitionsPath);
+            var fileName = Path.GetFileName(localDefinitionsPath);
+            if (string.IsNullOrWhiteSpace(directory) || string.IsNullOrWhiteSpace(fileName))
+            {
+                return;
+            }
+
+            _localDefinitionsWatcher = new FileSystemWatcher(directory, fileName)
+            {
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.CreationTime | NotifyFilters.Size,
+                IncludeSubdirectories = false,
+                EnableRaisingEvents = true
+            };
+
+            _localDefinitionsWatcher.Changed += LocalDefinitionsWatcher_Changed;
+            _localDefinitionsWatcher.Created += LocalDefinitionsWatcher_Changed;
+            _localDefinitionsWatcher.Deleted += LocalDefinitionsWatcher_Changed;
+            _localDefinitionsWatcher.Renamed += LocalDefinitionsWatcher_Renamed;
+        }
+
+        private void LocalDefinitionsWatcher_Changed(object sender, FileSystemEventArgs e)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                _definitionsReloadDebounceTimer.Stop();
+                _definitionsReloadDebounceTimer.Start();
+            });
+        }
+
+        private void LocalDefinitionsWatcher_Renamed(object sender, RenamedEventArgs e)
+        {
+            LocalDefinitionsWatcher_Changed(sender, e);
+        }
+
+        private async void DefinitionsReloadDebounceTimer_Tick(object? sender, EventArgs e)
+        {
+            _definitionsReloadDebounceTimer.Stop();
+
+            var snapshot = GetLocalDefinitionsSnapshot();
+            if (string.Equals(snapshot, _lastLocalDefinitionsSnapshot, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            if (_definitionsReloadInProgress)
+            {
+                _pendingDefinitionsReload = true;
+                return;
+            }
+
+            _definitionsReloadInProgress = true;
+            try
+            {
+                await ReloadDefinitionsAsync();
+                _lastLocalDefinitionsSnapshot = snapshot;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to reload PGN definitions after local.json changed: {ex.Message}", "Reload Definitions", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                _definitionsReloadInProgress = false;
+            }
+
+            if (_pendingDefinitionsReload)
+            {
+                _pendingDefinitionsReload = false;
+                _definitionsReloadDebounceTimer.Start();
+            }
+        }
+
+        private static string GetLocalDefinitionsSnapshot()
+        {
+            var path = GetLocalDefinitionsPath();
+            if (!File.Exists(path))
+            {
+                return "missing";
+            }
+
+            var fileInfo = new FileInfo(path);
+            return $"{fileInfo.Length}:{fileInfo.LastWriteTimeUtc.Ticks}";
+        }
+
+        private static string GetLocalDefinitionsPath()
+        {
+            return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "local.json");
         }
 
         private void PopulateRecentFilesMenu()
@@ -1046,6 +1198,7 @@ namespace NMEA2000Analyzer
                     {
                         TotalBytes = totalBytes,
                         Frames = new Dictionary<int, byte[]>(),
+                        SourceRecordsBySequence = new Dictionary<int, Nmea2000Record>(),
                         Source = frame.Source,
                         Destination = frame.Destination,
                         PGN = frame.PGN,
@@ -1081,6 +1234,7 @@ namespace NMEA2000Analyzer
                 }
 
                 message.Frames[sequenceNumber] = framePayload;
+                message.SourceRecordsBySequence[sequenceNumber] = frame;
                 message.ReceivedByteCount += framePayload.Length;
                 //Debug.WriteLine($"Added frame {sequenceNumber} to {messageKey}: {string.Join(" ", framePayload)}");
             }
@@ -1116,6 +1270,10 @@ namespace NMEA2000Analyzer
                     PGN = message.PGN,
                     Priority = message.Priority,
                     PayloadBytes = fullMessage,
+                    SourceRecords = message.SourceRecordsBySequence
+                        .OrderBy(item => item.Key)
+                        .Select(item => item.Value)
+                        .ToList(),
                     Type = "Fast",
                     Timestamp = message.Timestamp
                 };
@@ -1241,7 +1399,7 @@ namespace NMEA2000Analyzer
                 .ToList();
 
               // Open the statistics window
-                var devicesWindow = new Devices(statistics, ShowDeviceGraph, ShowSupportedPgns, PrepareDeviceEmulation, GetActiveWindowTitleSuffix())
+                var devicesWindow = new Devices(statistics, ShowDeviceGraph, ShowSupportedPgns, PrepareDeviceEmulation, BuildDeviceEmulatorScaffold, GetActiveWindowTitleSuffix())
                 {
                     Owner = this
                 };
@@ -1449,6 +1607,10 @@ namespace NMEA2000Analyzer
                 }
 
                 var availableBusDevices = await DiscoverBusDevicesWithDialogAsync(plan.DeviceLabel);
+                if (availableBusDevices == null)
+                {
+                    return;
+                }
 
                 var window = new DeviceEmulationWindow(plan, availableBusDevices)
                 {
@@ -1464,52 +1626,109 @@ namespace NMEA2000Analyzer
             }
         }
 
-        private async Task<IReadOnlyList<DeviceBusAddressOption>> DiscoverBusDevicesWithDialogAsync(string deviceLabel)
+        private void BuildDeviceEmulatorScaffold(DeviceStatisticsEntry entry)
         {
-            var completionSource = new TaskCompletionSource<IReadOnlyList<DeviceBusAddressOption>>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-
-            var progressWindow = new LoadingProgressWindow
+            try
             {
-                Owner = this,
-                Title = "Scanning Bus"
-            };
-            progressWindow.UpdateProgress(
-                deviceLabel,
-                new FileLoadProgress
+                if (string.IsNullOrWhiteSpace(entry.ModelID))
                 {
-                    Stage = "Scanning Bus",
-                    Message = "Collecting live device information from the current bus...",
-                    Percent = null
-                });
+                    MessageBox.Show("This row does not contain a Model ID, so scaffold generation is unavailable for it.", "Build Device Emulator", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
 
-            var progress = new Progress<FileLoadProgress>(report =>
-                progressWindow.UpdateProgress("Current PCAN Bus", report));
+                var dialog = new OpenFolderDialog
+                {
+                    Title = "Select destination for device emulator scaffold"
+                };
 
-            RoutedEventHandler? loadedHandler = null;
-            loadedHandler = async (_, _) =>
+                if (dialog.ShowDialog(this) != true)
+                {
+                    return;
+                }
+
+                var result = DeviceEmulatorScaffoldGenerator.Generate(entry, _Data, _assembledData, dialog.FolderName);
+                MessageBox.Show(
+                    $"Created {result.ProjectName} in:\n{result.ProjectDirectory}\n\nTransmitted PGNs: {result.TransmittedPgnCount}\nReceived PGNs: {result.ReceivedPgnCount}",
+                    "Build Device Emulator",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            catch (Exception ex)
             {
-                progressWindow.Loaded -= loadedHandler;
+                MessageBox.Show($"Failed to build device emulator scaffold: {ex.Message}", "Build Device Emulator", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async Task<IReadOnlyList<DeviceBusAddressOption>?> DiscoverBusDevicesWithDialogAsync(string deviceLabel)
+        {
+            while (true)
+            {
+                var completionSource = new TaskCompletionSource<IReadOnlyList<DeviceBusAddressOption>>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+
+                var progressWindow = new LoadingProgressWindow
+                {
+                    Owner = this,
+                    Title = "Scanning Bus"
+                };
+                progressWindow.UpdateProgress(
+                    deviceLabel,
+                    new FileLoadProgress
+                    {
+                        Stage = "Scanning Bus",
+                        Message = "Collecting live device information from the current bus...",
+                        Percent = null
+                    });
+
+                var progress = new Progress<FileLoadProgress>(report =>
+                    progressWindow.UpdateProgress("Current PCAN Bus", report));
+
+                RoutedEventHandler? loadedHandler = null;
+                loadedHandler = async (_, _) =>
+                {
+                    progressWindow.Loaded -= loadedHandler;
+
+                    try
+                    {
+                        var result = await BusDeviceDiscoveryService.DiscoverAsync(progress);
+                        completionSource.TrySetResult(result);
+                    }
+                    catch (Exception ex)
+                    {
+                        completionSource.TrySetException(ex);
+                    }
+                    finally
+                    {
+                        progressWindow.Close();
+                    }
+                };
+
+                progressWindow.Loaded += loadedHandler;
+                progressWindow.ShowDialog();
 
                 try
                 {
-                    var result = await BusDeviceDiscoveryService.DiscoverAsync(progress);
-                    completionSource.TrySetResult(result);
+                    return await completionSource.Task;
                 }
                 catch (Exception ex)
                 {
-                    completionSource.TrySetException(ex);
-                }
-                finally
-                {
-                    progressWindow.Close();
-                }
-            };
+                    if (!PCAN.IsDeviceUnavailableError(ex.Message))
+                    {
+                        throw;
+                    }
 
-            progressWindow.Loaded += loadedHandler;
-            progressWindow.ShowDialog();
+                    var result = MessageBox.Show(
+                        "Attach the PCAN device, then click OK to try again.",
+                        "Device Emulation",
+                        MessageBoxButton.OKCancel,
+                        MessageBoxImage.Information);
 
-            return await completionSource.Task;
+                    if (result != MessageBoxResult.OK)
+                    {
+                        return null;
+                    }
+                }
+            }
         }
 
         private void DeviceEmulationWindow_Closed(object? sender, EventArgs e)
@@ -1778,6 +1997,26 @@ namespace NMEA2000Analyzer
             {
                 return null;
             }
+        }
+
+        private Canboat.Pgn? ResolveDefinitionForRecord(Nmea2000Record record)
+        {
+            var canboatRoot = ((App)Application.Current).CanboatRoot;
+            if (canboatRoot == null)
+            {
+                return null;
+            }
+
+            if (record.PGNListIndex.HasValue &&
+                record.PGNListIndex.Value >= 0 &&
+                record.PGNListIndex.Value < canboatRoot.PGNs.Count)
+            {
+                return canboatRoot.PGNs[record.PGNListIndex.Value];
+            }
+
+            return int.TryParse(record.PGN, NumberStyles.Integer, CultureInfo.InvariantCulture, out var pgn)
+                ? canboatRoot.PGNs.FirstOrDefault(candidate => candidate.PGN == pgn)
+                : null;
         }
 
         private static Dictionary<string, string> ExtractDecodedFields(JsonObject decoded)
@@ -2573,6 +2812,53 @@ namespace NMEA2000Analyzer
             }
         }
 
+        private async void EditDefinitionMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataGrid.SelectedItems.Count != 1 ||
+                sender is not MenuItem menuItem ||
+                menuItem.CommandParameter is not Nmea2000Record selectedRow)
+            {
+                return;
+            }
+
+            if (!int.TryParse(selectedRow.PGN, NumberStyles.Integer, CultureInfo.InvariantCulture, out var pgn))
+            {
+                MessageBox.Show($"PGN '{selectedRow.PGN}' is not a valid integer.", "Edit Definition", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                var currentDefinition = ResolveDefinitionForRecord(selectedRow);
+                var editableDefinition = PrepareEditablePgnDefinition(pgn, currentDefinition);
+                var editorWindow = new PgnDefinitionEditorWindow(
+                    pgn,
+                    editableDefinition.Json,
+                    editableDefinition.ExistsInLocal,
+                    editableDefinition.ExistsInCanboat)
+                {
+                    Owner = this
+                };
+
+                if (editorWindow.ShowDialog() != true)
+                {
+                    return;
+                }
+
+                SaveEditablePgnDefinition(pgn, editorWindow.DefinitionJson, currentDefinition);
+                await ReloadDefinitionsAsync();
+                _lastLocalDefinitionsSnapshot = GetLocalDefinitionsSnapshot();
+            }
+            catch (Newtonsoft.Json.JsonException ex)
+            {
+                MessageBox.Show($"Failed to save PGN definition JSON: {ex.Message}", "Edit Definition", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to edit PGN definition: {ex.Message}", "Edit Definition", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private void RowContextMenu_Opened(object sender, RoutedEventArgs e)
         {
             if (sender is not ContextMenu contextMenu)
@@ -2584,7 +2870,7 @@ namespace NMEA2000Analyzer
             foreach (var item in contextMenu.Items.OfType<MenuItem>())
             {
                 if (item.Header is string header &&
-                    (header == "Open PGN Reference" || header == "Google Device"))
+                    (header == "Open PGN Reference" || header == "Google Device" || header == "Edit definition"))
                 {
                     item.IsEnabled = singleSelection;
                 }
@@ -2675,6 +2961,11 @@ namespace NMEA2000Analyzer
 
         private static string FormatSelectedRecordYaml(Nmea2000Record record, JsonObject decodedJson)
         {
+            return FormatDecodedYaml(BuildSelectedRecordJson(record, decodedJson));
+        }
+
+        private static JsonObject BuildSelectedRecordJson(Nmea2000Record record, JsonObject decodedJson)
+        {
             var selectedRecordJson = new JsonObject
             {
                 ["Packet"] = new JsonObject
@@ -2700,7 +2991,7 @@ namespace NMEA2000Analyzer
             }
 
             selectedRecordJson["Decoded"] = BuildSelectedRecordDecodedJson(decodedJson);
-            return FormatDecodedYaml(selectedRecordJson);
+            return selectedRecordJson;
         }
 
         private static JsonObject BuildSelectedRecordDecodedJson(JsonObject decodedJson)
@@ -3036,6 +3327,22 @@ namespace NMEA2000Analyzer
                 var csvRows = recordsToExport.Select(BuildCsvRow);
                 Clipboard.SetText(string.Join(Environment.NewLine, csvRows));
             }
+        }
+
+        private void CopyRowsAsJsonMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not MenuItem menuItem || menuItem.DataContext is not Nmea2000Record selectedItem)
+            {
+                return;
+            }
+
+            var recordsToExport = GetRecordsForContextAction(selectedItem);
+            var jsonRows = new JsonArray(
+                recordsToExport
+                    .Select(record => (JsonNode)BuildSelectedRecordJson(record, TryDecodeRecord(record) ?? new JsonObject()))
+                    .ToArray());
+
+            Clipboard.SetText(jsonRows.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
         }
 
         private IEnumerable<Nmea2000Record> GetRecordsForCsvExport(Nmea2000Record clickedRecord)

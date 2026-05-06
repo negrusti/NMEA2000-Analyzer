@@ -21,7 +21,7 @@
 	},
 	{
 		"Name": "Autopilot Control",
-		"IncludePGNs": "126208,126720"
+		"IncludePGNs": "126208,126720,65305,130850"
 	},
 	{
 		"Name": "Alerts",

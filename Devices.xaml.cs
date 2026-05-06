@@ -17,6 +17,7 @@ namespace NMEA2000Analyzer
         private readonly Action<DeviceStatisticsEntry>? _graphRequested;
         private readonly Action<DeviceStatisticsEntry>? _supportedPgnsRequested;
         private readonly Action<DeviceStatisticsEntry>? _emulationRequested;
+        private readonly Action<DeviceStatisticsEntry>? _buildEmulatorRequested;
 
         public ObservableCollection<DeviceStatisticsEntry> BindableDevices { get; }
             = new ObservableCollection<DeviceStatisticsEntry>();
@@ -33,11 +34,13 @@ namespace NMEA2000Analyzer
             Action<DeviceStatisticsEntry>? graphRequested = null,
             Action<DeviceStatisticsEntry>? supportedPgnsRequested = null,
             Action<DeviceStatisticsEntry>? emulationRequested = null,
+            Action<DeviceStatisticsEntry>? buildEmulatorRequested = null,
             string? titleSuffix = null)
         {
             _graphRequested = graphRequested;
             _supportedPgnsRequested = supportedPgnsRequested;
             _emulationRequested = emulationRequested;
+            _buildEmulatorRequested = buildEmulatorRequested;
             var entries = statistics.ToList();
             DeviceCount = entries.Count;
             TotalUnassembledCount = entries.Sum(device => device.UnassembledCount);
@@ -125,6 +128,14 @@ namespace NMEA2000Analyzer
             {
                 emulateMenuItem.IsEnabled = !string.IsNullOrWhiteSpace(entry.ModelID);
             }
+
+            var buildMenuItem = contextMenu.Items
+                .OfType<MenuItem>()
+                .FirstOrDefault(item => string.Equals(item.Header?.ToString(), "Build device emulator in C#", StringComparison.Ordinal));
+            if (buildMenuItem != null)
+            {
+                buildMenuItem.IsEnabled = !string.IsNullOrWhiteSpace(entry.ModelID);
+            }
         }
 
         private void EmulateDeviceMenuItem_Click(object sender, RoutedEventArgs e)
@@ -140,6 +151,21 @@ namespace NMEA2000Analyzer
             row.IsSelected = true;
             row.Focus();
             _emulationRequested?.Invoke(entry);
+        }
+
+        private void BuildEmulatorMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not MenuItem menuItem ||
+                menuItem.Parent is not ContextMenu contextMenu ||
+                contextMenu.PlacementTarget is not DataGridRow row ||
+                row.Item is not DeviceStatisticsEntry entry)
+            {
+                return;
+            }
+
+            row.IsSelected = true;
+            row.Focus();
+            _buildEmulatorRequested?.Invoke(entry);
         }
     }
 

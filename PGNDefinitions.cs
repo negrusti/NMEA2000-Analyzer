@@ -17,6 +17,14 @@ namespace NMEA2000Analyzer
         private static readonly string CanboatJsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "canboat.json");
         private static readonly string LocalJsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "local.json");
 
+        public sealed class EditablePgnDefinition
+        {
+            public required int Pgn { get; init; }
+            public required string Json { get; init; }
+            public bool ExistsInLocal { get; init; }
+            public bool ExistsInCanboat { get; init; }
+        }
+
         public static async Task<Canboat.Rootobject> LoadPgnDefinitionsAsync()
         {
             if (!File.Exists(CanboatJsonPath))
@@ -42,6 +50,8 @@ namespace NMEA2000Analyzer
                         MergeArrayHandling = MergeArrayHandling.Concat,
                         MergeNullValueHandling = MergeNullValueHandling.Ignore
                     });
+
+                    ApplyLocalEnumerationOverrides(canboatJObject, localJObject);
                 }
 
                 // Serialize back to JSON string
@@ -90,6 +100,370 @@ namespace NMEA2000Analyzer
             {
                 throw new Exception($"Failed to download canboat.json from {CanboatJsonUrl}: {ex.Message}", ex);
             }
+        }
+
+        private static void ApplyLocalEnumerationOverrides(JObject mergedRoot, JObject localRoot)
+        {
+            MergeNamedEnumerationArray(mergedRoot, localRoot, "LookupEnumerations", "EnumValues", "Value");
+            MergeNamedEnumerationArray(mergedRoot, localRoot, "LookupIndirectEnumerations", "EnumValues", "Value1", "Value2");
+            MergeNamedEnumerationArray(mergedRoot, localRoot, "LookupBitEnumerations", "EnumBitValues", "Bit");
+            MergeNamedEnumerationArray(mergedRoot, localRoot, "LookupFieldTypeEnumerations", "EnumFieldTypeValues", "value");
+        }
+
+        private static void MergeNamedEnumerationArray(
+            JObject mergedRoot,
+            JObject localRoot,
+            string arrayName,
+            string valuesPropertyName,
+            params string[] valueKeyProperties)
+        {
+            if (mergedRoot[arrayName] is not JArray mergedArray ||
+                localRoot[arrayName] is not JArray localArray)
+            {
+                return;
+            }
+
+            var localNames = localArray
+                .OfType<JObject>()
+                .Select(item => GetPropertyString(item, "Name"))
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+
+            foreach (var localName in localNames)
+            {
+                var matchingEnumerations = mergedArray
+                    .OfType<JObject>()
+                    .Where(item => string.Equals(GetPropertyString(item, "Name"), localName, StringComparison.Ordinal))
+                    .ToList();
+
+                if (matchingEnumerations.Count <= 1)
+                {
+                    continue;
+                }
+
+                var mergedEnumeration = new JObject();
+                var mergedValues = new JArray();
+
+                foreach (var enumeration in matchingEnumerations)
+                {
+                    foreach (var property in enumeration.Properties())
+                    {
+                        if (!string.Equals(property.Name, valuesPropertyName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            mergedEnumeration[property.Name] = property.Value.DeepClone();
+                        }
+                    }
+
+                    if (GetPropertyValue(enumeration, valuesPropertyName) is JArray values)
+                    {
+                        MergeEnumerationValues(mergedValues, values, valueKeyProperties);
+                    }
+                }
+
+                mergedEnumeration[valuesPropertyName] = mergedValues;
+
+                var insertionIndex = mergedArray.IndexOf(matchingEnumerations[0]);
+                foreach (var duplicate in matchingEnumerations)
+                {
+                    duplicate.Remove();
+                }
+
+                mergedArray.Insert(insertionIndex, mergedEnumeration);
+            }
+        }
+
+        private static void MergeEnumerationValues(JArray mergedValues, JArray sourceValues, string[] keyProperties)
+        {
+            foreach (var sourceValue in sourceValues.OfType<JObject>())
+            {
+                var existingValue = mergedValues
+                    .OfType<JObject>()
+                    .FirstOrDefault(candidate => HaveSameKey(candidate, sourceValue, keyProperties));
+
+                if (existingValue == null)
+                {
+                    mergedValues.Add(sourceValue.DeepClone());
+                    continue;
+                }
+
+                existingValue.Replace(sourceValue.DeepClone());
+            }
+        }
+
+        private static bool HaveSameKey(JObject left, JObject right, string[] keyProperties)
+        {
+            foreach (var keyProperty in keyProperties)
+            {
+                var leftValue = GetPropertyValue(left, keyProperty);
+                var rightValue = GetPropertyValue(right, keyProperty);
+
+                if (leftValue == null || rightValue == null ||
+                    !JToken.DeepEquals(leftValue, rightValue))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static string? GetPropertyString(JObject item, string propertyName)
+        {
+            return GetPropertyValue(item, propertyName)?.Value<string>();
+        }
+
+        private static JToken? GetPropertyValue(JObject item, string propertyName)
+        {
+            return item
+                .Properties()
+                .FirstOrDefault(property => string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase))
+                ?.Value;
+        }
+
+        public static EditablePgnDefinition PrepareEditablePgnDefinition(int pgn, Canboat.Pgn? currentDefinition)
+        {
+            var localRoot = LoadJsonRoot(LocalJsonPath, createIfMissing: true);
+            var localPgns = GetOrCreatePgnArray(localRoot);
+            var localDefinition = FindBestMatchingDefinition(localPgns, pgn, currentDefinition);
+            if (localDefinition != null)
+            {
+                return new EditablePgnDefinition
+                {
+                    Pgn = pgn,
+                    Json = localDefinition.ToString(Formatting.Indented),
+                    ExistsInLocal = true,
+                    ExistsInCanboat = false
+                };
+            }
+
+            if (File.Exists(CanboatJsonPath))
+            {
+                var canboatRoot = LoadJsonRoot(CanboatJsonPath, createIfMissing: false);
+                var canboatPgns = GetOrCreatePgnArray(canboatRoot);
+                var canboatDefinition = FindBestMatchingDefinition(canboatPgns, pgn, currentDefinition);
+                if (canboatDefinition != null)
+                {
+                    return new EditablePgnDefinition
+                    {
+                        Pgn = pgn,
+                        Json = canboatDefinition.ToString(Formatting.Indented),
+                        ExistsInLocal = false,
+                        ExistsInCanboat = true
+                    };
+                }
+            }
+
+            if (currentDefinition != null)
+            {
+                return new EditablePgnDefinition
+                {
+                    Pgn = pgn,
+                    Json = JObject.FromObject(currentDefinition).ToString(Formatting.Indented),
+                    ExistsInLocal = false,
+                    ExistsInCanboat = true
+                };
+            }
+
+            return new EditablePgnDefinition
+            {
+                Pgn = pgn,
+                Json = CreateMinimalDefinition(pgn).ToString(Formatting.Indented),
+                ExistsInLocal = false,
+                ExistsInCanboat = false
+            };
+        }
+
+        public static void SaveEditablePgnDefinition(int pgn, string definitionJson, Canboat.Pgn? currentDefinition)
+        {
+            if (string.IsNullOrWhiteSpace(definitionJson))
+            {
+                throw new ArgumentException("Definition JSON must not be empty.", nameof(definitionJson));
+            }
+
+            var editedDefinition = JObject.Parse(definitionJson);
+            editedDefinition["PGN"] = pgn;
+
+            var localRoot = LoadJsonRoot(LocalJsonPath, createIfMissing: true);
+            var localPgns = GetOrCreatePgnArray(localRoot);
+            var existingDefinition = FindBestMatchingDefinition(localPgns, pgn, currentDefinition);
+
+            if (existingDefinition != null)
+            {
+                existingDefinition.Replace(editedDefinition);
+            }
+            else
+            {
+                localPgns.Add(editedDefinition);
+            }
+
+            File.WriteAllText(LocalJsonPath, localRoot.ToString(Formatting.Indented), new UTF8Encoding(false));
+        }
+
+        private static JObject LoadJsonRoot(string path, bool createIfMissing)
+        {
+            if (!File.Exists(path))
+            {
+                if (createIfMissing)
+                {
+                    return new JObject
+                    {
+                        ["PGNs"] = new JArray()
+                    };
+                }
+
+                throw new FileNotFoundException($"JSON file not found: {path}", path);
+            }
+
+            var json = File.ReadAllText(path);
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return new JObject
+                {
+                    ["PGNs"] = new JArray()
+                };
+            }
+
+            return JObject.Parse(json);
+        }
+
+        private static JArray GetOrCreatePgnArray(JObject root)
+        {
+            if (root["PGNs"] is JArray pgns)
+            {
+                return pgns;
+            }
+
+            pgns = new JArray();
+            root["PGNs"] = pgns;
+            return pgns;
+        }
+
+        private static JObject? FindBestMatchingDefinition(JArray definitions, int pgn, Canboat.Pgn? currentDefinition)
+        {
+            var candidates = definitions
+                .OfType<JObject>()
+                .Where(candidate => TryGetIntProperty(candidate, "PGN") == pgn)
+                .ToList();
+
+            if (candidates.Count == 0)
+            {
+                return null;
+            }
+
+            if (currentDefinition == null || candidates.Count == 1)
+            {
+                return candidates[0];
+            }
+
+            return candidates
+                .OrderByDescending(candidate => GetDefinitionMatchScore(candidate, currentDefinition))
+                .First();
+        }
+
+        private static int GetDefinitionMatchScore(JObject candidate, Canboat.Pgn reference)
+        {
+            var score = 0;
+
+            if (PropertyMatches(candidate, "Id", reference.Id))
+            {
+                score += 1000;
+            }
+
+            if (PropertyMatches(candidate, "Description", reference.Description))
+            {
+                score += 200;
+            }
+
+            if (PropertyMatches(candidate, "Type", reference.Type))
+            {
+                score += 100;
+            }
+
+            if (PropertyMatches(candidate, "Length", reference.Length))
+            {
+                score += 50;
+            }
+
+            if (PropertyMatches(candidate, "MinLength", reference.MinLength))
+            {
+                score += 40;
+            }
+
+            if (PropertyMatches(candidate, "FieldCount", reference.FieldCount))
+            {
+                score += 30;
+            }
+
+            var referenceFieldIds = reference.Fields?
+                .Select(field => field.Id)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .ToArray();
+
+            if (referenceFieldIds is { Length: > 0 } &&
+                candidate["Fields"] is JArray candidateFields)
+            {
+                var candidateFieldIds = candidateFields
+                    .OfType<JObject>()
+                    .Select(field => GetPropertyString(field, "Id"))
+                    .Where(id => !string.IsNullOrWhiteSpace(id))
+                    .ToArray();
+
+                if (candidateFieldIds.SequenceEqual(referenceFieldIds, StringComparer.Ordinal))
+                {
+                    score += 500;
+                }
+            }
+
+            return score;
+        }
+
+        private static bool PropertyMatches(JObject candidate, string propertyName, object? expected)
+        {
+            if (expected == null)
+            {
+                return false;
+            }
+
+            var actual = GetPropertyValue(candidate, propertyName);
+            if (actual == null)
+            {
+                return false;
+            }
+
+            return JToken.DeepEquals(actual, JToken.FromObject(expected));
+        }
+
+        private static int? TryGetIntProperty(JObject item, string propertyName)
+        {
+            var token = GetPropertyValue(item, propertyName);
+            if (token == null)
+            {
+                return null;
+            }
+
+            if (token.Type == JTokenType.Integer)
+            {
+                return token.Value<int>();
+            }
+
+            return int.TryParse(token.Value<string>(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
+                ? value
+                : null;
+        }
+
+        private static JObject CreateMinimalDefinition(int pgn)
+        {
+            return new JObject
+            {
+                ["PGN"] = pgn,
+                ["Id"] = $"custom{pgn}",
+                ["Description"] = "Custom PGN",
+                ["Type"] = "Single",
+                ["Complete"] = false,
+                ["FieldCount"] = 0,
+                ["Fields"] = new JArray()
+            };
         }
 
         public static JsonObject? DecodePgnData(byte[] pgnData, Canboat.Pgn pgnDefinition)
@@ -960,7 +1334,7 @@ namespace NMEA2000Analyzer
         private static Canboat.Enumfieldtypevalue? LookupFieldTypeDefinition(string enumeration, int value)
         {
             return ((App)Application.Current).CanboatRoot.LookupFieldTypeEnumerations
-                .FirstOrDefault(item => item.Name == enumeration)?
+                .LastOrDefault(item => item.Name == enumeration)?
                 .EnumFieldTypeValues
                 .FirstOrDefault(item => item.value == value);
         }
@@ -1291,9 +1665,8 @@ namespace NMEA2000Analyzer
 
         public static string Lookup(string enumeration, int value)
         {
-            // Find the matching LookupEnumeration
             var lookupEnum = ((App)Application.Current).CanboatRoot.LookupEnumerations
-                .FirstOrDefault(le => le.Name == enumeration);
+                .LastOrDefault(le => le.Name == enumeration);
 
             if (lookupEnum != null)
             {
@@ -1314,7 +1687,7 @@ namespace NMEA2000Analyzer
         public static string LookupIndirect(string enumeration, int value1, int value2)
         {
             var lookupEnum = ((App)Application.Current).CanboatRoot.LookupIndirectEnumerations
-                .FirstOrDefault(le => le.Name == enumeration);
+                .LastOrDefault(le => le.Name == enumeration);
 
             if (lookupEnum != null)
             {
@@ -1671,7 +2044,10 @@ namespace NMEA2000Analyzer
             // Convert the first 8 bytes to ulong
             ulong data = BitConverter.ToUInt64(dataBytes, 0);
 
-            // Iterate through the dictionary
+            int? matchedIndex = null;
+
+            // Iterate through the dictionary. Prefer the last matching definition so
+            // later local.json overrides win over earlier upstream canboat entries.
             foreach (var matcher in Globals.PGNListLookup[pgn])
             {
                 ulong matchValue = matcher.Item1;
@@ -1680,11 +2056,11 @@ namespace NMEA2000Analyzer
                 // Apply the mask and check against the match value
                 if ((data & mask) == matchValue)
                 {
-                    return matcher.Item3; // Return the matching PGN Index
+                    matchedIndex = matcher.Item3;
                 }
             }
 
-            return null; // No match found
+            return matchedIndex;
         }
     }
 }
