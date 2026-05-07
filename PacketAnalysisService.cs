@@ -2,6 +2,7 @@ using System.Globalization;
 using System.IO;
 using System.Text.Json.Nodes;
 using System.Windows;
+using Newtonsoft.Json.Linq;
 
 namespace NMEA2000Analyzer
 {
@@ -167,23 +168,35 @@ namespace NMEA2000Analyzer
 
         public static JsonArray QueryPackets(JsonObject arguments)
         {
+            return QueryPacketSet(arguments)["packets"]?.AsArray() ?? new JsonArray();
+        }
+
+        public static JsonObject QueryPacketSet(JsonObject arguments)
+        {
             var assembled = arguments["assembled"]?.GetValue<bool?>() ?? true;
             var includeDecoded = arguments["include_decoded"]?.GetValue<bool?>() ?? false;
             var onlyUnknown = arguments["only_unknown"]?.GetValue<bool?>() ?? false;
             var onlyWithWarnings = arguments["only_with_warnings"]?.GetValue<bool?>() ?? false;
+            var distinctDataOnly = arguments["distinct_data_only"]?.GetValue<bool?>() ?? false;
             var limit = Math.Clamp(arguments["limit"]?.GetValue<int?>() ?? 50, 1, 500);
             var offset = Math.Max(0, arguments["offset"]?.GetValue<int?>() ?? 0);
             var pgn = arguments["pgn"]?.ToString();
             var src = arguments["src"]?.ToString();
             var dst = arguments["dst"]?.ToString();
+            var device = arguments["device"]?.ToString();
 
-            var records = GetRecords(assembled)
+            var filteredRecords = GetRecords(assembled)
                 .Where(record => string.IsNullOrWhiteSpace(pgn) || string.Equals(record.PGN, pgn, StringComparison.Ordinal))
                 .Where(record => string.IsNullOrWhiteSpace(src) || string.Equals(record.Source, src, StringComparison.Ordinal))
-                .Where(record => string.IsNullOrWhiteSpace(dst) || string.Equals(record.Destination, dst, StringComparison.Ordinal));
+                .Where(record => string.IsNullOrWhiteSpace(dst) || string.Equals(record.Destination, dst, StringComparison.Ordinal))
+                .Where(record => MatchesDevice(record, device))
+                .ToList();
 
-            var result = new JsonArray();
-            foreach (var record in records.Skip(offset))
+            var packets = new JsonArray();
+            var distinctData = distinctDataOnly ? new HashSet<string>(StringComparer.Ordinal) : null;
+            var matchedCount = 0;
+
+            foreach (var record in filteredRecords)
             {
                 var decoded = includeDecoded || onlyUnknown || onlyWithWarnings ? TryDecodeRecord(record) : null;
                 var hasWarnings = decoded?["Warnings"] is JsonArray warningArray && warningArray.Count > 0;
@@ -199,16 +212,42 @@ namespace NMEA2000Analyzer
                     continue;
                 }
 
-                var packet = BuildPacketJson(record, decoded, includeDecoded);
-                result.Add(packet);
+                if (distinctData != null && !distinctData.Add(record.Data ?? string.Empty))
+                {
+                    continue;
+                }
 
-                if (result.Count >= limit)
+                matchedCount++;
+                if (matchedCount <= offset)
+                {
+                    continue;
+                }
+
+                packets.Add(BuildPacketJson(record, decoded, includeDecoded));
+                if (packets.Count >= limit)
                 {
                     break;
                 }
             }
 
-            return result;
+            return new JsonObject
+            {
+                ["assembled"] = assembled,
+                ["pgn"] = pgn,
+                ["src"] = src,
+                ["dst"] = dst,
+                ["device"] = device,
+                ["distinctDataOnly"] = distinctDataOnly,
+                ["includeDecoded"] = includeDecoded,
+                ["onlyUnknown"] = onlyUnknown,
+                ["onlyWithWarnings"] = onlyWithWarnings,
+                ["limit"] = limit,
+                ["offset"] = offset,
+                ["preFilterCount"] = filteredRecords.Count,
+                ["matchedCount"] = matchedCount,
+                ["returnedCount"] = packets.Count,
+                ["packets"] = packets
+            };
         }
 
         public static async Task<JsonArray> GetSelectedPacketsAsync(CancellationToken cancellationToken = default)
@@ -290,6 +329,14 @@ namespace NMEA2000Analyzer
                 ["assembled"] = assembled,
                 ["context"] = context
             };
+        }
+
+        public static JsonObject GetPacketBySequence(int seq, bool assembled = true, bool includeDecoded = true)
+        {
+            var record = GetRecords(assembled).FirstOrDefault(item => item.LogSequenceNumber == seq)
+                ?? throw new InvalidOperationException($"Packet with seq {seq} was not found.");
+
+            return BuildPacketJson(record, includeDecoded ? TryDecodeRecord(record) : null, includeDecoded);
         }
 
         public static JsonObject GetByteColumns(JsonObject arguments)
@@ -556,6 +603,103 @@ namespace NMEA2000Analyzer
             };
         }
 
+        public static JsonObject GetAppliedPgnDefinition(JsonObject arguments)
+        {
+            var assembled = arguments["assembled"]?.GetValue<bool?>() ?? true;
+            var seq = arguments["seq"]?.GetValue<int?>()
+                ?? throw new InvalidOperationException("Missing required argument 'seq'.");
+
+            var record = GetRecords(assembled).FirstOrDefault(item => item.LogSequenceNumber == seq)
+                ?? throw new InvalidOperationException($"Packet with seq {seq} was not found.");
+
+            if (!int.TryParse(record.PGN, NumberStyles.Integer, CultureInfo.InvariantCulture, out var pgn))
+            {
+                throw new InvalidOperationException($"PGN '{record.PGN}' is not a valid integer.");
+            }
+
+            var currentDefinition = ResolveDefinitionForRecord(record);
+            var editableDefinition = PgnDefinitions.PrepareEditablePgnDefinition(pgn, currentDefinition, record.PayloadBytes);
+
+            return new JsonObject
+            {
+                ["seq"] = seq,
+                ["assembled"] = assembled,
+                ["pgn"] = pgn,
+                ["existsInLocal"] = editableDefinition.ExistsInLocal,
+                ["existsInCanboat"] = editableDefinition.ExistsInCanboat,
+                ["definition"] = JsonNode.Parse(editableDefinition.Json),
+                ["matchSuggestion"] = BuildMatchSuggestionJson(record)
+            };
+        }
+
+        public static async Task<JsonObject> SetAppliedPgnDefinitionAsync(JsonObject arguments, CancellationToken cancellationToken = default)
+        {
+            var assembled = arguments["assembled"]?.GetValue<bool?>() ?? true;
+            var seq = arguments["seq"]?.GetValue<int?>()
+                ?? throw new InvalidOperationException("Missing required argument 'seq'.");
+
+            var definitionJson = arguments["definition_json"]?.ToString();
+            if (string.IsNullOrWhiteSpace(definitionJson) && arguments["definition"] != null)
+            {
+                definitionJson = arguments["definition"]!.ToJsonString(new System.Text.Json.JsonSerializerOptions
+                {
+                    WriteIndented = true
+                });
+            }
+
+            if (string.IsNullOrWhiteSpace(definitionJson))
+            {
+                throw new InvalidOperationException("Missing required argument 'definition_json' or 'definition'.");
+            }
+
+            var record = GetRecords(assembled).FirstOrDefault(item => item.LogSequenceNumber == seq)
+                ?? throw new InvalidOperationException($"Packet with seq {seq} was not found.");
+
+            if (!int.TryParse(record.PGN, NumberStyles.Integer, CultureInfo.InvariantCulture, out var pgn))
+            {
+                throw new InvalidOperationException($"PGN '{record.PGN}' is not a valid integer.");
+            }
+
+            var currentDefinition = ResolveDefinitionForRecord(record);
+            PgnDefinitions.SaveEditablePgnDefinition(pgn, definitionJson, currentDefinition, record.PayloadBytes);
+            await ReloadDefinitionsAsync(cancellationToken);
+            return GetAppliedPgnDefinition(new JsonObject
+            {
+                ["seq"] = seq,
+                ["assembled"] = assembled
+            });
+        }
+
+        public static async Task<JsonObject> ClearAppliedPgnDefinitionAsync(JsonObject arguments, CancellationToken cancellationToken = default)
+        {
+            var assembled = arguments["assembled"]?.GetValue<bool?>() ?? true;
+            var seq = arguments["seq"]?.GetValue<int?>()
+                ?? throw new InvalidOperationException("Missing required argument 'seq'.");
+
+            var record = GetRecords(assembled).FirstOrDefault(item => item.LogSequenceNumber == seq)
+                ?? throw new InvalidOperationException($"Packet with seq {seq} was not found.");
+
+            if (!int.TryParse(record.PGN, NumberStyles.Integer, CultureInfo.InvariantCulture, out var pgn))
+            {
+                throw new InvalidOperationException($"PGN '{record.PGN}' is not a valid integer.");
+            }
+
+            var currentDefinition = ResolveDefinitionForRecord(record);
+            var removed = PgnDefinitions.RemoveEditablePgnDefinition(pgn, currentDefinition, record.PayloadBytes);
+            if (removed)
+            {
+                await ReloadDefinitionsAsync(cancellationToken);
+            }
+
+            return new JsonObject
+            {
+                ["seq"] = seq,
+                ["assembled"] = assembled,
+                ["pgn"] = pgn,
+                ["removed"] = removed
+            };
+        }
+
         public static async Task<JsonObject> SetPgnFiltersAsync(JsonObject arguments, CancellationToken cancellationToken = default)
         {
             if (Application.Current?.Dispatcher == null)
@@ -596,6 +740,27 @@ namespace NMEA2000Analyzer
                     }
 
                     return mainWindow.ClearFiltersFromMcp();
+                },
+                System.Windows.Threading.DispatcherPriority.Normal,
+                cancellationToken);
+        }
+
+        public static async Task<JsonObject> GetFilterStateAsync(CancellationToken cancellationToken = default)
+        {
+            if (Application.Current?.Dispatcher == null)
+            {
+                throw new InvalidOperationException("Application dispatcher is not available.");
+            }
+
+            return await Application.Current.Dispatcher.InvokeAsync(
+                () =>
+                {
+                    if (Application.Current.MainWindow is not MainWindow mainWindow)
+                    {
+                        throw new InvalidOperationException("Main window is not available.");
+                    }
+
+                    return mainWindow.GetFilterStateForMcp();
                 },
                 System.Windows.Threading.DispatcherPriority.Normal,
                 cancellationToken);
@@ -649,6 +814,59 @@ namespace NMEA2000Analyzer
                 || description.StartsWith("MFG-Specific", StringComparison.OrdinalIgnoreCase)
                 || description.StartsWith("MFG Specific", StringComparison.OrdinalIgnoreCase)
                 || description.IndexOf("Proprietary", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static bool MatchesDevice(MainWindow.Nmea2000Record record, string? device)
+        {
+            if (string.IsNullOrWhiteSpace(device))
+            {
+                return true;
+            }
+
+            return string.Equals(record.Source, device, StringComparison.Ordinal)
+                || (!string.IsNullOrWhiteSpace(record.DeviceInfo)
+                    && record.DeviceInfo.Contains(device, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static Canboat.Pgn? ResolveDefinitionForRecord(MainWindow.Nmea2000Record record)
+        {
+            var app = Application.Current as App;
+            var canboatRoot = app?.CanboatRoot;
+            if (canboatRoot == null)
+            {
+                return null;
+            }
+
+            if (record.PGNListIndex.HasValue &&
+                record.PGNListIndex.Value >= 0 &&
+                record.PGNListIndex.Value < canboatRoot.PGNs.Count)
+            {
+                return canboatRoot.PGNs[record.PGNListIndex.Value];
+            }
+
+            return int.TryParse(record.PGN, NumberStyles.Integer, CultureInfo.InvariantCulture, out var pgn)
+                ? canboatRoot.PGNs.FirstOrDefault(candidate => candidate.PGN == pgn)
+                : null;
+        }
+
+        private static JsonObject? BuildMatchSuggestionJson(MainWindow.Nmea2000Record record)
+        {
+            if (record.PayloadBytes == null || record.PayloadBytes.Length < 2)
+            {
+                return null;
+            }
+
+            var header = (ushort)(record.PayloadBytes[0] | (record.PayloadBytes[1] << 8));
+            var manufacturerCode = header & 0x07FF;
+            var industryCode = (header >> 13) & 0x0007;
+
+            return new JsonObject
+            {
+                ["manufacturerCode"] = manufacturerCode,
+                ["manufacturerDescription"] = PgnDefinitions.Lookup("MANUFACTURER_CODE", manufacturerCode),
+                ["industryCode"] = industryCode,
+                ["industryDescription"] = PgnDefinitions.Lookup("INDUSTRY_CODE", industryCode)
+            };
         }
 
         private static JsonObject BuildPacketJson(MainWindow.Nmea2000Record record, JsonObject? decoded, bool includeDecoded)

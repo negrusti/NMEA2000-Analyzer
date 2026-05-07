@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.10 - 2026-05-08
+
+- Reworked the MCP HTTP transport to match Codex-compatible stateless initialization and added MCP resources for current session summaries, selections, filters, unknown PGNs, and packet/PGN drill-down templates.
+- Expanded MCP packet querying with device filtering and `distinct_data_only` support for cases such as "device X, PGN Y, distinct payloads only".
+- Added MCP tools to get, set, and clear the applied PGN definition using the same edit-definition path as the UI, including live definition reloads after updates.
+
 ## 1.4.9 - 2026-04-30
 
 - Fixed device-emulation identity replies to deduplicate repeated assembled identity payloads from the log, which restored `YDTA-04` visibility on the MFD device list.

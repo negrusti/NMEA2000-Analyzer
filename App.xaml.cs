@@ -105,9 +105,18 @@ namespace NMEA2000Analyzer
                 _mcpServer ??= new McpHttpServer(settings.Port);
                 _mcpServer.Start();
             }
-            catch
+            catch (Exception ex)
             {
-                // Leave MCP unavailable if the port is already in use.
+                try
+                {
+                    File.WriteAllText(
+                        Path.Combine(AppContext.BaseDirectory, "mcp-startup-error.txt"),
+                        ex.ToString());
+                }
+                catch
+                {
+                    // Ignore logging failures.
+                }
             }
         }
 

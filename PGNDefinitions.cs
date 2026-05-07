@@ -15,7 +15,11 @@ namespace NMEA2000Analyzer
     {
         private const string CanboatJsonUrl = "https://raw.githubusercontent.com/canboat/canboat/master/docs/canboat.json";
         private static readonly string CanboatJsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "canboat.json");
+#if DEBUG
+        private static readonly string LocalJsonPath = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\local.json"));
+#else
         private static readonly string LocalJsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "local.json");
+#endif
 
         public sealed class EditablePgnDefinition
         {
@@ -221,11 +225,11 @@ namespace NMEA2000Analyzer
                 ?.Value;
         }
 
-        public static EditablePgnDefinition PrepareEditablePgnDefinition(int pgn, Canboat.Pgn? currentDefinition)
+        public static EditablePgnDefinition PrepareEditablePgnDefinition(int pgn, Canboat.Pgn? currentDefinition, byte[]? payloadBytes)
         {
             var localRoot = LoadJsonRoot(LocalJsonPath, createIfMissing: true);
             var localPgns = GetOrCreatePgnArray(localRoot);
-            var localDefinition = FindBestMatchingDefinition(localPgns, pgn, currentDefinition);
+            var localDefinition = FindBestMatchingDefinition(localPgns, pgn, currentDefinition, payloadBytes);
             if (localDefinition != null)
             {
                 return new EditablePgnDefinition
@@ -241,7 +245,7 @@ namespace NMEA2000Analyzer
             {
                 var canboatRoot = LoadJsonRoot(CanboatJsonPath, createIfMissing: false);
                 var canboatPgns = GetOrCreatePgnArray(canboatRoot);
-                var canboatDefinition = FindBestMatchingDefinition(canboatPgns, pgn, currentDefinition);
+                var canboatDefinition = FindBestMatchingDefinition(canboatPgns, pgn, currentDefinition, payloadBytes);
                 if (canboatDefinition != null)
                 {
                     return new EditablePgnDefinition
@@ -254,17 +258,6 @@ namespace NMEA2000Analyzer
                 }
             }
 
-            if (currentDefinition != null)
-            {
-                return new EditablePgnDefinition
-                {
-                    Pgn = pgn,
-                    Json = JObject.FromObject(currentDefinition).ToString(Formatting.Indented),
-                    ExistsInLocal = false,
-                    ExistsInCanboat = true
-                };
-            }
-
             return new EditablePgnDefinition
             {
                 Pgn = pgn,
@@ -274,7 +267,7 @@ namespace NMEA2000Analyzer
             };
         }
 
-        public static void SaveEditablePgnDefinition(int pgn, string definitionJson, Canboat.Pgn? currentDefinition)
+        public static void SaveEditablePgnDefinition(int pgn, string definitionJson, Canboat.Pgn? currentDefinition, byte[]? payloadBytes)
         {
             if (string.IsNullOrWhiteSpace(definitionJson))
             {
@@ -286,7 +279,7 @@ namespace NMEA2000Analyzer
 
             var localRoot = LoadJsonRoot(LocalJsonPath, createIfMissing: true);
             var localPgns = GetOrCreatePgnArray(localRoot);
-            var existingDefinition = FindBestMatchingDefinition(localPgns, pgn, currentDefinition);
+            var existingDefinition = FindBestMatchingDefinition(localPgns, pgn, currentDefinition, payloadBytes);
 
             if (existingDefinition != null)
             {
@@ -298,6 +291,21 @@ namespace NMEA2000Analyzer
             }
 
             File.WriteAllText(LocalJsonPath, localRoot.ToString(Formatting.Indented), new UTF8Encoding(false));
+        }
+
+        public static bool RemoveEditablePgnDefinition(int pgn, Canboat.Pgn? currentDefinition, byte[]? payloadBytes)
+        {
+            var localRoot = LoadJsonRoot(LocalJsonPath, createIfMissing: true);
+            var localPgns = GetOrCreatePgnArray(localRoot);
+            var existingDefinition = FindBestMatchingDefinition(localPgns, pgn, currentDefinition, payloadBytes);
+            if (existingDefinition == null)
+            {
+                return false;
+            }
+
+            existingDefinition.Remove();
+            File.WriteAllText(LocalJsonPath, localRoot.ToString(Formatting.Indented), new UTF8Encoding(false));
+            return true;
         }
 
         private static JObject LoadJsonRoot(string path, bool createIfMissing)
@@ -339,7 +347,11 @@ namespace NMEA2000Analyzer
             return pgns;
         }
 
-        private static JObject? FindBestMatchingDefinition(JArray definitions, int pgn, Canboat.Pgn? currentDefinition)
+        private static JObject? FindBestMatchingDefinition(
+            JArray definitions,
+            int pgn,
+            Canboat.Pgn? currentDefinition,
+            byte[]? payloadBytes)
         {
             var candidates = definitions
                 .OfType<JObject>()
@@ -351,7 +363,18 @@ namespace NMEA2000Analyzer
                 return null;
             }
 
-            if (currentDefinition == null || candidates.Count == 1)
+            if (payloadBytes is { Length: > 0 })
+            {
+                var matchedCandidate = FindMatchingDefinitionByPayload(candidates, payloadBytes);
+                if (matchedCandidate != null)
+                {
+                    return matchedCandidate;
+                }
+
+                return FindGenericDefinition(candidates);
+            }
+
+            if (currentDefinition == null)
             {
                 return candidates[0];
             }
@@ -359,6 +382,90 @@ namespace NMEA2000Analyzer
             return candidates
                 .OrderByDescending(candidate => GetDefinitionMatchScore(candidate, currentDefinition))
                 .First();
+        }
+
+        private static JObject? FindGenericDefinition(IReadOnlyList<JObject> candidates)
+        {
+            JObject? genericCandidate = null;
+
+            foreach (var candidate in candidates)
+            {
+                if (!DefinitionHasMatchFields(candidate))
+                {
+                    genericCandidate = candidate;
+                }
+            }
+
+            return genericCandidate;
+        }
+
+        private static JObject? FindMatchingDefinitionByPayload(IReadOnlyList<JObject> candidates, byte[] payloadBytes)
+        {
+            JObject? matchedCandidate = null;
+
+            foreach (var candidate in candidates)
+            {
+                if (!DefinitionMatchesPayload(candidate, payloadBytes))
+                {
+                    continue;
+                }
+
+                matchedCandidate = candidate;
+            }
+
+            return matchedCandidate;
+        }
+
+        private static bool DefinitionMatchesPayload(JObject definition, byte[] payloadBytes)
+        {
+            if (definition["Fields"] is not JArray fields)
+            {
+                return true;
+            }
+
+            var hasMatchFields = false;
+            foreach (var field in fields.OfType<JObject>())
+            {
+                var matchValue = TryGetIntProperty(field, "Match");
+                if (!matchValue.HasValue)
+                {
+                    continue;
+                }
+
+                var bitLength = TryGetIntProperty(field, "BitLength");
+                var bitOffset = TryGetIntProperty(field, "BitOffset");
+                if (!bitLength.HasValue || !bitOffset.HasValue || bitLength.Value <= 0)
+                {
+                    return false;
+                }
+
+                hasMatchFields = true;
+                var rawValue = ExtractBits(payloadBytes, bitOffset.Value / 8, bitOffset.Value % 8, bitLength.Value);
+                if (rawValue != (ulong)matchValue.Value)
+                {
+                    return false;
+                }
+            }
+
+            return hasMatchFields;
+        }
+
+        private static bool DefinitionHasMatchFields(JObject definition)
+        {
+            if (definition["Fields"] is not JArray fields)
+            {
+                return false;
+            }
+
+            foreach (var field in fields.OfType<JObject>())
+            {
+                if (TryGetIntProperty(field, "Match").HasValue)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static int GetDefinitionMatchScore(JObject candidate, Canboat.Pgn reference)

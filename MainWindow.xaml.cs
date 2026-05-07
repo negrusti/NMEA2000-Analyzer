@@ -395,6 +395,18 @@ namespace NMEA2000Analyzer
             };
         }
 
+        public JsonObject GetFilterStateForMcp()
+        {
+            return new JsonObject
+            {
+                ["includePgns"] = new JsonArray(ParseList(IncludePGNTextBox.Text).OrderBy(value => value, StringComparer.Ordinal).Select(value => (JsonNode?)JsonValue.Create(value)).ToArray()),
+                ["excludePgns"] = new JsonArray(ParseList(ExcludePGNTextBox.Text).OrderBy(value => value, StringComparer.Ordinal).Select(value => (JsonNode?)JsonValue.Create(value)).ToArray()),
+                ["includeAddresses"] = new JsonArray(ParseList(IncludeAddressTextBox.Text).OrderBy(value => value, StringComparer.Ordinal).Select(value => (JsonNode?)JsonValue.Create(value)).ToArray()),
+                ["distinctDataOnly"] = DistinctFilterCheckBox.IsChecked == true,
+                ["view"] = _currentPacketView == PacketViewMode.Assembled ? "assembled" : "unassembled"
+            };
+        }
+
         private async Task LoadFileAsync(string filePath)
         {
             ClearData();
@@ -592,7 +604,21 @@ namespace NMEA2000Analyzer
         {
             ((App)Application.Current).CanboatRoot = await LoadPgnDefinitionsAsync();
             EnrichUnassembledRecords(_Data);
-            RefreshAssembledRecordDefinitions(_assembledData);
+
+            if (_Data != null)
+            {
+                ApplyHighlights(_Data);
+                _assembledData = AssembleFrames(_Data);
+                ApplyHighlights(_assembledData);
+                GenerateDeviceInfo(_assembledData);
+                UpdateSrcDevices(_Data);
+                UpdateSrcDevices(_assembledData);
+            }
+            else
+            {
+                RefreshAssembledRecordDefinitions(_assembledData);
+            }
+
             _indexedDataSource = null;
             _filterIndexes = null;
             RefreshGridView();
@@ -2019,6 +2045,26 @@ namespace NMEA2000Analyzer
                 : null;
         }
 
+        private static PgnDefinitionEditorWindow.MatchSuggestion? CreateMatchSuggestion(Nmea2000Record record)
+        {
+            if (record.PayloadBytes == null || record.PayloadBytes.Length < 2)
+            {
+                return null;
+            }
+
+            var header = (ushort)(record.PayloadBytes[0] | (record.PayloadBytes[1] << 8));
+            var manufacturerCode = header & 0x07FF;
+            var industryCode = (header >> 13) & 0x0007;
+
+            return new PgnDefinitionEditorWindow.MatchSuggestion
+            {
+                ManufacturerCode = manufacturerCode,
+                ManufacturerDescription = Lookup("MANUFACTURER_CODE", manufacturerCode),
+                IndustryCode = industryCode,
+                IndustryDescription = Lookup("INDUSTRY_CODE", industryCode)
+            };
+        }
+
         private static Dictionary<string, string> ExtractDecodedFields(JsonObject decoded)
         {
             var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -2830,12 +2876,13 @@ namespace NMEA2000Analyzer
             try
             {
                 var currentDefinition = ResolveDefinitionForRecord(selectedRow);
-                var editableDefinition = PrepareEditablePgnDefinition(pgn, currentDefinition);
+                var editableDefinition = PrepareEditablePgnDefinition(pgn, currentDefinition, selectedRow.PayloadBytes);
                 var editorWindow = new PgnDefinitionEditorWindow(
                     pgn,
                     editableDefinition.Json,
                     editableDefinition.ExistsInLocal,
-                    editableDefinition.ExistsInCanboat)
+                    editableDefinition.ExistsInCanboat,
+                    CreateMatchSuggestion(selectedRow))
                 {
                     Owner = this
                 };
@@ -2845,7 +2892,15 @@ namespace NMEA2000Analyzer
                     return;
                 }
 
-                SaveEditablePgnDefinition(pgn, editorWindow.DefinitionJson, currentDefinition);
+                if (editorWindow.ClearRequested)
+                {
+                    RemoveEditablePgnDefinition(pgn, currentDefinition, selectedRow.PayloadBytes);
+                }
+                else
+                {
+                    SaveEditablePgnDefinition(pgn, editorWindow.DefinitionJson, currentDefinition, selectedRow.PayloadBytes);
+                }
+
                 await ReloadDefinitionsAsync();
                 _lastLocalDefinitionsSnapshot = GetLocalDefinitionsSnapshot();
             }
