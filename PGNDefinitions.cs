@@ -276,6 +276,7 @@ namespace NMEA2000Analyzer
 
             var editedDefinition = JObject.Parse(definitionJson);
             editedDefinition["PGN"] = pgn;
+            ValidateDefinitionMatchesSelectedPacket(editedDefinition, payloadBytes);
 
             var localRoot = LoadJsonRoot(LocalJsonPath, createIfMissing: true);
             var localPgns = GetOrCreatePgnArray(localRoot);
@@ -291,6 +292,87 @@ namespace NMEA2000Analyzer
             }
 
             File.WriteAllText(LocalJsonPath, localRoot.ToString(Formatting.Indented), new UTF8Encoding(false));
+        }
+
+        public static void ValidateDefinitionMatchesSelectedPacket(JObject definition, byte[]? payloadBytes)
+        {
+            if (!TryValidateDefinitionMatchesSelectedPacket(definition, payloadBytes, out var failureReason))
+            {
+                throw new InvalidOperationException(failureReason ?? "The PGN definition matchers do not match the selected packet.");
+            }
+        }
+
+        public static bool TryValidateDefinitionMatchesSelectedPacket(JObject definition, byte[]? payloadBytes, out string? failureReason)
+        {
+            failureReason = null;
+
+            if (definition["Fields"] is not JArray fields)
+            {
+                return true;
+            }
+
+            var matchFields = fields
+                .OfType<JObject>()
+                .Where(field => GetPropertyValue(field, "Match") != null)
+                .ToList();
+
+            if (matchFields.Count == 0)
+            {
+                return true;
+            }
+
+            if (payloadBytes == null || payloadBytes.Length == 0)
+            {
+                failureReason = "Cannot validate PGN definition matchers because the selected packet has no payload bytes.";
+                return false;
+            }
+
+            var mismatches = new List<string>();
+            foreach (var field in matchFields)
+            {
+                var label = GetDefinitionFieldLabel(field);
+                var matchValue = TryGetIntProperty(field, "Match");
+                if (!matchValue.HasValue)
+                {
+                    failureReason = $"Field '{label}' has a Match value that is not a valid integer.";
+                    return false;
+                }
+
+                var bitLength = TryGetIntProperty(field, "BitLength");
+                if (!bitLength.HasValue || bitLength.Value <= 0)
+                {
+                    failureReason = $"Field '{label}' must define a positive BitLength to be used as a matcher.";
+                    return false;
+                }
+
+                var bitOffset = TryGetIntProperty(field, "BitOffset");
+                if (!bitOffset.HasValue || bitOffset.Value < 0)
+                {
+                    failureReason = $"Field '{label}' must define a non-negative BitOffset to be used as a matcher.";
+                    return false;
+                }
+
+                var requiredBits = bitOffset.Value + bitLength.Value;
+                if (requiredBits > payloadBytes.Length * 8)
+                {
+                    failureReason = $"Field '{label}' reads bits {bitOffset.Value}..{requiredBits - 1}, but the selected packet payload is only {payloadBytes.Length} bytes long.";
+                    return false;
+                }
+
+                var rawValue = ExtractBits(payloadBytes, bitOffset.Value / 8, bitOffset.Value % 8, bitLength.Value);
+                if (rawValue != (ulong)matchValue.Value)
+                {
+                    mismatches.Add($"'{label}' expected {matchValue.Value} but packet has {rawValue}");
+                }
+            }
+
+            if (mismatches.Count == 0)
+            {
+                return true;
+            }
+
+            failureReason = "Definition matchers do not match the selected packet:\n" + string.Join("\n", mismatches);
+            return false;
         }
 
         public static bool RemoveEditablePgnDefinition(int pgn, Canboat.Pgn? currentDefinition, byte[]? payloadBytes)
@@ -466,6 +548,23 @@ namespace NMEA2000Analyzer
             }
 
             return false;
+        }
+
+        private static string GetDefinitionFieldLabel(JObject field)
+        {
+            var name = GetPropertyString(field, "Name");
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                return name;
+            }
+
+            var id = GetPropertyString(field, "Id");
+            if (!string.IsNullOrWhiteSpace(id))
+            {
+                return id;
+            }
+
+            return "unnamed field";
         }
 
         private static int GetDefinitionMatchScore(JObject candidate, Canboat.Pgn reference)
