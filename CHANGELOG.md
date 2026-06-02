@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.11 - 2026-06-03
+
+- Added live capture through Mastervolt-compatible HID gateways, including support for the Mastervolt 77030100 USB Interface.
+- Added Mastervolt capture device-identification requests using the same `126996` product-information workflow as PCAN capture.
+- Added Actisense DLL capture as a separate live capture option.
+
 ## 1.4.10 - 2026-05-08
 
 - Reworked the MCP HTTP transport to match Codex-compatible stateless initialization and added MCP resources for current session summaries, selections, filters, unknown PGNs, and packet/PGN drill-down templates.

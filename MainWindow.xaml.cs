@@ -726,7 +726,11 @@ namespace NMEA2000Analyzer
 
         private static string GetLocalDefinitionsPath()
         {
+#if DEBUG
+            return Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\local.json"));
+#else
             return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "local.json");
+#endif
         }
 
         private void PopulateRecentFilesMenu()
@@ -879,6 +883,131 @@ namespace NMEA2000Analyzer
             ActiveDataSessionService.SetCurrent(
                 "Actisense Capture",
                 $"Actisense {detectedPort}",
+                _Data,
+                _assembledData,
+                firstTimestamp,
+                lastTimestamp);
+            RefreshGridView();
+        }
+
+        private void ActisenseDllCaptureMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (!ActisenseDllCapture.IsAvailable())
+            {
+                MessageBox.Show(
+                    this,
+                    $"Actisense DLL was not found at:{Environment.NewLine}{ActisenseDllCapture.DefaultDllPath}",
+                    "Actisense Capture",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            if (!ActisenseDllCapture.StartCapture(out var sourceLabel, out var errorMessage))
+            {
+                MessageBox.Show(
+                    this,
+                    errorMessage,
+                    "Actisense Capture",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                return;
+            }
+
+            ClearData();
+            SetWindowTitle("Actisense Capture", "Actisense DLL");
+
+            var captureWindow = new CaptureProgressWindow(
+                () => ActisenseDllCapture.GetCapturedCount(),
+                sourceLabel,
+                canRequestDeviceInfo: false)
+            {
+                Owner = this,
+                Title = "Actisense Capture"
+            };
+            captureWindow.ShowDialog();
+
+            ActisenseDllCapture.StopCapture();
+
+            _Data = ActisenseDllCapture.LoadCapture();
+            var (firstTimestamp, lastTimestamp) = CaptureLoadService.GetTimestampBounds(_Data);
+            UpdateTimestampRange(firstTimestamp, lastTimestamp);
+            EnrichUnassembledRecords(_Data);
+            ApplyHighlights(_Data);
+
+            _assembledData = AssembleFrames(_Data);
+            ApplyHighlights(_assembledData);
+
+            GenerateDeviceInfo(_assembledData);
+            UpdateSrcDevices(_Data);
+            UpdateSrcDevices(_assembledData);
+            ActiveDataSessionService.SetCurrent(
+                "Actisense Capture",
+                "Actisense DLL",
+                _Data,
+                _assembledData,
+                firstTimestamp,
+                lastTimestamp);
+            RefreshGridView();
+        }
+
+        private void MastervoltCaptureMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            var detectedDevicePath = MastervoltHidCapture.AutoDetectDevicePath();
+            if (string.IsNullOrWhiteSpace(detectedDevicePath))
+            {
+                MessageBox.Show(
+                    this,
+                    "No Mastervolt HID gateway was detected.",
+                    "Mastervolt Capture",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            if (!MastervoltHidCapture.StartCapture(detectedDevicePath))
+            {
+                MessageBox.Show(
+                    this,
+                    "Failed to start Mastervolt HID capture.",
+                    "Mastervolt Capture",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                return;
+            }
+
+            ClearData();
+            SetWindowTitle("Mastervolt Capture", "Mastervolt HID");
+
+            var captureWindow = new CaptureProgressWindow(
+                () => MastervoltHidCapture.GetCapturedCount(),
+                "Detected Mastervolt HID gateway",
+                canRequestDeviceInfo: true,
+                requestDeviceInfo: MastervoltHidCapture.RequestProductInformationBroadcast,
+                requestDeviceInfoTitle: "Mastervolt Capture")
+            {
+                Owner = this,
+                Title = "Mastervolt Capture"
+            };
+            captureWindow.ShowDialog();
+
+            MastervoltHidCapture.StopCapture();
+
+            _Data = MastervoltHidCapture.LoadCapture();
+            var (firstTimestamp, lastTimestamp) = CaptureLoadService.GetTimestampBounds(_Data);
+            UpdateTimestampRange(firstTimestamp, lastTimestamp);
+            EnrichUnassembledRecords(_Data);
+            ApplyHighlights(_Data);
+
+            _assembledData = AssembleFrames(_Data);
+            ApplyHighlights(_assembledData);
+
+            GenerateDeviceInfo(_assembledData);
+            UpdateSrcDevices(_Data);
+            UpdateSrcDevices(_assembledData);
+            ActiveDataSessionService.SetCurrent(
+                "Mastervolt Capture",
+                "Mastervolt HID",
                 _Data,
                 _assembledData,
                 firstTimestamp,
@@ -1363,6 +1492,15 @@ namespace NMEA2000Analyzer
             RefreshFilterView();
         }
 
+        public void IncludeAddresses(IEnumerable<string> addresses)
+        {
+            var mergedAddresses = ParseList(IncludeAddressTextBox.Text);
+            mergedAddresses.UnionWith(addresses.Where(address => !string.IsNullOrWhiteSpace(address)));
+
+            IncludeAddressTextBox.Text = string.Join(", ", mergedAddresses.OrderBy(address => address, StringComparer.Ordinal));
+            RefreshFilterView();
+        }
+
         private void DevicesMenuItem_Click(object sender, RoutedEventArgs e)
         {
             var observedAddresses = (_Data ?? Enumerable.Empty<Nmea2000Record>())
@@ -1425,12 +1563,22 @@ namespace NMEA2000Analyzer
                 .ToList();
 
               // Open the statistics window
-                var devicesWindow = new Devices(statistics, ShowDeviceGraph, ShowSupportedPgns, PrepareDeviceEmulation, BuildDeviceEmulatorScaffold, GetActiveWindowTitleSuffix())
+                var devicesWindow = new Devices(statistics, IncludeDeviceInFilter, ShowDeviceGraph, ShowSupportedPgns, PrepareDeviceEmulation, BuildDeviceEmulatorScaffold, GetActiveWindowTitleSuffix())
                 {
                     Owner = this
                 };
                 devicesWindow.Show();
             }
+
+        private void IncludeDeviceInFilter(DeviceStatisticsEntry entry)
+        {
+            if (entry == null)
+            {
+                return;
+            }
+
+            IncludeAddresses(new[] { entry.Address.ToString(CultureInfo.InvariantCulture) });
+        }
 
         private void AlarmsMenuItem_Click(object sender, RoutedEventArgs e)
         {
@@ -2882,7 +3030,8 @@ namespace NMEA2000Analyzer
                     editableDefinition.Json,
                     editableDefinition.ExistsInLocal,
                     editableDefinition.ExistsInCanboat,
-                    CreateMatchSuggestion(selectedRow))
+                    CreateMatchSuggestion(selectedRow),
+                    selectedRow.PayloadBytes)
                 {
                     Owner = this
                 };

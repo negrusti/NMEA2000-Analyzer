@@ -5,18 +5,29 @@ namespace NMEA2000Analyzer
 {
     public partial class CaptureProgressWindow : Window
     {
+        public delegate bool RequestDeviceInfoHandler(out string errorMessage);
+
         private readonly DispatcherTimer _timer;
         private readonly Func<int> _getCapturedCount;
+        private readonly RequestDeviceInfoHandler? _requestDeviceInfo;
+        private readonly string _requestDeviceInfoTitle;
 
         public CaptureProgressWindow()
-            : this(() => PCAN.GetCapturedCount())
+            : this(() => PCAN.GetCapturedCount(), requestDeviceInfo: PCAN.RequestProductInformationBroadcast)
         {
         }
 
-        public CaptureProgressWindow(Func<int> getCapturedCount, string? sourceLabel = null, bool canRequestDeviceInfo = true)
+        public CaptureProgressWindow(
+            Func<int> getCapturedCount,
+            string? sourceLabel = null,
+            bool canRequestDeviceInfo = true,
+            RequestDeviceInfoHandler? requestDeviceInfo = null,
+            string requestDeviceInfoTitle = "PCAN Capture")
         {
             InitializeComponent();
             _getCapturedCount = getCapturedCount;
+            _requestDeviceInfo = requestDeviceInfo ?? (canRequestDeviceInfo ? PCAN.RequestProductInformationBroadcast : null);
+            _requestDeviceInfoTitle = requestDeviceInfoTitle;
             _timer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromMilliseconds(200)
@@ -51,12 +62,17 @@ namespace NMEA2000Analyzer
 
         private void RequestDeviceInfoButton_Click(object sender, RoutedEventArgs e)
         {
-            if (!PCAN.RequestProductInformationBroadcast(out var errorMessage))
+            if (_requestDeviceInfo == null)
+            {
+                return;
+            }
+
+            if (!_requestDeviceInfo(out var errorMessage))
             {
                 MessageBox.Show(
                     this,
                     errorMessage,
-                    "PCAN Capture",
+                    _requestDeviceInfoTitle,
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
                 return;

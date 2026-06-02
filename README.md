@@ -27,7 +27,13 @@ You can define your own presets in `presets.json`.
 
 ## Live capture
 
-Supported with CANable-compatible boards using the PCAN driver.
+Supported capture interfaces:
+
+* CANable-compatible boards using the PCAN driver
+* Actisense NGT-1 compatible direct serial capture
+* Actisense DLL capture
+* Mastervolt 77030100 USB Interface and compatible Mastervolt HID gateways
+
 Saved captures are exported in candump format.
 
 ## Views

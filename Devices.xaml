@@ -29,6 +29,8 @@
             <DataGrid.Resources>
                 <ContextMenu x:Key="deviceRowContextMenu"
                              Opened="DeviceRowContextMenu_Opened">
+                    <MenuItem Header="Include"
+                              Click="IncludeMenuItem_Click" />
                     <MenuItem Header="Packet Graph"
                               Click="PacketGraphMenuItem_Click" />
                     <MenuItem Header="Supported PGNs"

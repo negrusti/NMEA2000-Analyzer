@@ -14,6 +14,7 @@ namespace NMEA2000Analyzer
     /// </summary>
     public partial class Devices : Window
     {
+        private readonly Action<DeviceStatisticsEntry>? _includeRequested;
         private readonly Action<DeviceStatisticsEntry>? _graphRequested;
         private readonly Action<DeviceStatisticsEntry>? _supportedPgnsRequested;
         private readonly Action<DeviceStatisticsEntry>? _emulationRequested;
@@ -31,12 +32,14 @@ namespace NMEA2000Analyzer
 
         public Devices(
             IEnumerable<DeviceStatisticsEntry> statistics,
+            Action<DeviceStatisticsEntry>? includeRequested = null,
             Action<DeviceStatisticsEntry>? graphRequested = null,
             Action<DeviceStatisticsEntry>? supportedPgnsRequested = null,
             Action<DeviceStatisticsEntry>? emulationRequested = null,
             Action<DeviceStatisticsEntry>? buildEmulatorRequested = null,
             string? titleSuffix = null)
         {
+            _includeRequested = includeRequested;
             _graphRequested = graphRequested;
             _supportedPgnsRequested = supportedPgnsRequested;
             _emulationRequested = emulationRequested;
@@ -95,6 +98,21 @@ namespace NMEA2000Analyzer
             row.IsSelected = true;
             row.Focus();
             _graphRequested?.Invoke(entry);
+        }
+
+        private void IncludeMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not MenuItem menuItem ||
+                menuItem.Parent is not ContextMenu contextMenu ||
+                contextMenu.PlacementTarget is not DataGridRow row ||
+                row.Item is not DeviceStatisticsEntry entry)
+            {
+                return;
+            }
+
+            row.IsSelected = true;
+            row.Focus();
+            _includeRequested?.Invoke(entry);
         }
 
         private void SupportedPgnsMenuItem_Click(object sender, RoutedEventArgs e)

@@ -8,6 +8,7 @@ namespace NMEA2000Analyzer
     {
         private readonly MatchSuggestion? _matchSuggestion;
         private readonly bool _existsInLocal;
+        private readonly byte[]? _payloadBytes;
 
         public string DefinitionJson => DefinitionTextBox.Text;
         public bool ClearRequested { get; private set; }
@@ -25,11 +26,13 @@ namespace NMEA2000Analyzer
             string definitionJson,
             bool existsInLocal,
             bool existsInCanboat,
-            MatchSuggestion? matchSuggestion)
+            MatchSuggestion? matchSuggestion,
+            byte[]? payloadBytes)
         {
             InitializeComponent();
             _matchSuggestion = matchSuggestion;
             _existsInLocal = existsInLocal;
+            _payloadBytes = payloadBytes;
 
             Title = $"Edit PGN Definition {pgn}";
             DefinitionTextBox.Text = definitionJson;
@@ -64,6 +67,16 @@ namespace NMEA2000Analyzer
                 if (parsed is not JObject definitionObject)
                 {
                     MessageBox.Show("Definition JSON must be a JSON object.", "Invalid JSON", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                if (!PgnDefinitions.TryValidateDefinitionMatchesSelectedPacket(definitionObject, _payloadBytes, out var failureReason))
+                {
+                    MessageBox.Show(
+                        failureReason ?? "The PGN definition matchers do not match the selected packet.",
+                        "Matcher Validation Failed",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
                     return;
                 }
 

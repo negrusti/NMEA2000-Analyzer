@@ -24,7 +24,9 @@
                 <MenuItem Header="Save Selected" Click="SaveSelectedAsCandumpMenuItem_Click" />
                 <MenuItem Header="Capture">
                     <MenuItem x:Name="RecordMenuItem" Header="PCAN" Click="RecordMenuItem_ClickAsync" />
-                    <MenuItem Header="Actisense" Click="ActisenseCaptureMenuItem_Click" />
+                    <MenuItem Header="Actisense (Direct)" Click="ActisenseCaptureMenuItem_Click" />
+                    <MenuItem Header="Actisense (DLL)" Click="ActisenseDllCaptureMenuItem_Click" />
+                    <MenuItem Header="Mastervolt" Click="MastervoltCaptureMenuItem_Click" />
                     <MenuItem Header="Maretron" IsEnabled="False" />
                 </MenuItem>
                 <Separator x:Name="RecentFilesSeparator" Visibility="Collapsed" />
