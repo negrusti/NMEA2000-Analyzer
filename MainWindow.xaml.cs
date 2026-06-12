@@ -621,6 +621,7 @@ namespace NMEA2000Analyzer
 
             _indexedDataSource = null;
             _filterIndexes = null;
+            RefreshActiveDataSessionAfterDefinitionReload();
             RefreshGridView();
             RefreshSelectedRecordDecode();
 
@@ -630,6 +631,24 @@ namespace NMEA2000Analyzer
                 ["rawCount"] = _Data?.Count ?? 0,
                 ["assembledCount"] = _assembledData?.Count ?? 0
             };
+        }
+
+        private void RefreshActiveDataSessionAfterDefinitionReload()
+        {
+            var session = ActiveDataSessionService.GetCurrent();
+            if (session == null)
+            {
+                return;
+            }
+
+            ActiveDataSessionService.SetCurrent(
+                session.Name,
+                session.Format,
+                _Data ?? session.RawRecords,
+                _assembledData ?? session.AssembledRecords,
+                session.FirstTimestamp,
+                session.LastTimestamp,
+                session.SourcePath);
         }
 
         private void EnsureLocalDefinitionsWatcher()

@@ -166,6 +166,132 @@ namespace NMEA2000Analyzer
             return result;
         }
 
+        public static JsonObject ListDevices()
+        {
+            var session = RequireSession();
+            var rawRecords = session.RawRecords;
+            var assembledRecords = session.AssembledRecords;
+
+            var observedAddresses = rawRecords
+                .Concat(assembledRecords)
+                .Select(record => record.Source)
+                .Where(source => int.TryParse(source, NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+                .Select(source => int.Parse(source, CultureInfo.InvariantCulture))
+                .Distinct()
+                .OrderBy(address => address)
+                .ToList();
+
+            var unassembledCounts = rawRecords
+                .GroupBy(record => record.Source ?? string.Empty)
+                .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal);
+
+            var assembledCounts = assembledRecords
+                .GroupBy(record => record.Source ?? string.Empty)
+                .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal);
+
+            var throughputBySource = assembledRecords
+                .GroupBy(record => record.Source ?? string.Empty)
+                .ToDictionary(group => group.Key, CalculateThroughput, StringComparer.Ordinal);
+
+            var addresses = observedAddresses
+                .Concat(Globals.Devices.Keys)
+                .Distinct()
+                .OrderBy(address => address);
+
+            var devices = new JsonArray();
+            double totalAverageBytesPerSecond = 0;
+            double totalPeakBytesPerSecond = 0;
+            var totalUnassembledCount = 0;
+            var totalAssembledCount = 0;
+
+            foreach (var address in addresses)
+            {
+                var sourceKey = address.ToString(CultureInfo.InvariantCulture);
+                throughputBySource.TryGetValue(sourceKey, out var throughput);
+                Globals.Devices.TryGetValue(address, out var deviceInfo);
+
+                var averageBytesPerSecond = throughput.AverageBytesPerSecond ?? 0;
+                var peakBytesPerSecond = throughput.PeakBytesPerSecond ?? 0;
+                var unassembledCount = unassembledCounts.GetValueOrDefault(sourceKey);
+                var assembledCount = assembledCounts.GetValueOrDefault(sourceKey);
+                var supportedPgns = GetSupportedPgnLists(assembledRecords, address);
+
+                totalAverageBytesPerSecond += averageBytesPerSecond;
+                totalPeakBytesPerSecond += peakBytesPerSecond;
+                totalUnassembledCount += unassembledCount;
+                totalAssembledCount += assembledCount;
+
+                devices.Add(new JsonObject
+                {
+                    ["address"] = deviceInfo?.Address ?? address,
+                    ["productCode"] = deviceInfo?.ProductCode,
+                    ["modelId"] = deviceInfo?.ModelID,
+                    ["softwareVersionCode"] = deviceInfo?.SoftwareVersionCode,
+                    ["modelVersion"] = deviceInfo?.ModelVersion,
+                    ["modelSerialCode"] = deviceInfo?.ModelSerialCode,
+                    ["manufacturerCode"] = deviceInfo?.MfgCode,
+                    ["deviceClass"] = deviceInfo?.DeviceClass,
+                    ["deviceFunction"] = deviceInfo?.DeviceFunction,
+                    ["unassembledCount"] = unassembledCount,
+                    ["assembledCount"] = assembledCount,
+                    ["averageBytesPerSecond"] = averageBytesPerSecond,
+                    ["peakBytesPerSecond"] = peakBytesPerSecond,
+                    ["averageBps"] = FormatBps(throughput.AverageBytesPerSecond),
+                    ["peakBps"] = FormatBps(throughput.PeakBytesPerSecond),
+                    ["transmitPgns"] = BuildPgnArray(supportedPgns.Transmit),
+                    ["receivePgns"] = BuildPgnArray(supportedPgns.Receive)
+                });
+            }
+
+            return new JsonObject
+            {
+                ["deviceCount"] = devices.Count,
+                ["totalUnassembledCount"] = totalUnassembledCount,
+                ["totalAssembledCount"] = totalAssembledCount,
+                ["totalAverageBytesPerSecond"] = totalAverageBytesPerSecond,
+                ["totalPeakBytesPerSecond"] = totalPeakBytesPerSecond,
+                ["totalAverageBps"] = FormatBps(totalAverageBytesPerSecond),
+                ["totalPeakBps"] = FormatBps(totalPeakBytesPerSecond),
+                ["devices"] = devices
+            };
+        }
+
+        public static JsonObject ListPgns()
+        {
+            var records = GetRecords(assembled: true);
+            var pgns = new JsonArray(records
+                .GroupBy(record => record.PGN)
+                .Select(group =>
+                {
+                    var firstRecord = group.First();
+                    var sourceAddresses = group
+                        .Select(record => record.Source)
+                        .Where(source => !string.IsNullOrWhiteSpace(source))
+                        .Distinct(StringComparer.Ordinal)
+                        .OrderBy(source => int.TryParse(source, NumberStyles.Integer, CultureInfo.InvariantCulture, out var address) ? address : int.MaxValue)
+                        .ThenBy(source => source, StringComparer.Ordinal)
+                        .ToList();
+
+                    return new JsonObject
+                    {
+                        ["pgn"] = group.Key ?? string.Empty,
+                        ["description"] = firstRecord.Description ?? "Unknown",
+                        ["sourceAddresses"] = string.Join(", ", sourceAddresses),
+                        ["sources"] = new JsonArray(sourceAddresses.Select(source => JsonValue.Create(source)).ToArray()),
+                        ["count"] = group.Count()
+                    };
+                })
+                .OrderByDescending(entry => entry["count"]?.GetValue<int>() ?? 0)
+                .Select(entry => (JsonNode?)entry)
+                .ToArray());
+
+            return new JsonObject
+            {
+                ["pgnCount"] = pgns.Count,
+                ["pgns"] = pgns
+            };
+        }
+
         public static JsonArray QueryPackets(JsonObject arguments)
         {
             return QueryPacketSet(arguments)["packets"]?.AsArray() ?? new JsonArray();
@@ -778,6 +904,140 @@ namespace NMEA2000Analyzer
                 ?? throw new InvalidOperationException("No open data is loaded.");
         }
 
+        private static (IReadOnlyList<int> Transmit, IReadOnlyList<int> Receive) GetSupportedPgnLists(
+            IReadOnlyList<MainWindow.Nmea2000Record> assembledRecords,
+            int address)
+        {
+            var transmit = new SortedSet<int>();
+            var receive = new SortedSet<int>();
+            var sourceText = address.ToString(CultureInfo.InvariantCulture);
+
+            foreach (var record in assembledRecords)
+            {
+                if (!string.Equals(record.Source, sourceText, StringComparison.Ordinal) ||
+                    !string.Equals(record.PGN, "126464", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                PopulateSupportedPgnSet(record.PayloadBytes, transmit, receive);
+            }
+
+            return (transmit.ToList(), receive.ToList());
+        }
+
+        private static void PopulateSupportedPgnSet(byte[] payloadBytes, ISet<int> transmitPgns, ISet<int> receivePgns)
+        {
+            if (payloadBytes == null || payloadBytes.Length < 4)
+            {
+                return;
+            }
+
+            var targetSet = payloadBytes[0] switch
+            {
+                0 => transmitPgns,
+                1 => receivePgns,
+                _ => null
+            };
+
+            if (targetSet == null)
+            {
+                return;
+            }
+
+            for (var offset = 1; offset + 2 < payloadBytes.Length; offset += 3)
+            {
+                var pgn = payloadBytes[offset]
+                          | (payloadBytes[offset + 1] << 8)
+                          | (payloadBytes[offset + 2] << 16);
+                targetSet.Add(pgn);
+            }
+        }
+
+        private static JsonArray BuildPgnArray(IEnumerable<int> pgns)
+        {
+            return new JsonArray(pgns
+                .Select(pgn => new JsonObject
+                {
+                    ["pgn"] = pgn,
+                    ["description"] = GetPgnDescription(pgn),
+                    ["display"] = FormatSupportedPgnEntry(pgn)
+                })
+                .Select(item => (JsonNode?)item)
+                .ToArray());
+        }
+
+        private static string FormatSupportedPgnEntry(int pgn)
+        {
+            var description = GetPgnDescription(pgn);
+            return string.IsNullOrWhiteSpace(description)
+                ? pgn.ToString(CultureInfo.InvariantCulture)
+                : $"{pgn} - {description}";
+        }
+
+        private static string GetPgnDescription(int pgn)
+        {
+            var canboatRoot = (Application.Current as App)?.CanboatRoot ?? Globals.CanboatRoot;
+            if (canboatRoot?.PGNs == null)
+            {
+                return string.Empty;
+            }
+
+            var descriptions = canboatRoot.PGNs
+                .Where(definition => definition.PGN == pgn && !string.IsNullOrWhiteSpace(definition.Description))
+                .Select(definition => definition.Description.Trim())
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+
+            return descriptions.Count == 1
+                ? descriptions[0]
+                : string.Empty;
+        }
+
+        private static (double? AverageBytesPerSecond, double? PeakBytesPerSecond) CalculateThroughput(
+            IEnumerable<MainWindow.Nmea2000Record> records)
+        {
+            var timestampedRecords = records
+                .Select(record => new
+                {
+                    Timestamp = ParseTimestamp(record.Timestamp),
+                    PayloadLength = record.PayloadBytes.Length
+                })
+                .Where(item => item.Timestamp.HasValue)
+                .Select(item => new
+                {
+                    Timestamp = item.Timestamp!.Value,
+                    item.PayloadLength
+                })
+                .ToList();
+
+            if (timestampedRecords.Count == 0)
+            {
+                return (null, null);
+            }
+
+            var totalBytes = timestampedRecords.Sum(item => item.PayloadLength);
+            var firstTimestamp = timestampedRecords.Min(item => item.Timestamp);
+            var lastTimestamp = timestampedRecords.Max(item => item.Timestamp);
+            var durationSeconds = (lastTimestamp - firstTimestamp).TotalSeconds;
+            double? averageBytesPerSecond = durationSeconds > 0 ? totalBytes / durationSeconds : null;
+
+            var peakBytesPerSecond = timestampedRecords
+                .GroupBy(item => item.Timestamp.ToUnixTimeSeconds())
+                .Select(group => (double)group.Sum(item => item.PayloadLength))
+                .DefaultIfEmpty(0)
+                .Max();
+
+            return (averageBytesPerSecond, peakBytesPerSecond > 0 ? peakBytesPerSecond : null);
+        }
+
+        private static string FormatBps(double? bytesPerSecond)
+        {
+            return bytesPerSecond.HasValue
+                ? bytesPerSecond.Value.ToString("0.##", CultureInfo.InvariantCulture)
+                : string.Empty;
+        }
+
         private static IReadOnlyList<string> GetReverseEngineeringReasons(MainWindow.Nmea2000Record record, JsonObject? decoded)
         {
             var reasons = new List<string>();
@@ -940,9 +1200,20 @@ namespace NMEA2000Analyzer
                 return null;
             }
 
+            if (double.TryParse(timestamp, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds))
+            {
+                var wholeSeconds = Math.Truncate(seconds);
+                var fractionalSeconds = seconds - wholeSeconds;
+                return DateTimeOffset.UnixEpoch
+                    .AddSeconds(wholeSeconds)
+                    .AddTicks((long)Math.Round(fractionalSeconds * TimeSpan.TicksPerSecond));
+            }
+
             return DateTimeOffset.TryParse(timestamp, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var parsed)
                 ? parsed
-                : null;
+                : TimeSpan.TryParse(timestamp, CultureInfo.InvariantCulture, out var timeSpan)
+                    ? DateTimeOffset.UnixEpoch.Add(timeSpan)
+                    : null;
         }
 
         private static IReadOnlyList<string> ReadStringArray(JsonNode? node)

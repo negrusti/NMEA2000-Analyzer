@@ -52,6 +52,20 @@ namespace NMEA2000Analyzer
             return ToToolJson(PacketAnalysisService.ListUnknownPgns(assembled));
         }
 
+        [McpServerTool(Name = "list_devices", Title = "List Devices", OpenWorld = false, ReadOnly = true)]
+        [Description("List devices observed in the current open data session, matching the Devices UI window statistics.")]
+        public static string ListDevices()
+        {
+            return ToToolJson(PacketAnalysisService.ListDevices());
+        }
+
+        [McpServerTool(Name = "list_pgns", Title = "List PGNs", OpenWorld = false, ReadOnly = true)]
+        [Description("List PGN statistics for the current open assembled data session, matching the PGN Statistics UI window.")]
+        public static string ListPgns()
+        {
+            return ToToolJson(PacketAnalysisService.ListPgns());
+        }
+
         [McpServerTool(Name = "query_packets", Title = "Query Packets", OpenWorld = false, ReadOnly = true)]
         [Description("Query packets from the current open data session with optional PGN/source/destination/device filters. Assembled defaults to true. Returns packets in current session order and can optionally include decoded output. Supports distinct-data-only filtering for reverse engineering.")]
         public static string QueryPackets(

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.12 - 2026-06-12
+
+- Added MCP `list_devices` and `list_pgns` tools with matching session resources for UI-equivalent device and PGN statistics.
+- Fixed MCP `reload_definitions` so the active MCP session sees refreshed PGN descriptions and `PGNListIndex` values after definition reloads.
+
 ## 1.4.11 - 2026-06-03
 
 - Added live capture through Mastervolt-compatible HID gateways, including support for the Mastervolt 77030100 USB Interface.

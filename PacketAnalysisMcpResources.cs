@@ -52,6 +52,28 @@ namespace NMEA2000Analyzer
         }
 
         [McpServerResource(
+            UriTemplate = "nmea://session/devices",
+            Name = "session_devices",
+            Title = "Session Devices",
+            MimeType = "application/json")]
+        [Description("Read-only device statistics matching the Devices UI window.")]
+        public static string GetDevices()
+        {
+            return ToJson(PacketAnalysisService.ListDevices());
+        }
+
+        [McpServerResource(
+            UriTemplate = "nmea://session/pgns",
+            Name = "session_pgns",
+            Title = "Session PGNs",
+            MimeType = "application/json")]
+        [Description("Read-only PGN statistics matching the PGN Statistics UI window.")]
+        public static string GetPgns()
+        {
+            return ToJson(PacketAnalysisService.ListPgns());
+        }
+
+        [McpServerResource(
             UriTemplate = "nmea://session/filters",
             Name = "session_filters",
             Title = "Session Filters",
