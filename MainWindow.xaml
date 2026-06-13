@@ -48,6 +48,12 @@
                           IsCheckable="True"
                           Click="UnassembledViewMenuItem_Click" />
             </MenuItem>
+            <MenuItem Header="Tools" Visibility="Collapsed">
+                <MenuItem Header="Raymarine">
+                    <MenuItem Header="i50 COG/SOG Source" Click="RaymarineI50CogSogSourceMenuItem_Click" />
+                </MenuItem>
+                <MenuItem Header="Garmin" />
+            </MenuItem>
             <MenuItem Header="Presets" x:Name="Presets">
             </MenuItem>
             <MenuItem Header="About" Click="AboutMenuItem_Click">
@@ -87,7 +93,7 @@
                 <TextBlock x:Name="TimestampRangeText" Text="No data loaded"/>
             </StatusBarItem>
             <StatusBarItem HorizontalAlignment="Right">
-                <TextBlock x:Name="RowCountText" Text="Rows: 0"/>
+                <TextBlock x:Name="RowCountText" Text="Rows: 0 / Selected: 0"/>
             </StatusBarItem>
         </StatusBar>
         <Grid>

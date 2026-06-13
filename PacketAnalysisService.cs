@@ -292,13 +292,29 @@ namespace NMEA2000Analyzer
             };
         }
 
-        public static JsonArray QueryPackets(JsonObject arguments)
+        public static JsonObject QueryPackets(JsonObject arguments)
         {
-            return QueryPacketSet(arguments)["packets"]?.AsArray() ?? new JsonArray();
+            return QueryPacketSet(arguments);
         }
 
         public static JsonObject QueryPacketSet(JsonObject arguments)
         {
+            ValidateArguments(arguments,
+                "assembled",
+                "include_pgns",
+                "exclude_pgns",
+                "src",
+                "srcs",
+                "dst",
+                "dsts",
+                "device",
+                "limit",
+                "offset",
+                "include_decoded",
+                "only_unknown",
+                "only_with_warnings",
+                "distinct_data_only");
+
             var assembled = arguments["assembled"]?.GetValue<bool?>() ?? true;
             var includeDecoded = arguments["include_decoded"]?.GetValue<bool?>() ?? false;
             var onlyUnknown = arguments["only_unknown"]?.GetValue<bool?>() ?? false;
@@ -306,15 +322,19 @@ namespace NMEA2000Analyzer
             var distinctDataOnly = arguments["distinct_data_only"]?.GetValue<bool?>() ?? false;
             var limit = Math.Clamp(arguments["limit"]?.GetValue<int?>() ?? 50, 1, 500);
             var offset = Math.Max(0, arguments["offset"]?.GetValue<int?>() ?? 0);
-            var pgn = arguments["pgn"]?.ToString();
+            var includePgns = ReadStringSet(arguments["include_pgns"]);
+            var excludePgns = ReadAddressFilter(arguments["exclude_pgns"]);
             var src = arguments["src"]?.ToString();
             var dst = arguments["dst"]?.ToString();
+            var srcs = ReadAddressFilter(arguments["src"], arguments["srcs"]);
+            var dsts = ReadAddressFilter(arguments["dst"], arguments["dsts"]);
             var device = arguments["device"]?.ToString();
 
             var filteredRecords = GetRecords(assembled)
-                .Where(record => string.IsNullOrWhiteSpace(pgn) || string.Equals(record.PGN, pgn, StringComparison.Ordinal))
-                .Where(record => string.IsNullOrWhiteSpace(src) || string.Equals(record.Source, src, StringComparison.Ordinal))
-                .Where(record => string.IsNullOrWhiteSpace(dst) || string.Equals(record.Destination, dst, StringComparison.Ordinal))
+                .Where(record => MatchesAddressFilter(record.PGN, includePgns))
+                .Where(record => !MatchesAnyFilter(record.PGN, excludePgns))
+                .Where(record => MatchesAddressFilter(record.Source, srcs))
+                .Where(record => MatchesAddressFilter(record.Destination, dsts))
                 .Where(record => MatchesDevice(record, device))
                 .ToList();
 
@@ -349,19 +369,21 @@ namespace NMEA2000Analyzer
                     continue;
                 }
 
-                packets.Add(BuildPacketJson(record, decoded, includeDecoded));
-                if (packets.Count >= limit)
+                if (packets.Count < limit)
                 {
-                    break;
+                    packets.Add(BuildPacketJson(record, decoded, includeDecoded));
                 }
             }
 
             return new JsonObject
             {
                 ["assembled"] = assembled,
-                ["pgn"] = pgn,
+                ["includePgns"] = BuildStringArray(includePgns),
+                ["excludePgns"] = BuildStringArray(excludePgns),
                 ["src"] = src,
+                ["srcs"] = BuildStringArray(srcs),
                 ["dst"] = dst,
+                ["dsts"] = BuildStringArray(dsts),
                 ["device"] = device,
                 ["distinctDataOnly"] = distinctDataOnly,
                 ["includeDecoded"] = includeDecoded,
@@ -370,8 +392,108 @@ namespace NMEA2000Analyzer
                 ["limit"] = limit,
                 ["offset"] = offset,
                 ["preFilterCount"] = filteredRecords.Count,
+                ["totalCount"] = matchedCount,
                 ["matchedCount"] = matchedCount,
                 ["returnedCount"] = packets.Count,
+                ["nextOffset"] = offset + packets.Count < matchedCount ? offset + packets.Count : null,
+                ["packets"] = packets
+            };
+        }
+
+        public static JsonObject SearchPayloadHex(JsonObject arguments)
+        {
+            ValidateArguments(arguments,
+                "hex",
+                "assembled",
+                "include_pgns",
+                "exclude_pgns",
+                "src",
+                "srcs",
+                "dst",
+                "dsts",
+                "device",
+                "limit",
+                "offset",
+                "include_decoded");
+
+            var assembled = arguments["assembled"]?.GetValue<bool?>() ?? true;
+            var includeDecoded = arguments["include_decoded"]?.GetValue<bool?>() ?? false;
+            var limit = Math.Clamp(arguments["limit"]?.GetValue<int?>() ?? 50, 1, 500);
+            var offset = Math.Max(0, arguments["offset"]?.GetValue<int?>() ?? 0);
+            var includePgns = ReadStringSet(arguments["include_pgns"]);
+            var excludePgns = ReadStringSet(arguments["exclude_pgns"]);
+            var src = arguments["src"]?.ToString();
+            var dst = arguments["dst"]?.ToString();
+            var srcs = ReadAddressFilter(arguments["src"], arguments["srcs"]);
+            var dsts = ReadAddressFilter(arguments["dst"], arguments["dsts"]);
+            var device = arguments["device"]?.ToString();
+            var hex = arguments["hex"]?.ToString();
+
+            if (string.IsNullOrWhiteSpace(hex))
+            {
+                throw new InvalidOperationException("Missing required argument 'hex'.");
+            }
+
+            var pattern = ParseHexSearchPattern(hex);
+            var filteredRecords = GetRecords(assembled)
+                .Where(record => MatchesAddressFilter(record.PGN, includePgns))
+                .Where(record => !MatchesAnyFilter(record.PGN, excludePgns))
+                .Where(record => MatchesAddressFilter(record.Source, srcs))
+                .Where(record => MatchesAddressFilter(record.Destination, dsts))
+                .Where(record => MatchesDevice(record, device))
+                .ToList();
+
+            var packets = new JsonArray();
+            var matchedCount = 0;
+            var totalMatchCount = 0;
+
+            foreach (var record in filteredRecords)
+            {
+                var matchOffsets = FindPayloadMatches(record.PayloadBytes, pattern).ToList();
+                if (matchOffsets.Count == 0)
+                {
+                    continue;
+                }
+
+                matchedCount++;
+                totalMatchCount += matchOffsets.Count;
+                if (matchedCount <= offset)
+                {
+                    continue;
+                }
+
+                var decoded = includeDecoded ? TryDecodeRecord(record) : null;
+                if (packets.Count < limit)
+                {
+                    var packet = BuildPacketJson(record, decoded, includeDecoded);
+                    packet["matchOffsets"] = new JsonArray(matchOffsets.Select(value => JsonValue.Create(value)).ToArray());
+                    packet["matchCount"] = matchOffsets.Count;
+                    packets.Add(packet);
+                }
+            }
+
+            return new JsonObject
+            {
+                ["assembled"] = assembled,
+                ["hex"] = hex,
+                ["normalizedPattern"] = FormatHexSearchPattern(pattern),
+                ["patternLength"] = pattern.Length,
+                ["includePgns"] = BuildStringArray(includePgns),
+                ["excludePgns"] = BuildStringArray(excludePgns),
+                ["src"] = src,
+                ["srcs"] = BuildStringArray(srcs),
+                ["dst"] = dst,
+                ["dsts"] = BuildStringArray(dsts),
+                ["device"] = device,
+                ["includeDecoded"] = includeDecoded,
+                ["limit"] = limit,
+                ["offset"] = offset,
+                ["preFilterCount"] = filteredRecords.Count,
+                ["totalCount"] = matchedCount,
+                ["matchedCount"] = matchedCount,
+                ["totalPayloadMatchCount"] = totalMatchCount,
+                ["returnedCount"] = packets.Count,
+                ["nextOffset"] = offset + packets.Count < matchedCount ? offset + packets.Count : null,
                 ["packets"] = packets
             };
         }
@@ -1086,6 +1208,181 @@ namespace NMEA2000Analyzer
             return string.Equals(record.Source, device, StringComparison.Ordinal)
                 || (!string.IsNullOrWhiteSpace(record.DeviceInfo)
                     && record.DeviceInfo.Contains(device, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static void ValidateArguments(JsonObject arguments, params string[] allowedNames)
+        {
+            var allowed = new HashSet<string>(allowedNames, StringComparer.Ordinal);
+            var unknown = arguments
+                .Select(item => item.Key)
+                .Where(name => !allowed.Contains(name))
+                .OrderBy(name => name, StringComparer.Ordinal)
+                .ToList();
+
+            if (unknown.Count > 0)
+            {
+                throw new ArgumentException($"InputValidationError: Unknown argument(s): {string.Join(", ", unknown)}.");
+            }
+        }
+
+        private static IReadOnlySet<string> ReadAddressFilter(params JsonNode?[] nodes)
+        {
+            return ReadStringSet(nodes);
+        }
+
+        private static IReadOnlySet<string> ReadStringSet(params JsonNode?[] nodes)
+        {
+            var values = nodes
+                .SelectMany(ReadStringArray)
+                .Select(value => value.Trim())
+                .Where(value => !string.IsNullOrWhiteSpace(value));
+
+            return new HashSet<string>(values, StringComparer.Ordinal);
+        }
+
+        private static bool MatchesAddressFilter(string? address, IReadOnlySet<string> allowedAddresses)
+        {
+            return allowedAddresses.Count == 0
+                || (!string.IsNullOrWhiteSpace(address) && allowedAddresses.Contains(address));
+        }
+
+        private static bool MatchesAnyFilter(string? value, IReadOnlySet<string> filteredValues)
+        {
+            return filteredValues.Count > 0
+                && !string.IsNullOrWhiteSpace(value)
+                && filteredValues.Contains(value);
+        }
+
+        private static JsonArray BuildStringArray(IEnumerable<string> values)
+        {
+            return new JsonArray(values
+                .OrderBy(value => int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var address) ? address : int.MaxValue)
+                .ThenBy(value => value, StringComparer.Ordinal)
+                .Select(value => JsonValue.Create(value))
+                .ToArray());
+        }
+
+        private static byte?[] ParseHexSearchPattern(string hex)
+        {
+            var tokens = TokenizeHexPattern(hex);
+            if (tokens.Count == 0)
+            {
+                throw new InvalidOperationException("Hex search pattern does not contain any bytes.");
+            }
+
+            var pattern = new byte?[tokens.Count];
+            for (var i = 0; i < tokens.Count; i++)
+            {
+                var token = tokens[i];
+                if (token == "??")
+                {
+                    pattern[i] = null;
+                    continue;
+                }
+
+                if (!byte.TryParse(token, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var value))
+                {
+                    throw new InvalidOperationException($"Invalid hex byte '{token}'.");
+                }
+
+                pattern[i] = value;
+            }
+
+            return pattern;
+        }
+
+        private static List<string> TokenizeHexPattern(string hex)
+        {
+            var normalized = hex
+                .Replace("0x", string.Empty, StringComparison.OrdinalIgnoreCase)
+                .Replace(",", " ", StringComparison.Ordinal)
+                .Replace(":", " ", StringComparison.Ordinal)
+                .Replace("-", " ", StringComparison.Ordinal);
+
+            var separatedTokens = normalized
+                .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+            if (separatedTokens.Length > 1)
+            {
+                return separatedTokens.Select(NormalizeHexToken).ToList();
+            }
+
+            var compact = separatedTokens.Length == 1 ? separatedTokens[0] : string.Empty;
+            if (compact.Length == 0)
+            {
+                return new List<string>();
+            }
+
+            if (compact.Length % 2 != 0)
+            {
+                throw new InvalidOperationException("Compact hex search patterns must have an even number of hex characters.");
+            }
+
+            var tokens = new List<string>(compact.Length / 2);
+            for (var i = 0; i < compact.Length; i += 2)
+            {
+                tokens.Add(NormalizeHexToken(compact.Substring(i, 2)));
+            }
+
+            return tokens;
+        }
+
+        private static string NormalizeHexToken(string token)
+        {
+            var normalized = token.Trim();
+            if (normalized == "?")
+            {
+                return "??";
+            }
+
+            if (normalized == "??")
+            {
+                return normalized;
+            }
+
+            if (normalized.Length == 1)
+            {
+                normalized = "0" + normalized;
+            }
+
+            if (normalized.Length != 2 || normalized.Any(value => !Uri.IsHexDigit(value)))
+            {
+                throw new InvalidOperationException($"Invalid hex byte '{token}'.");
+            }
+
+            return normalized.ToUpperInvariant();
+        }
+
+        private static IEnumerable<int> FindPayloadMatches(byte[] payloadBytes, byte?[] pattern)
+        {
+            if (payloadBytes == null || pattern.Length == 0 || payloadBytes.Length < pattern.Length)
+            {
+                yield break;
+            }
+
+            for (var offset = 0; offset <= payloadBytes.Length - pattern.Length; offset++)
+            {
+                var matched = true;
+                for (var patternIndex = 0; patternIndex < pattern.Length; patternIndex++)
+                {
+                    var expected = pattern[patternIndex];
+                    if (expected.HasValue && payloadBytes[offset + patternIndex] != expected.Value)
+                    {
+                        matched = false;
+                        break;
+                    }
+                }
+
+                if (matched)
+                {
+                    yield return offset;
+                }
+            }
+        }
+
+        private static string FormatHexSearchPattern(byte?[] pattern)
+        {
+            return string.Join(" ", pattern.Select(value => value.HasValue ? $"0x{value.Value:X2}" : "??"));
         }
 
         private static Canboat.Pgn? ResolveDefinitionForRecord(MainWindow.Nmea2000Record record)

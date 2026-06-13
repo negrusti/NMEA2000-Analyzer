@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.13 - 2026-06-14
+
+- Added MCP payload hex search, including byte wildcards, paging metadata, and source/destination/PGN set filters.
+- Changed MCP packet querying to return an envelope with totals and paging metadata, plus include/exclude PGN sets and source/destination address sets.
+- Added raw MCP tool-call argument validation so unknown fields fail loudly instead of being dropped by typed binding.
+- Added selected-row counts to the status bar row summary and temporarily hid the Tools menu.
+
 ## 1.4.12 - 2026-06-12
 
 - Added MCP `list_devices` and `list_pgns` tools with matching session resources for UI-equivalent device and PGN statistics.

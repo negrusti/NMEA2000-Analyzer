@@ -1,0 +1,124 @@
+<Window x:Class="NMEA2000Analyzer.Tools.Raymarine.RaymarineI50CogSogSourceWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Raymarine i50 COG/SOG Source"
+        Width="560"
+        MinWidth="520"
+        MinHeight="360"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="170" />
+                <ColumnDefinition Width="120" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0"
+                       Text="i50 Destination"
+                       VerticalAlignment="Center" />
+            <TextBox Grid.Column="1"
+                     x:Name="DestinationAddressTextBox"
+                     Width="80"
+                     Text="255" />
+            <TextBlock Grid.Column="2"
+                       Margin="8,0,0,0"
+                       Text="255 sends as broadcast"
+                       Foreground="#666666"
+                       VerticalAlignment="Center" />
+        </Grid>
+
+        <Grid Grid.Row="1"
+              Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="170" />
+                <ColumnDefinition Width="120" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0"
+                       Text="Tool Source"
+                       VerticalAlignment="Center" />
+            <TextBox Grid.Column="1"
+                     x:Name="ToolSourceAddressTextBox"
+                     Width="80"
+                     Text="254" />
+        </Grid>
+
+        <GroupBox Grid.Row="2"
+                  Margin="0,12,0,0"
+                  Header="COG/SOG Source">
+            <StackPanel Margin="8">
+                <RadioButton x:Name="AutoSourceRadioButton"
+                             Content="Auto"
+                             GroupName="CogSogSourceMode"
+                             IsChecked="True"
+                             Checked="SourceMode_Changed" />
+                <StackPanel Orientation="Horizontal"
+                            Margin="0,8,0,0">
+                    <RadioButton x:Name="ManualSourceRadioButton"
+                                 Content="Specific N2K Address"
+                                 GroupName="CogSogSourceMode"
+                                 VerticalAlignment="Center"
+                                 Checked="SourceMode_Changed" />
+                    <TextBox x:Name="GpsSourceAddressTextBox"
+                             Margin="12,0,0,0"
+                             Width="80"
+                             Text="3"
+                             IsEnabled="False"
+                             TextChanged="Input_Changed" />
+                </StackPanel>
+            </StackPanel>
+        </GroupBox>
+
+        <GroupBox Grid.Row="3"
+                  Margin="0,12,0,0"
+                  Header="PGN 126720 Payloads">
+            <TextBox x:Name="PayloadPreviewTextBox"
+                     Margin="8"
+                     Height="74"
+                     IsReadOnly="True"
+                     FontFamily="Consolas"
+                     TextWrapping="Wrap"
+                     VerticalScrollBarVisibility="Auto" />
+        </GroupBox>
+
+        <Grid Grid.Row="4"
+              Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock x:Name="StatusTextBlock"
+                       Grid.Column="0"
+                       Margin="0,0,12,0"
+                       Text="Ready."
+                       VerticalAlignment="Center"
+                       TextWrapping="Wrap" />
+            <StackPanel Grid.Column="1"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right">
+                <Button Content="Probe"
+                        Width="90"
+                        Margin="0,0,8,0"
+                        Click="ProbeButton_Click" />
+                <Button Content="Send"
+                        Width="90"
+                        Margin="0,0,8,0"
+                        Click="SendButton_Click" />
+                <Button Content="Close"
+                        Width="90"
+                        Click="CloseButton_Click" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

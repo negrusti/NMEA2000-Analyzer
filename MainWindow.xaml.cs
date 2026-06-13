@@ -3132,13 +3132,14 @@ namespace NMEA2000Analyzer
 
         private void UpdateRowCountText()
         {
+            var selectedCount = DataGrid?.SelectedItems.Count ?? 0;
             if (_dataGridView == null)
             {
-                RowCountText.Text = "Rows: 0";
+                RowCountText.Text = $"Rows: 0 / Selected: {selectedCount:N0}";
                 return;
             }
 
-            RowCountText.Text = $"Rows: {_dataGridView.Cast<object>().Count():N0}";
+            RowCountText.Text = $"Rows: {_dataGridView.Cast<object>().Count():N0} / Selected: {selectedCount:N0}";
         }
         private void AboutMenuItem_Click(object sender, RoutedEventArgs e)
         {
@@ -3149,6 +3150,15 @@ namespace NMEA2000Analyzer
             aboutWindow.ShowDialog(); // Open the dialog as a modal
         }
 
+        private void RaymarineI50CogSogSourceMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            var toolWindow = new Tools.Raymarine.RaymarineI50CogSogSourceWindow
+            {
+                Owner = this
+            };
+            toolWindow.Show();
+        }
+
         private void DistinctCheckbox_Changed(object sender, RoutedEventArgs e)
         {
             RefreshFilterView();
@@ -3156,6 +3166,7 @@ namespace NMEA2000Analyzer
 
         private void DataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            UpdateRowCountText();
             RefreshSelectedRecordDecode();
         }
 

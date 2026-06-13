@@ -70,9 +70,12 @@ namespace NMEA2000Analyzer
         [Description("Query packets from the current open data session with optional PGN/source/destination/device filters. Assembled defaults to true. Returns packets in current session order and can optionally include decoded output. Supports distinct-data-only filtering for reverse engineering.")]
         public static string QueryPackets(
             [Description("Use assembled packets instead of raw packets.")] bool assembled = true,
-            [Description("Filter by PGN.")] string? pgn = null,
+            [Description("Only include packets with any of these PGNs.")] string[]? include_pgns = null,
+            [Description("Exclude packets with any of these PGNs.")] string[]? exclude_pgns = null,
             [Description("Filter by source address.")] string? src = null,
+            [Description("Filter by any of these source addresses.")] string[]? srcs = null,
             [Description("Filter by destination address.")] string? dst = null,
+            [Description("Filter by any of these destination addresses.")] string[]? dsts = null,
             [Description("Filter by device identifier. Matches source address exactly or device info text case-insensitively.")] string? device = null,
             [Description("Maximum number of packets to return.")] int? limit = null,
             [Description("Number of matching packets to skip.")] int? offset = null,
@@ -83,9 +86,12 @@ namespace NMEA2000Analyzer
         {
             return ToToolJson(PacketAnalysisService.QueryPackets(BuildArguments(
                 ("assembled", assembled),
-                ("pgn", pgn),
+                ("include_pgns", include_pgns),
+                ("exclude_pgns", exclude_pgns),
                 ("src", src),
+                ("srcs", srcs),
                 ("dst", dst),
+                ("dsts", dsts),
                 ("device", device),
                 ("limit", limit),
                 ("offset", offset),
@@ -93,6 +99,37 @@ namespace NMEA2000Analyzer
                 ("only_unknown", only_unknown),
                 ("only_with_warnings", only_with_warnings),
                 ("distinct_data_only", distinct_data_only))));
+        }
+
+        [McpServerTool(Name = "search_payload_hex", Title = "Search Payload Hex", OpenWorld = false, ReadOnly = true)]
+        [Description("Search packet payload bytes for an exact hex byte sequence. Accepts forms like '01 02', '0x01 0x02', '0102', and token wildcards like '01 ?? 03'. Assembled defaults to true.")]
+        public static string SearchPayloadHex(
+            [Description("Hex byte sequence to search for in payload data.")] string hex,
+            [Description("Use assembled packets instead of raw packets.")] bool assembled = true,
+            [Description("Only include packets with any of these PGNs.")] string[]? include_pgns = null,
+            [Description("Exclude packets with any of these PGNs.")] string[]? exclude_pgns = null,
+            [Description("Filter by source address.")] string? src = null,
+            [Description("Filter by any of these source addresses.")] string[]? srcs = null,
+            [Description("Filter by destination address.")] string? dst = null,
+            [Description("Filter by any of these destination addresses.")] string[]? dsts = null,
+            [Description("Filter by device identifier. Matches source address exactly or device info text case-insensitively.")] string? device = null,
+            [Description("Maximum number of matching packets to return.")] int? limit = null,
+            [Description("Number of matching packets to skip.")] int? offset = null,
+            [Description("Include decoded packet fields.")] bool include_decoded = false)
+        {
+            return ToToolJson(PacketAnalysisService.SearchPayloadHex(BuildArguments(
+                ("hex", hex),
+                ("assembled", assembled),
+                ("include_pgns", include_pgns),
+                ("exclude_pgns", exclude_pgns),
+                ("src", src),
+                ("srcs", srcs),
+                ("dst", dst),
+                ("dsts", dsts),
+                ("device", device),
+                ("limit", limit),
+                ("offset", offset),
+                ("include_decoded", include_decoded))));
         }
 
         [McpServerTool(Name = "get_packet_context", Title = "Get Packet Context", OpenWorld = false, ReadOnly = true)]
