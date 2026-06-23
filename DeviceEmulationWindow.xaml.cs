@@ -12,6 +12,8 @@ namespace NMEA2000Analyzer
         private string _sourceAddressText;
         private string _statusText = "Ready to emulate over PCAN.";
         private bool _isRunning;
+        private bool _applicationShutdownRequested;
+        private bool _statusHandlerDetached;
 
         public DeviceEmulationWindow(DeviceEmulationPlan plan, IReadOnlyList<DeviceBusAddressOption> availableBusDevices)
         {
@@ -132,6 +134,14 @@ namespace NMEA2000Analyzer
 
         protected override async void OnClosing(CancelEventArgs e)
         {
+            if (_applicationShutdownRequested || Application.Current.Dispatcher.HasShutdownStarted)
+            {
+                DetachStatusHandler();
+                _ = _service.StopAsync();
+                base.OnClosing(e);
+                return;
+            }
+
             if (_service.IsRunning)
             {
                 e.Cancel = true;
@@ -139,15 +149,32 @@ namespace NMEA2000Analyzer
                 return;
             }
 
-            _service.StatusChanged -= OnServiceStatusChanged;
+            DetachStatusHandler();
             base.OnClosing(e);
+        }
+
+        public void RequestApplicationShutdown()
+        {
+            _applicationShutdownRequested = true;
+            Close();
         }
 
         private async Task CloseAfterStoppingAsync()
         {
             await _service.StopAsync();
-            _service.StatusChanged -= OnServiceStatusChanged;
+            DetachStatusHandler();
             Close();
+        }
+
+        private void DetachStatusHandler()
+        {
+            if (_statusHandlerDetached)
+            {
+                return;
+            }
+
+            _service.StatusChanged -= OnServiceStatusChanged;
+            _statusHandlerDetached = true;
         }
 
         private bool TryBuildMapping(out byte sourceAddress, out Dictionary<byte, byte> destinationMap, out string validationMessage)

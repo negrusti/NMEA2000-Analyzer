@@ -68,6 +68,7 @@ namespace NMEA2000Analyzer
                 return;
             }
 
+            ShutdownMode = ShutdownMode.OnMainWindowClose;
             CanboatRoot ??= await PgnDefinitions.LoadPgnDefinitionsAsync();
             StartMcpServer();
 
@@ -92,6 +93,7 @@ namespace NMEA2000Analyzer
 
         protected override void OnExit(ExitEventArgs e)
         {
+            RuntimeCleanup.StopLiveServices();
             _mcpServer?.Dispose();
             _mcpServer = null;
             base.OnExit(e);

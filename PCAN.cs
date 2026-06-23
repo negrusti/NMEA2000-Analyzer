@@ -84,6 +84,30 @@ namespace NMEA2000Analyzer
             }
         }
 
+        public static void Shutdown()
+        {
+            try
+            {
+                PcanTraceLog.LogNote("pcan shutdown");
+                lock (SessionSyncRoot)
+                {
+                    _worker.MessageAvailable -= OnMessageAvailable;
+                    _captureRunning = false;
+                    _transmitSessionCount = 0;
+                    _monitorSessionCount = 0;
+
+                    if (_workerStarted)
+                    {
+                        _worker.Stop();
+                        _workerStarted = false;
+                    }
+                }
+            }
+            catch
+            {
+            }
+        }
+
         public static void RegisterMessageListener(Action<Nmea2000Record> listener)
         {
             lock (SessionSyncRoot)

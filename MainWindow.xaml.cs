@@ -101,6 +101,7 @@ namespace NMEA2000Analyzer
 
         private void MainWindow_Closed(object? sender, EventArgs e)
         {
+            _filterDebounceTimer.Stop();
             _definitionsReloadDebounceTimer.Stop();
 
             if (_localDefinitionsWatcher != null)
@@ -109,6 +110,24 @@ namespace NMEA2000Analyzer
                 _localDefinitionsWatcher.Dispose();
                 _localDefinitionsWatcher = null;
             }
+
+            foreach (var window in _deviceEmulationWindows.ToArray())
+            {
+                window.RequestApplicationShutdown();
+            }
+
+            foreach (Window ownedWindow in OwnedWindows.Cast<Window>().ToArray())
+            {
+                try
+                {
+                    ownedWindow.Close();
+                }
+                catch
+                {
+                }
+            }
+
+            RuntimeCleanup.StopLiveServices();
         }
 
         // Class to hold parsed data for the DataGrid

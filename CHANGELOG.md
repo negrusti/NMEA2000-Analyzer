@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.16 - 2026-06-24
+
+- Made application shutdown deterministic when the main window closes, including cleanup for owned windows, device emulation, live capture readers, PCAN sessions, and the MCP server.
+
 ## 1.4.15 - 2026-06-24
 
 - Fixed Actisense EBL loading for raw type `07` CAN-frame records, including fast-packet assembly for raw EBL captures while preserving preassembled Actisense EBL payload handling.
