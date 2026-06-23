@@ -63,7 +63,8 @@ namespace NMEA2000Analyzer
 
                 var canboatData = System.Text.Json.JsonSerializer.Deserialize<Canboat.Rootobject>(mergedJSON, new JsonSerializerOptions
                 {
-                    PropertyNameCaseInsensitive = true
+                    PropertyNameCaseInsensitive = true,
+                    Converters = { new JsonStringCoercionConverter() }
                 });
 
                 if (canboatData?.PGNs == null || !canboatData.PGNs.Any())
