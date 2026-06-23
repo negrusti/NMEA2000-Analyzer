@@ -110,9 +110,14 @@ namespace NMEA2000Analyzer
             return FileFormat.Unknown; // Default to unknown format
         }
 
-        public static bool ContainsPreassembledPgnPayloads(FileFormat format)
+        public static bool ContainsPreassembledPgnPayloads(FileFormat format, IReadOnlyList<Nmea2000Record>? records = null)
         {
-            return format == FileFormat.ActisenseEbl;
+            if (format != FileFormat.ActisenseEbl)
+            {
+                return false;
+            }
+
+            return records?.Any(record => !record.IsRawCanFrame) == true;
         }
 
         public static List<Nmea2000Record> LoadTwoCanCsv(string filePath, IProgress<FileLoadProgress>? progress = null)
@@ -300,13 +305,15 @@ namespace NMEA2000Analyzer
 
             foreach (var frame in frames)
             {
-                records.Add(CreateRecord(
+                var record = CreateRecord(
                     timestamp: ActisenseEblParser.FormatTimestamp(frame.Timestamp),
                     priority: frame.Priority.ToString(CultureInfo.InvariantCulture),
                     pgn: frame.Pgn.ToString(CultureInfo.InvariantCulture),
                     source: frame.Source.ToString(CultureInfo.InvariantCulture),
                     destination: frame.Destination.ToString(CultureInfo.InvariantCulture),
-                    payloadBytes: frame.Data));
+                    payloadBytes: frame.Data);
+                record.IsRawCanFrame = frame.IsRawCanFrame;
+                records.Add(record);
             }
 
             progress?.Report(new FileLoadProgress

@@ -148,6 +148,7 @@ namespace NMEA2000Analyzer
             }
             public string? DeviceInfo { get; set; }
             public int? PGNListIndex { get; set; }
+            public bool IsRawCanFrame { get; set; }
             public IReadOnlyList<Nmea2000Record>? SourceRecords { get; set; }
             public string DestinationDisplay => Destination == "255" ? "Bcast" : Destination;
             public Brush HighlightBackground { get; set; } = Brushes.Transparent;

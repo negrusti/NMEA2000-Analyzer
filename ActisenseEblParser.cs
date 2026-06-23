@@ -13,6 +13,7 @@ namespace NMEA2000Analyzer
     {
         public DateTime Timestamp { get; init; }
         public ActisenseEblDirection Direction { get; init; }
+        public bool IsRawCanFrame { get; init; }
         public byte Priority { get; init; }
         public uint Pgn { get; init; }
         public byte Destination { get; init; }
@@ -34,6 +35,7 @@ namespace NMEA2000Analyzer
         private const byte CmdRx = 0x93;
         private const byte CmdTx = 0x94;
         private const byte EblTimeUtc = 0x03;
+        private const byte EblRawCanFrame = 0x07;
 
         public static List<ActisenseEblFrame> ParseFile(string path)
         {
@@ -121,6 +123,36 @@ namespace NMEA2000Analyzer
                         anchorUtc = DateTime.FromFileTimeUtc((long)fileTime);
                         hasAnchor = true;
                         anchorRelativeSet = false;
+                    }
+                    else if (segment.EblType == EblRawCanFrame)
+                    {
+                        var frame = DecodeRawCanFrame(
+                            decoded,
+                            segment.Start,
+                            segment.Length,
+                            DateTime.MinValue);
+
+                        if (frame != null)
+                        {
+                            DateTime timestamp;
+                            if (!hasAnchor)
+                            {
+                                timestamp = DateTime.MinValue;
+                            }
+                            else
+                            {
+                                if (!anchorRelativeSet)
+                                {
+                                    anchorRelativeMs = frame.RelativeTimestampMs;
+                                    anchorRelativeSet = true;
+                                }
+
+                                timestamp = anchorUtc.AddMilliseconds((long)frame.RelativeTimestampMs - anchorRelativeMs);
+                            }
+
+                            frame = frame with { Timestamp = timestamp };
+                            output.Add(frame);
+                        }
                     }
 
                     continue;
@@ -246,6 +278,44 @@ namespace NMEA2000Analyzer
             }
         }
 
+        private static ActisenseEblFrame? DecodeRawCanFrame(byte[] decoded, int start, int length, DateTime timestamp)
+        {
+            if (length < 9)
+            {
+                return null;
+            }
+
+            var relativeTimestamp = ReadUInt32LittleEndian(decoded, start + 1);
+            var canId = ReadUInt32LittleEndian(decoded, start + 5);
+            var dataLength = length - 9;
+            var data = new byte[dataLength];
+            Array.Copy(decoded, start + 9, data, 0, dataLength);
+
+            var priority = (byte)((canId >> 26) & 0x7);
+            var source = (byte)(canId & 0xFF);
+            var pgn = (canId >> 8) & 0x3FFFF;
+            var destination = (byte)0xFF;
+            var pf = (pgn >> 8) & 0xFF;
+            if (pf < 0xF0)
+            {
+                destination = (byte)(pgn & 0xFF);
+                pgn &= 0x3FF00;
+            }
+
+            return new ActisenseEblFrame
+            {
+                Timestamp = timestamp,
+                Direction = ActisenseEblDirection.Received,
+                IsRawCanFrame = true,
+                Priority = priority,
+                Pgn = pgn,
+                Destination = destination,
+                Source = source,
+                RelativeTimestampMs = relativeTimestamp,
+                Data = data
+            };
+        }
+
         private static ActisenseEblFrame? DecodeRxFrame(List<byte> message)
         {
             if (message.Count < 14)
@@ -270,6 +340,7 @@ namespace NMEA2000Analyzer
             {
                 Timestamp = DateTime.MinValue,
                 Direction = ActisenseEblDirection.Received,
+                IsRawCanFrame = false,
                 Priority = message[2],
                 Pgn = (uint)(message[3] | (message[4] << 8) | (message[5] << 16)),
                 Destination = message[6],
@@ -297,6 +368,7 @@ namespace NMEA2000Analyzer
             {
                 Timestamp = DateTime.MinValue,
                 Direction = ActisenseEblDirection.Transmitted,
+                IsRawCanFrame = false,
                 Priority = message[2],
                 Pgn = (uint)(message[3] | (message[4] << 8) | (message[5] << 16)),
                 Destination = message[6],
@@ -315,6 +387,19 @@ namespace NMEA2000Analyzer
             }
 
             return checksum == 0;
+        }
+
+        private static uint ReadUInt32LittleEndian(byte[] buffer, int offset)
+        {
+            if (offset + 4 > buffer.Length)
+            {
+                return 0;
+            }
+
+            return (uint)buffer[offset]
+                | ((uint)buffer[offset + 1] << 8)
+                | ((uint)buffer[offset + 2] << 16)
+                | ((uint)buffer[offset + 3] << 24);
         }
 
         private static ulong ReadUInt64LittleEndian(byte[] buffer, int offset)

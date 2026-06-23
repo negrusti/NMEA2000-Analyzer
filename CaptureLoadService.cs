@@ -103,7 +103,7 @@ namespace NMEA2000Analyzer
                 MainWindow.EnrichUnassembledRecords(rawRecords);
 
                 cancellationToken.ThrowIfCancellationRequested();
-                var recordsContainPreassembledPgnPayloads = FileFormats.ContainsPreassembledPgnPayloads(format);
+                var recordsContainPreassembledPgnPayloads = FileFormats.ContainsPreassembledPgnPayloads(format, rawRecords);
                 ReportProgress(
                     progress,
                     "Processing Packets",

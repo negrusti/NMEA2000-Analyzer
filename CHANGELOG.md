@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.15 - 2026-06-24
+
+- Fixed Actisense EBL loading for raw type `07` CAN-frame records, including fast-packet assembly for raw EBL captures while preserving preassembled Actisense EBL payload handling.
+
 ## 1.4.13 - 2026-06-14
 
 - Added MCP payload hex search, including byte wildcards, paging metadata, and source/destination/PGN set filters.
