@@ -1609,14 +1609,14 @@ namespace NMEA2000Analyzer
                 devicesWindow.Show();
             }
 
-        private void IncludeDeviceInFilter(DeviceStatisticsEntry entry)
+        private void IncludeDeviceInFilter(IReadOnlyCollection<DeviceStatisticsEntry> entries)
         {
-            if (entry == null)
+            if (entries == null || entries.Count == 0)
             {
                 return;
             }
 
-            IncludeAddresses(new[] { entry.Address.ToString(CultureInfo.InvariantCulture) });
+            IncludeAddresses(entries.Select(entry => entry.Address.ToString(CultureInfo.InvariantCulture)));
         }
 
         private void AlarmsMenuItem_Click(object sender, RoutedEventArgs e)

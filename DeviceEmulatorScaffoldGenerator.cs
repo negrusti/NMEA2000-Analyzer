@@ -48,6 +48,38 @@ namespace NMEA2000Analyzer
             public required List<object> ReceivedPgns { get; init; }
         }
 
+        private sealed class AddressClaimIdentity
+        {
+            public uint UniqueNumber { get; set; }
+            public ushort ManufacturerCode { get; set; }
+            public byte DeviceInstanceLower { get; set; }
+            public byte DeviceInstanceUpper { get; set; }
+            public byte DeviceFunction { get; set; }
+            public byte DeviceClass { get; set; }
+            public byte SystemInstance { get; set; }
+            public byte IndustryGroup { get; set; } = 4;
+            public bool ArbitraryAddressCapable { get; set; } = true;
+        }
+
+        private sealed class ProductInformationIdentity
+        {
+            public ushort Nmea2000Version { get; set; } = 2100;
+            public ushort ProductCode { get; set; }
+            public string ModelId { get; set; } = string.Empty;
+            public string SoftwareVersionCode { get; set; } = string.Empty;
+            public string ModelVersion { get; set; } = string.Empty;
+            public string ModelSerialCode { get; set; } = string.Empty;
+            public byte CertificationLevel { get; set; } = 1;
+            public byte LoadEquivalency { get; set; } = 1;
+        }
+
+        private sealed class ConfigurationInformationIdentity
+        {
+            public string InstallationDescription1 { get; set; } = string.Empty;
+            public string InstallationDescription2 { get; set; } = string.Empty;
+            public string ManufacturerInformation { get; set; } = string.Empty;
+        }
+
         public static Result Generate(
             DeviceStatisticsEntry entry,
             IReadOnlyList<Nmea2000Record>? rawRecords,
@@ -108,7 +140,6 @@ namespace NMEA2000Analyzer
             var emulatorClassName = $"{SanitizeIdentifier(projectName)}DeviceEmulator";
             var namespaceName = SanitizeIdentifier(projectName);
             var defaultSourceAddress = (byte)entry.Address;
-            var defaultAddressClaimPayload = transmittedSummaries.FirstOrDefault(summary => summary.Pgn == 60928)?.SamplePayloadBytes ?? Array.Empty<byte>();
 
             WriteFile(projectDirectory, $"{projectName}.csproj", BuildProjectFile(projectName));
             WriteFile(projectDirectory, "Program.cs", BuildProgramFile(namespaceName, emulatorClassName, displayName));
@@ -116,9 +147,10 @@ namespace NMEA2000Analyzer
             WriteFile(projectDirectory, "EmulatorConfig.cs", BuildEmulatorConfigFile(namespaceName, defaultSourceAddress));
             WriteFile(projectDirectory, "PcanBus.cs", BuildPcanBusFile(namespaceName));
             WriteFile(projectDirectory, "Nmea2000Protocol.cs", BuildProtocolFile(namespaceName));
-            WriteFile(projectDirectory, "DeviceEmulatorBase.cs", BuildBaseEmulatorFile(namespaceName, defaultAddressClaimPayload));
+            WriteFile(projectDirectory, "DeviceEmulatorBase.cs", BuildBaseEmulatorFile(namespaceName));
             WriteFile(projectDirectory, $"{emulatorClassName}.cs", BuildGeneratedEmulatorFile(namespaceName, emulatorClassName, entry, transmittedSummaries, receivedSummaries));
             WriteFile(projectDirectory, "appsettings.json", BuildAppSettings(defaultSourceAddress));
+            WriteFile(projectDirectory, "device-identity.json", BuildDeviceIdentityJson(entry, transmittedSummaries));
             WriteFile(projectDirectory, "ObservedTraffic.json", BuildObservedTrafficJson(entry, transmittedSummaries, receivedSummaries));
             WriteFile(projectDirectory, "README.md", BuildReadme(projectName, emulatorClassName, entry, transmittedSummaries, receivedSummaries));
             WriteFile(projectDirectory, "AGENTS.md", BuildAgentsFile(emulatorClassName));
@@ -301,12 +333,11 @@ namespace NMEA2000Analyzer
             });
         }
 
-        private static string BuildBaseEmulatorFile(string namespaceName, byte[] addressClaimPayload)
+        private static string BuildBaseEmulatorFile(string namespaceName)
         {
             return RenderTemplate("DeviceEmulatorBase.cs.tpl", new Dictionary<string, string>
             {
-                ["NamespaceName"] = namespaceName,
-                ["DefaultAddressClaimLiteral"] = FormatByteArrayLiteral(addressClaimPayload)
+                ["NamespaceName"] = namespaceName
             });
         }
 
@@ -447,8 +478,23 @@ namespace NMEA2000Analyzer
                 builder.AppendLine();
                 builder.AppendLine($"    private byte[] BuildPgn{summary.Pgn}Payload()");
                 builder.AppendLine("    {");
-                builder.AppendLine($"        // Sample payload from the capture. Replace this with a typed serializer when you implement PGN {summary.Pgn}.");
-                builder.AppendLine($"        return {FormatByteArrayLiteral(summary.SamplePayloadBytes)};");
+                if (summary.Pgn == 60928)
+                {
+                    builder.AppendLine("        return BuildAddressClaimPayload();");
+                }
+                else if (summary.Pgn == 126996)
+                {
+                    builder.AppendLine("        return BuildProductInformationPayload();");
+                }
+                else if (summary.Pgn == 126998)
+                {
+                    builder.AppendLine("        return BuildConfigurationInformationPayload();");
+                }
+                else
+                {
+                    builder.AppendLine($"        // Sample payload from the capture. Replace this with a typed serializer when you implement PGN {summary.Pgn}.");
+                    builder.AppendLine($"        return {FormatByteArrayLiteral(summary.SamplePayloadBytes)};");
+                }
                 builder.AppendLine("    }");
                 builder.AppendLine();
             }
@@ -463,9 +509,216 @@ namespace NMEA2000Analyzer
                 {
                   "Channel": "Usb01",
                   "Bitrate": "Pcan250",
-                  "SourceAddress": {{sourceAddress}}
+                  "SourceAddress": {{sourceAddress}},
+                  "IdentityFile": "device-identity.json",
+                  "AlternateSourceAddresses": [],
+                  "AddressClaimSettleMilliseconds": 250
                 }
                 """;
+        }
+
+        private static string BuildDeviceIdentityJson(
+            DeviceStatisticsEntry entry,
+            IReadOnlyList<ObservedPgnSummary> transmittedSummaries)
+        {
+            var addressClaim = ParseAddressClaim(transmittedSummaries.FirstOrDefault(summary => summary.Pgn == 60928)?.SamplePayloadBytes);
+            var productInformation = ParseProductInformation(transmittedSummaries.FirstOrDefault(summary => summary.Pgn == 126996)?.SamplePayloadBytes);
+            var configurationInformation = ParseConfigurationInformation(transmittedSummaries.FirstOrDefault(summary => summary.Pgn == 126998)?.SamplePayloadBytes);
+
+            if (!string.IsNullOrWhiteSpace(entry.ModelID))
+            {
+                productInformation.ModelId = entry.ModelID!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(entry.SoftwareVersionCode))
+            {
+                productInformation.SoftwareVersionCode = entry.SoftwareVersionCode!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(entry.ModelVersion))
+            {
+                productInformation.ModelVersion = entry.ModelVersion!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(entry.ModelSerialCode))
+            {
+                productInformation.ModelSerialCode = entry.ModelSerialCode!;
+            }
+
+            if (entry.ProductCode.HasValue && entry.ProductCode.Value >= 0 && entry.ProductCode.Value <= ushort.MaxValue)
+            {
+                productInformation.ProductCode = (ushort)entry.ProductCode.Value;
+            }
+
+            var payload = new
+            {
+                AddressClaim = addressClaim,
+                ProductInformation = productInformation,
+                ConfigurationInformation = configurationInformation
+            };
+
+            var identityJson = JsonSerializer.Serialize(payload, new JsonSerializerOptions
+            {
+                WriteIndented = true
+            });
+
+            return RenderTemplate("device-identity.json.tpl", new Dictionary<string, string>
+            {
+                ["IdentityJson"] = identityJson
+            });
+        }
+
+        private static AddressClaimIdentity ParseAddressClaim(byte[]? payload)
+        {
+            var identity = new AddressClaimIdentity();
+            if (payload == null || payload.Length < 8)
+            {
+                return identity;
+            }
+
+            var name = ReadUInt64LittleEndian(payload);
+            identity.UniqueNumber = (uint)(name & 0x1FFFFF);
+            identity.ManufacturerCode = (ushort)((name >> 21) & 0x7FF);
+            identity.DeviceInstanceLower = (byte)((name >> 32) & 0x07);
+            identity.DeviceInstanceUpper = (byte)((name >> 35) & 0x1F);
+            identity.DeviceFunction = (byte)((name >> 40) & 0xFF);
+            identity.DeviceClass = (byte)((name >> 49) & 0x7F);
+            identity.SystemInstance = (byte)((name >> 56) & 0x0F);
+            identity.IndustryGroup = (byte)((name >> 60) & 0x07);
+            identity.ArbitraryAddressCapable = ((name >> 63) & 0x01) != 0;
+            return identity;
+        }
+
+        private static ProductInformationIdentity ParseProductInformation(byte[]? payload)
+        {
+            var identity = new ProductInformationIdentity();
+            if (payload == null)
+            {
+                return identity;
+            }
+
+            if (payload.Length >= 2)
+            {
+                identity.Nmea2000Version = ReadUInt16LittleEndian(payload, 0);
+            }
+
+            if (payload.Length >= 4)
+            {
+                identity.ProductCode = ReadUInt16LittleEndian(payload, 2);
+            }
+
+            identity.ModelId = ReadFixedAscii(payload, 4, 32);
+            identity.SoftwareVersionCode = ReadFixedAscii(payload, 36, 32);
+            identity.ModelVersion = ReadFixedAscii(payload, 68, 32);
+            identity.ModelSerialCode = ReadFixedAscii(payload, 100, 32);
+
+            if (payload.Length > 132)
+            {
+                identity.CertificationLevel = payload[132];
+            }
+
+            if (payload.Length > 133)
+            {
+                identity.LoadEquivalency = payload[133];
+            }
+
+            return identity;
+        }
+
+        private static ConfigurationInformationIdentity ParseConfigurationInformation(byte[]? payload)
+        {
+            var identity = new ConfigurationInformationIdentity();
+            if (payload == null || payload.Length == 0)
+            {
+                return identity;
+            }
+
+            var offset = 0;
+            identity.InstallationDescription1 = ReadLauString(payload, ref offset);
+            identity.InstallationDescription2 = ReadLauString(payload, ref offset);
+            identity.ManufacturerInformation = ReadLauString(payload, ref offset);
+            return identity;
+        }
+
+        private static ulong ReadUInt64LittleEndian(ReadOnlySpan<byte> payload)
+        {
+            var value = 0UL;
+            for (var i = 0; i < 8; i++)
+            {
+                value |= (ulong)payload[i] << (8 * i);
+            }
+
+            return value;
+        }
+
+        private static ushort ReadUInt16LittleEndian(ReadOnlySpan<byte> payload, int offset)
+        {
+            return (ushort)(payload[offset] | (payload[offset + 1] << 8));
+        }
+
+        private static string ReadFixedAscii(byte[] payload, int offset, int length)
+        {
+            if (payload.Length <= offset)
+            {
+                return string.Empty;
+            }
+
+            var availableLength = Math.Min(length, payload.Length - offset);
+            var bytes = payload
+                .Skip(offset)
+                .Take(availableLength)
+                .Where(value => value != 0x00 && value != 0xFF)
+                .ToArray();
+            return Encoding.ASCII.GetString(bytes).TrimEnd('@', ' ');
+        }
+
+        private static string ReadLauString(byte[] payload, ref int offset)
+        {
+            if (offset >= payload.Length)
+            {
+                return string.Empty;
+            }
+
+            var declaredCount = payload[offset];
+            if (declaredCount == byte.MaxValue)
+            {
+                offset++;
+                return string.Empty;
+            }
+
+            if (declaredCount < 2 || offset + 1 >= payload.Length)
+            {
+                offset = payload.Length;
+                return string.Empty;
+            }
+
+            var availableCount = Math.Min(declaredCount, payload.Length - offset);
+            var encodingType = payload[offset + 1];
+            var stringBytes = payload
+                .Skip(offset + 2)
+                .Take(Math.Max(0, availableCount - 2))
+                .ToArray();
+            offset += availableCount;
+
+            while (offset < payload.Length && payload[offset] == 0x00)
+            {
+                offset++;
+            }
+
+            return encodingType == 0
+                ? Encoding.Unicode.GetString(TrimTrailingZeros(stringBytes)).TrimEnd('\0')
+                : Encoding.UTF8.GetString(TrimTrailingZeros(stringBytes));
+        }
+
+        private static byte[] TrimTrailingZeros(byte[] payload)
+        {
+            var end = payload.Length;
+            while (end > 0 && payload[end - 1] == 0x00)
+            {
+                end--;
+            }
+
+            return payload.Take(end).ToArray();
         }
 
         private static string BuildObservedTrafficJson(

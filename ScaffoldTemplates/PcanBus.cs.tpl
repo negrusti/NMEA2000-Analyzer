@@ -80,6 +80,11 @@ public sealed class PcanBus : IDisposable
         return false;
     }
 
+    public void TraceNote(string text)
+    {
+        WriteTraceNote(text);
+    }
+
     private void Worker_MessageAvailable(object? sender, MessageAvailableEventArgs e)
     {
         while (_worker.Dequeue(out var message, out var timestamp))

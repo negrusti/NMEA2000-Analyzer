@@ -76,10 +76,16 @@ public static class HexEncoding
 
 public sealed class FastPacketWriter
 {
+    private const int MaximumFastPacketPayloadLength = 223;
     private byte _nextSequenceId;
 
     public IReadOnlyList<byte[]> Split(ReadOnlySpan<byte> payload)
     {
+        if (payload.Length > MaximumFastPacketPayloadLength)
+        {
+            throw new ArgumentOutOfRangeException(nameof(payload), $"Fast-packet payloads cannot exceed {MaximumFastPacketPayloadLength} bytes.");
+        }
+
         var frames = new List<byte[]>();
         var sequenceId = _nextSequenceId++ & 0x07;
         var offset = 0;
@@ -118,6 +124,8 @@ public sealed class FastPacketWriter
 
 public sealed class FastPacketAssembler
 {
+    private const int MaximumFastPacketPayloadLength = 223;
+    private static readonly TimeSpan AssemblyTimeout = TimeSpan.FromMilliseconds(750);
     private readonly ConcurrentDictionary<(uint Pgn, byte Source, byte Destination, int SequenceId), FastPacketState> _states = new();
 
     public bool TryAccept(Nmea2000Message frameMessage, out Nmea2000Message? assembledMessage)
@@ -131,21 +139,35 @@ public sealed class FastPacketAssembler
         var sequenceId = frameMessage.Payload[0] >> 5;
         var frameIndex = frameMessage.Payload[0] & 0x1F;
         var key = (frameMessage.Pgn, frameMessage.SourceAddress, frameMessage.DestinationAddress, sequenceId);
+        var now = DateTimeOffset.UtcNow;
+        RemoveExpiredStates(now);
 
         if (frameIndex == 0)
         {
-            if (frameMessage.Payload.Length < 2)
+            if (frameMessage.Payload.Length < 2 ||
+                frameMessage.Payload.Length > 8 ||
+                frameMessage.Payload[1] == 0 ||
+                frameMessage.Payload[1] > MaximumFastPacketPayloadLength)
             {
                 return false;
             }
 
-            var state = new FastPacketState(frameMessage.Payload[1]);
-            state.Append(frameMessage.Payload.Skip(2).ToArray());
+            var state = new FastPacketState(frameMessage.Payload[1], now);
+            state.Append(frameMessage.Payload.Skip(2).ToArray(), now);
             _states[key] = state;
         }
         else if (_states.TryGetValue(key, out var existing))
         {
-            existing.Append(frameMessage.Payload.Skip(1).ToArray());
+            if (existing.IsExpired(now) ||
+                frameIndex != existing.NextFrameIndex ||
+                frameMessage.Payload.Length < 2 ||
+                frameMessage.Payload.Length > 8)
+            {
+                _states.TryRemove(key, out _);
+                return false;
+            }
+
+            existing.Append(frameMessage.Payload.Skip(1).ToArray(), now);
         }
         else
         {
@@ -171,19 +193,38 @@ public sealed class FastPacketAssembler
         return false;
     }
 
+    private void RemoveExpiredStates(DateTimeOffset now)
+    {
+        foreach (var pair in _states)
+        {
+            if (pair.Value.IsExpired(now))
+            {
+                _states.TryRemove(pair.Key, out _);
+            }
+        }
+    }
+
     private sealed class FastPacketState
     {
         private readonly List<byte> _payload = new();
+        private DateTimeOffset _lastUpdated;
 
-        public FastPacketState(int totalLength)
+        public FastPacketState(int totalLength, DateTimeOffset now)
         {
             TotalLength = totalLength;
+            _lastUpdated = now;
         }
 
         public int TotalLength { get; }
+        public int NextFrameIndex { get; private set; }
         public bool IsComplete => _payload.Count >= TotalLength;
 
-        public void Append(byte[] bytes)
+        public bool IsExpired(DateTimeOffset now)
+        {
+            return now - _lastUpdated > AssemblyTimeout;
+        }
+
+        public void Append(byte[] bytes, DateTimeOffset now)
         {
             foreach (var byteValue in bytes)
             {
@@ -192,6 +233,9 @@ public sealed class FastPacketAssembler
                     _payload.Add(byteValue);
                 }
             }
+
+            NextFrameIndex++;
+            _lastUpdated = now;
         }
 
         public byte[] BuildPayload()

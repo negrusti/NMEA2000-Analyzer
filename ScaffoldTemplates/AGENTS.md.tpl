@@ -7,8 +7,9 @@ Preserve bus-visible behavior while gradually replacing sample payloads with typ
 ## File Roles
 - `PcanBus.cs`: PCAN transport only.
 - `Nmea2000Protocol.cs`: CAN ID parsing, fast-packet assembly/disassembly, protocol helpers.
-- `DeviceEmulatorBase.cs`: generic runtime, scheduling, and common request/send plumbing.
+- `DeviceEmulatorBase.cs`: generic runtime, address-claim state, scheduling, and common request/send plumbing.
 - `{{EmulatorClassFileName}}`: all device-specific PGN behavior belongs here.
+- `device-identity.json`: editable identity fields used to serialize Address Claim, Product Information, and Configuration Information.
 - `ObservedTraffic.json`: captured reference behavior. Use it before making assumptions.
 - `logs/raw-device-records.json`: raw frame-level capture related to the device.
 - `logs/assembled-device-records.json`: assembled packet-level capture related to the device.
@@ -32,13 +33,15 @@ Preserve bus-visible behavior while gradually replacing sample payloads with typ
 
 ## ISO Requests and Identity
 - Keep ISO Request handling explicit per PGN.
+- Preserve address-claim arbitration before changing startup or scheduling behavior.
+- Change identity values in `device-identity.json`, not by replacing typed serializers with captured byte arrays.
 - Treat `60928`, `126464`, `126996`, and `126998` as high-risk identity PGNs; avoid behavior changes unless required.
 - If device visibility on an MFD changes, inspect identity traffic first.
 
 ## Validation
 - Build successfully.
 - If possible, compare transmitted frames against the original capture.
-- Inspect `logs/tracer.log` after each test run to confirm address claim, ISO Request handling, and fast-packet fragmentation on the wire.
+- Inspect `logs/tracer.log` after each test run to confirm address claim state transitions, ISO Request handling, and fast-packet fragmentation on the wire.
 - For fast packets, verify fragmentation and reassembly explicitly.
 - Avoid changing unrelated PGNs while fixing one behavior.
 

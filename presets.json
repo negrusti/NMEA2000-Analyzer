@@ -12,12 +12,20 @@
 		"IncludePGNs": "127489,127493,127505"
 	},
 	{
+		"Name": "Energy",
+		"IncludePGNs": "61184,65012,65013"
+	},
+	{
+		"Name": "Digital Switching",
+		"IncludePGNs": "65284,65299,130820,127501,127502,65294,65301,130825"
+	},
+	{
 		"Name": "Weather",
 		"IncludePGNs": "130306,130310,130311,130313"
 	},
 	{
 		"Name": "Autopilot",
-		"IncludePGNs": "126208,65359,65360,65379,126720,130850"
+		"IncludePGNs": "126208,126720,65359,65360,65379,126720,130850"
 	},
 	{
 		"Name": "Autopilot Control",

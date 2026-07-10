@@ -33,10 +33,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="CandumpGenerator\**" />
-    <EmbeddedResource Remove="CandumpGenerator\**" />
-    <None Remove="CandumpGenerator\**" />
-    <Page Remove="CandumpGenerator\**" />
     <Compile Remove="artifacts\**" />
     <EmbeddedResource Remove="artifacts\**" />
     <None Remove="artifacts\**" />
@@ -89,6 +85,7 @@
 
   <ItemGroup>
     <Folder Include="images\" />
+    <Folder Include="Tools\" />
   </ItemGroup>
 
   <ItemGroup>

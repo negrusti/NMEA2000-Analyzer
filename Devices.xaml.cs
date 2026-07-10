@@ -14,7 +14,7 @@ namespace NMEA2000Analyzer
     /// </summary>
     public partial class Devices : Window
     {
-        private readonly Action<DeviceStatisticsEntry>? _includeRequested;
+        private readonly Action<IReadOnlyCollection<DeviceStatisticsEntry>>? _includeRequested;
         private readonly Action<DeviceStatisticsEntry>? _graphRequested;
         private readonly Action<DeviceStatisticsEntry>? _supportedPgnsRequested;
         private readonly Action<DeviceStatisticsEntry>? _emulationRequested;
@@ -32,7 +32,7 @@ namespace NMEA2000Analyzer
 
         public Devices(
             IEnumerable<DeviceStatisticsEntry> statistics,
-            Action<DeviceStatisticsEntry>? includeRequested = null,
+            Action<IReadOnlyCollection<DeviceStatisticsEntry>>? includeRequested = null,
             Action<DeviceStatisticsEntry>? graphRequested = null,
             Action<DeviceStatisticsEntry>? supportedPgnsRequested = null,
             Action<DeviceStatisticsEntry>? emulationRequested = null,
@@ -102,17 +102,22 @@ namespace NMEA2000Analyzer
 
         private void IncludeMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is not MenuItem menuItem ||
-                menuItem.Parent is not ContextMenu contextMenu ||
-                contextMenu.PlacementTarget is not DataGridRow row ||
-                row.Item is not DeviceStatisticsEntry entry)
+            var selectedDevices = GetSelectedDevices();
+            if (selectedDevices.Count == 0)
             {
                 return;
             }
 
-            row.IsSelected = true;
-            row.Focus();
-            _includeRequested?.Invoke(entry);
+            _includeRequested?.Invoke(selectedDevices);
+        }
+
+        private List<DeviceStatisticsEntry> GetSelectedDevices()
+        {
+            return DevicesDataGrid.SelectedItems
+                .OfType<DeviceStatisticsEntry>()
+                .GroupBy(entry => entry.Address)
+                .Select(group => group.First())
+                .ToList();
         }
 
         private void SupportedPgnsMenuItem_Click(object sender, RoutedEventArgs e)
@@ -154,6 +159,22 @@ namespace NMEA2000Analyzer
             {
                 buildMenuItem.IsEnabled = !string.IsNullOrWhiteSpace(entry.ModelID);
             }
+        }
+
+        private void DeviceRow_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is not DataGridRow row)
+            {
+                return;
+            }
+
+            if (!row.IsSelected)
+            {
+                DevicesDataGrid.SelectedItems.Clear();
+                row.IsSelected = true;
+            }
+
+            row.Focus();
         }
 
         private void EmulateDeviceMenuItem_Click(object sender, RoutedEventArgs e)

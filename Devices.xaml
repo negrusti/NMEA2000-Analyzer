@@ -48,6 +48,8 @@
                     <Setter Property="ContextMenu" Value="{StaticResource deviceRowContextMenu}" />
                     <EventSetter Event="MouseDoubleClick"
                                  Handler="DeviceRow_MouseDoubleClick" />
+                    <EventSetter Event="PreviewMouseRightButtonDown"
+                                 Handler="DeviceRow_PreviewMouseRightButtonDown" />
                 </Style>
             </DataGrid.RowStyle>
 
