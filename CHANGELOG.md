@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.17 - 2026-07-11
+
+- Fixed Actisense live capture setup to request documented Rx-All operating mode and corrected direct serial PDU1 PGN reconstruction.
+
 ## 1.4.16 - 2026-06-24
 
 - Made application shutdown deterministic when the main window closes, including cleanup for owned windows, device emulation, live capture readers, PCAN sessions, and the MCP server.

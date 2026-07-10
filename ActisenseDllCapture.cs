@@ -11,7 +11,7 @@ namespace NMEA2000Analyzer
         public const string DefaultDllPath = @"C:\Program Files\Actisense\NMEAReader\ActisenseComms_Release_x64.dll";
 
         private const int DefaultBaudRate = 115200;
-        private const int ReceiveAllOperatingMode = 1;
+        private const int ReceiveAllOperatingMode = 2;
 
         private static readonly object SyncRoot = new();
 

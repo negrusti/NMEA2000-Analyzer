@@ -7,16 +7,34 @@ namespace NMEA2000Analyzer
 {
     internal static class ActisenseSerialCapture
     {
-        // Captured from Actisense NMEA Reader startup traffic to an NGT-1.
-        // 0x4B (ActivatePGNEnableLists) appended: the captured sequence ends with three
-        // query commands (0x4D/0x4E/0x4F) that NMEA Reader uses to read the device's
-        // PGN filter state and then activate it. Without 0x4B the NGT-1 may stay in
+        // The SDK documents BEM 0x11 with a two-byte little-endian mode value.
+        // Mode 2 is NGTransferRxAllMode: receive all PGNs via BST-93 while keeping
+        // normal BST-94 transmit behavior.
+        private static readonly byte[] ProbeCommandPayload = { 0x11 };
+        private static readonly byte[] SetReceiveAllModePayload = { 0x11, 0x02, 0x00 };
+
+        // Captured from Actisense NMEA Reader startup traffic to an NGT-1, with
+        // the operating-mode GET replaced by the documented Rx-All SET command.
+        // 0x4B (ActivatePGNEnableLists) is kept because NMEA Reader queries PGN
+        // filter state and then activates it. Without 0x4B the NGT-1 may stay in
         // whatever filtered state was last saved to EEPROM, causing missed packets.
-        private static readonly byte[] StartupControlCommands =
+        private static readonly byte[][] StartupControlPayloads =
         {
-            0x11, 0x42, 0x10, 0x41, 0x43, 0x44, 0x45,
-            0x13, 0x12, 0x16, 0x40, 0x4E, 0x4F, 0x4D,
-            0x4B
+            SetReceiveAllModePayload,
+            new byte[] { 0x42 },
+            new byte[] { 0x10 },
+            new byte[] { 0x41 },
+            new byte[] { 0x43 },
+            new byte[] { 0x44 },
+            new byte[] { 0x45 },
+            new byte[] { 0x13 },
+            new byte[] { 0x12 },
+            new byte[] { 0x16 },
+            new byte[] { 0x40 },
+            new byte[] { 0x4E },
+            new byte[] { 0x4F },
+            new byte[] { 0x4D },
+            new byte[] { 0x4B }
         };
 
         private static readonly TimeSpan[] StartupControlDelays =
@@ -243,10 +261,10 @@ namespace NMEA2000Analyzer
         {
             try
             {
-                for (var i = 0; i < StartupControlCommands.Length; i++)
+                for (var i = 0; i < StartupControlPayloads.Length; i++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    WriteMessage(NgtMsgSend, new[] { StartupControlCommands[i] });
+                    WriteMessage(NgtMsgSend, StartupControlPayloads[i]);
 
                     if (i < StartupControlDelays.Length)
                     {
@@ -466,7 +484,7 @@ namespace NMEA2000Analyzer
             }
 
             var priority = payload[0];
-            var pgn = payload[1] | (payload[2] << 8) | (payload[3] << 16);
+            var pgn = CalculatePgn(payload[1], payload[2], payload[3]);
             var destination = payload[4];
             var source = payload[5];
             var dataLength = (int)payload[10];
@@ -487,6 +505,7 @@ namespace NMEA2000Analyzer
                 Source = source.ToString(CultureInfo.InvariantCulture),
                 Destination = destination.ToString(CultureInfo.InvariantCulture),
                 PGN = pgn.ToString(CultureInfo.InvariantCulture),
+                Type = dataLength > 8 ? "fast" : "single",
                 Priority = priority.ToString(CultureInfo.InvariantCulture),
                 PayloadBytes = data
             };
@@ -494,6 +513,7 @@ namespace NMEA2000Analyzer
             lock (SyncRoot)
             {
                 _capture ??= new List<Nmea2000Record>();
+                record.LogSequenceNumber = _capture.Count + 1;
                 _capture.Add(record);
             }
 
@@ -509,7 +529,7 @@ namespace NMEA2000Analyzer
                 port.WriteTimeout = 500;
                 port.Open();
 
-                var frame = BuildMessageFrame(NgtMsgSend, new[] { StartupControlCommands[0] });
+                var frame = BuildMessageFrame(NgtMsgSend, ProbeCommandPayload);
                 port.Write(frame, 0, frame.Length);
 
                 var deadline = DateTime.UtcNow.AddSeconds(2);
@@ -669,6 +689,17 @@ namespace NMEA2000Analyzer
 
             int payloadLength = frameBytes[1];
             return frameBytes.Count >= payloadLength + 3;
+        }
+
+        private static int CalculatePgn(byte pdus, byte pduf, byte dataPage)
+        {
+            var pgn = ((dataPage & 0x03) << 16) | (pduf << 8);
+            if (pduf >= 240)
+            {
+                pgn |= pdus;
+            }
+
+            return pgn;
         }
     }
 }

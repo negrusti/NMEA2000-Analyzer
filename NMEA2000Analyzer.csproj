@@ -8,9 +8,9 @@
     <UseWPF>true</UseWPF>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <SignAssembly>False</SignAssembly>
-    <AssemblyVersion>1.4.16</AssemblyVersion>
-    <FileVersion>1.4.16</FileVersion>
-    <Version>1.4.16</Version>
+    <AssemblyVersion>1.4.17</AssemblyVersion>
+    <FileVersion>1.4.17</FileVersion>
+    <Version>1.4.17</Version>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
