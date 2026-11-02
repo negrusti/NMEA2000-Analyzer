@@ -1,0 +1,54 @@
+<Window x:Class="NMEA2000Analyzer.CaptureProgressWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="PCAN Capture"
+        Width="360"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="ToolWindow">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   x:Name="SourceTextBlock"
+                   Margin="0,0,0,8"
+                   Foreground="#666666"
+                   FontSize="12"
+                   Visibility="Collapsed" />
+
+        <TextBlock Grid.Row="1"
+                   FontSize="15">
+            <Run Text="Packets captured: " />
+            <Run x:Name="PacketCountRun"
+                 Text="0" />
+        </TextBlock>
+
+        <Grid Grid.Row="2"
+              Margin="0,16,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <Button Grid.Column="1"
+                    Width="130"
+                    Margin="0,0,8,0"
+                    x:Name="RequestDeviceInfoButton"
+                    Content="Request device info"
+                    Click="RequestDeviceInfoButton_Click" />
+
+            <Button Grid.Column="2"
+                    Width="90"
+                    IsDefault="True"
+                    Content="Stop"
+                    Click="StopButton_Click" />
+        </Grid>
+    </Grid>
+</Window>

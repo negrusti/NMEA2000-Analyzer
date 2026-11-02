@@ -1,0 +1,277 @@
+{
+  "source": {
+    "title": "VE.Can registers - public",
+    "url": "https://www.victronenergy.com/upload/documents/VE.Can-registers-public.pdf",
+    "notes": "Public Victron VREG register descriptions for proprietary PGN 61184 / 0xEF00. Product-specific register pages may still require device-specific documentation."
+  },
+  "registers": [
+    {
+      "id": "0x0200",
+      "name": "Device Mode",
+      "access": "read/write",
+      "dataType": "un8",
+      "enumValues": {
+        "1": "Charger Only",
+        "2": "Inverter Only",
+        "3": "On",
+        "4": "Off"
+      }
+    },
+    {
+      "id": "0x0201",
+      "name": "Device State",
+      "access": "read-only",
+      "dataType": "un8",
+      "enumValues": {
+        "0": "Off",
+        "1": "Low Power Mode",
+        "2": "Fault",
+        "3": "Bulk",
+        "4": "Absorption",
+        "5": "Float",
+        "6": "Storage",
+        "7": "Equalize",
+        "8": "Passthru",
+        "9": "Inverting",
+        "10": "Assisting",
+        "11": "Power Supply Mode",
+        "251": "Test",
+        "252": "Hub-1",
+        "255": "Not Available"
+      }
+    },
+    {
+      "id": "0x0202",
+      "name": "Remote Control Used",
+      "access": "read/write",
+      "dataType": "bitmask32",
+      "bitFlags": [
+        { "bit": 0, "name": "ACIN1 current limit" },
+        { "bit": 1, "name": "On/off control" },
+        { "bit": 2, "name": "ACIN2 current limit" },
+        { "bit": 8, "name": "Send panel LEDs" },
+        { "bit": 16, "name": "Send cell voltages" }
+      ]
+    },
+    {
+      "id": "0x0203",
+      "name": "AC IN Current Limit",
+      "access": "read-only",
+      "dataType": "un16",
+      "scale": 0.1,
+      "unit": "A",
+      "unavailable": "0xFFFF"
+    },
+    {
+      "id": "0x0204",
+      "name": "AC active input",
+      "access": "read-only",
+      "dataType": "un8"
+    },
+    {
+      "id": "0x0210",
+      "name": "AC IN1 Current Limit",
+      "access": "read-only",
+      "dataType": "un16",
+      "scale": 0.1,
+      "unit": "A",
+      "unavailable": "0xFFFF"
+    },
+    {
+      "id": "0x0211",
+      "name": "AC IN1 Current Limit Min",
+      "access": "read-only",
+      "dataType": "un16",
+      "scale": 0.1,
+      "unit": "A",
+      "unavailable": "0xFFFF"
+    },
+    {
+      "id": "0x0212",
+      "name": "AC IN1 Current Limit Max",
+      "access": "read-only",
+      "dataType": "un16",
+      "scale": 0.1,
+      "unit": "A",
+      "unavailable": "0xFFFF"
+    },
+    {
+      "id": "0x0213",
+      "name": "AC IN1 Current Limit Internal",
+      "access": "read-only",
+      "dataType": "un16",
+      "scale": 0.1,
+      "unit": "A",
+      "unavailable": "0xFFFF"
+    },
+    {
+      "id": "0x0214",
+      "name": "AC IN1 Current Limit Remote",
+      "access": "read/write",
+      "dataType": "un16",
+      "scale": 0.1,
+      "unit": "A",
+      "unavailable": "0xFFFF"
+    },
+    {
+      "id": "0x0220",
+      "name": "AC IN2 Current Limit",
+      "access": "read-only",
+      "dataType": "un16",
+      "scale": 0.1,
+      "unit": "A",
+      "unavailable": "0xFFFF"
+    },
+    {
+      "id": "0x0221",
+      "name": "AC IN2 Current Limit Min",
+      "access": "read-only",
+      "dataType": "un16",
+      "scale": 0.1,
+      "unit": "A",
+      "unavailable": "0xFFFF"
+    },
+    {
+      "id": "0x0222",
+      "name": "AC IN2 Current Limit Max",
+      "access": "read-only",
+      "dataType": "un16",
+      "scale": 0.1,
+      "unit": "A",
+      "unavailable": "0xFFFF"
+    },
+    {
+      "id": "0x0223",
+      "name": "AC IN2 Current Limit Internal",
+      "access": "read-only",
+      "dataType": "un16",
+      "scale": 0.1,
+      "unit": "A",
+      "unavailable": "0xFFFF"
+    },
+    {
+      "id": "0x0224",
+      "name": "AC IN2 Current Limit Remote",
+      "access": "read/write",
+      "dataType": "un16",
+      "scale": 0.1,
+      "unit": "A",
+      "unavailable": "0xFFFF"
+    },
+    {
+      "id": "0x2000",
+      "name": "Charge algorithm version",
+      "access": "read/write",
+      "dataType": "un8",
+      "source": "Victron Orion XS HEX protocol public remote-control register table"
+    },
+    {
+      "id": "0x2001",
+      "name": "Charge voltage set-point",
+      "access": "read/write",
+      "dataType": "un16",
+      "scale": 0.01,
+      "unit": "V",
+      "source": "Victron Orion XS HEX protocol public remote-control register table"
+    },
+    {
+      "id": "0x2002",
+      "name": "Battery voltage sense",
+      "access": "read/write",
+      "dataType": "un16",
+      "scale": 0.01,
+      "unit": "V",
+      "unavailable": "0xFFFF",
+      "source": "Victron Orion XS HEX protocol public remote-control register table"
+    },
+    {
+      "id": "0x2003",
+      "name": "Battery temperature sense",
+      "access": "read/write",
+      "dataType": "sn16",
+      "scale": 0.01,
+      "unit": "C",
+      "unavailable": "0x7FFF",
+      "source": "Victron Orion XS HEX protocol public remote-control register table"
+    },
+    {
+      "id": "0x200A",
+      "name": "Battery charge current",
+      "access": "read/write",
+      "dataType": "sn32",
+      "scale": 0.001,
+      "unit": "A",
+      "source": "Victron Orion XS HEX protocol public remote-control register table"
+    },
+    {
+      "id": "0x200C",
+      "name": "Device state",
+      "access": "read/write",
+      "dataType": "un8",
+      "source": "Victron Orion XS HEX protocol public remote-control register table"
+    },
+    {
+      "id": "0x200D",
+      "name": "Network info",
+      "access": "read/write",
+      "dataType": "un8",
+      "source": "Victron Orion XS HEX protocol public remote-control register table"
+    },
+    {
+      "id": "0x200E",
+      "name": "Network mode",
+      "access": "read/write",
+      "dataType": "bitmask32",
+      "bitFlags": [
+        { "bit": 0, "name": "Networked" },
+        { "bit": 1, "name": "Slave mode" },
+        { "bit": 2, "name": "External control mode" },
+        { "bit": 3, "name": "BMS controlled" },
+        { "bit": 4, "name": "Charge group master" },
+        { "bit": 5, "name": "Charge instance master" },
+        { "bit": 6, "name": "Standby" }
+      ],
+      "source": "Victron Orion XS HEX protocol public remote-control register table"
+    },
+    {
+      "id": "0x200F",
+      "name": "Network status register",
+      "access": "read/write",
+      "dataType": "un8",
+      "source": "Victron Orion XS HEX protocol public remote-control register table"
+    },
+    {
+      "id": "0x2015",
+      "name": "Charge current limit",
+      "access": "read/write",
+      "dataType": "un16",
+      "scale": 0.1,
+      "unit": "A",
+      "source": "Victron Orion XS HEX protocol public remote-control register table"
+    },
+    {
+      "id": "0xEEFF",
+      "name": "Consumed Ah (CE)",
+      "access": "read-only",
+      "dataType": "sn32",
+      "scale": 0.1,
+      "unit": "Ah",
+      "unavailable": "0x7FFFFFFF",
+      "source": "Victron BMV NMEA 2000 public manual"
+    },
+    {
+      "id": "0x0234",
+      "name": "Unknown device-control register",
+      "access": "unknown",
+      "dataType": "raw32",
+      "status": "observed-not-in-public-register-pdf"
+    },
+    {
+      "id": "0x2214",
+      "name": "Unknown product-specific register",
+      "access": "unknown",
+      "dataType": "raw32",
+      "status": "observed-not-in-public-register-pdf"
+    }
+  ]
+}

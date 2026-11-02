@@ -1,0 +1,994 @@
+{
+  "binary": "libSystemFunctions_armeabi-v7a.so",
+  "sha256": "ac51d948ae7b5f29d448bde3cd2da3d35422bbc1d8e087ee6aa995b53fb747d8",
+  "extracted": "2026-10-31",
+  "pgn": 126720,
+  "pid": 108,
+  "fieldOrder": [
+    "current",
+    "maximum",
+    "minimum",
+    "default"
+  ],
+  "count": 36,
+  "namedCount": 26,
+  "entries": [
+    {
+      "id": 20480,
+      "hex": "0x5000",
+      "meaning": null,
+      "meaningStatus": "unresolved",
+      "bytesPerValue": 2,
+      "responseLength": 13,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeEnumValue"
+        }
+      ],
+      "valueType": "enum/integer"
+    },
+    {
+      "id": 20481,
+      "hex": "0x5001",
+      "meaning": null,
+      "meaningStatus": "unresolved",
+      "bytesPerValue": 2,
+      "responseLength": 13,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeEnumValue"
+        }
+      ],
+      "valueType": "enum/integer"
+    },
+    {
+      "id": 20482,
+      "hex": "0x5002",
+      "meaning": "Rudder Limit",
+      "meaningStatus": "confirmed",
+      "bytesPerValue": 2,
+      "responseLength": 13,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1f2a620",
+          "function": "PilotCalibrationFacade::GetRudderLimit(void)const"
+        },
+        {
+          "address": "0x1f2a62a",
+          "function": "PilotCalibrationFacade::SetRudderLimit(RAY_System::TSystemFloat<float>)"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeAngleValue"
+        }
+      ],
+      "valueType": "unsigned angle",
+      "resolution": 0.0001,
+      "unit": "rad"
+    },
+    {
+      "id": 20483,
+      "hex": "0x5003",
+      "meaning": "Rudder Damping",
+      "meaningStatus": "confirmed",
+      "bytesPerValue": 2,
+      "responseLength": 13,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1f2a54c",
+          "function": "PilotCalibrationFacade::GetRudderDamping(void)const"
+        },
+        {
+          "address": "0x1f2a550",
+          "function": "PilotCalibrationFacade::SetRudderDamping(int)"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeEnumValue"
+        }
+      ],
+      "valueType": "enum/integer"
+    },
+    {
+      "id": 20484,
+      "hex": "0x5004",
+      "meaning": "Rudder Offset",
+      "meaningStatus": "confirmed",
+      "bytesPerValue": 2,
+      "responseLength": 13,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1f2a610",
+          "function": "PilotCalibrationFacade::GetRudderOffset(void)const"
+        },
+        {
+          "address": "0x1f2a61a",
+          "function": "PilotCalibrationFacade::SetRudderOffset(RAY_System::TSystemFloat<float>)"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeSignedAngleValue"
+        }
+      ],
+      "valueType": "signed angle",
+      "resolution": 0.0001,
+      "unit": "rad"
+    },
+    {
+      "id": 20485,
+      "hex": "0x5005",
+      "meaning": null,
+      "meaningStatus": "unresolved",
+      "bytesPerValue": 2,
+      "responseLength": 13,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeEnumValue"
+        }
+      ],
+      "valueType": "enum/integer"
+    },
+    {
+      "id": 20486,
+      "hex": "0x5006",
+      "meaning": "Reverse Rudder Reference",
+      "meaningStatus": "confirmed",
+      "bytesPerValue": 1,
+      "responseLength": 9,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1f2a5b4",
+          "function": "PilotCalibrationFacade::GetReverseRudderReference(void)const"
+        },
+        {
+          "address": "0x1f2a5b8",
+          "function": "PilotCalibrationFacade::SetReverseRudderReference(bool)"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeEnumValue"
+        }
+      ],
+      "valueType": "enum/integer"
+    },
+    {
+      "id": 20487,
+      "hex": "0x5007",
+      "meaning": null,
+      "meaningStatus": "unresolved",
+      "bytesPerValue": 2,
+      "responseLength": 13,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeEnumValue"
+        }
+      ],
+      "valueType": "enum/integer"
+    },
+    {
+      "id": 20488,
+      "hex": "0x5008",
+      "meaning": "Cruise Speed",
+      "meaningStatus": "confirmed",
+      "bytesPerValue": 2,
+      "responseLength": 13,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1f2a704",
+          "function": "PilotCalibrationFacade::GetCruiseSpeed(void)const"
+        },
+        {
+          "address": "0x1f2a70e",
+          "function": "PilotCalibrationFacade::SetCruiseSpeed(RAY_System::TSystemFloat<float>)"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeSpeedValue"
+        }
+      ],
+      "valueType": "speed",
+      "resolution": 0.01,
+      "unit": null,
+      "notes": "Decoder divides the raw value by 100. Internal speed unit was not independently established in this extraction."
+    },
+    {
+      "id": 20489,
+      "hex": "0x5009",
+      "meaning": null,
+      "meaningStatus": "unresolved",
+      "bytesPerValue": 2,
+      "responseLength": 13,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeEnumValue"
+        }
+      ],
+      "valueType": "enum/integer"
+    },
+    {
+      "id": 20490,
+      "hex": "0x500A",
+      "meaning": null,
+      "meaningStatus": "unresolved",
+      "bytesPerValue": 2,
+      "responseLength": 13,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeEnumValue"
+        }
+      ],
+      "valueType": "enum/integer"
+    },
+    {
+      "id": 20491,
+      "hex": "0x500B",
+      "meaning": "Power Steer Mode",
+      "meaningStatus": "confirmed",
+      "bytesPerValue": 2,
+      "responseLength": 13,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1f2a588",
+          "function": "PilotCalibrationFacade::GetPowerSteer(void)const"
+        },
+        {
+          "address": "0x1f2a58c",
+          "function": "PilotCalibrationFacade::SetPowerSteer(RAY_PilotTypes::PilotCalibrationPowerSteerMode_t)"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeEnumValue"
+        }
+      ],
+      "valueType": "enum/integer"
+    },
+    {
+      "id": 20492,
+      "hex": "0x500C",
+      "meaning": "Motor Phasing",
+      "meaningStatus": "confirmed",
+      "bytesPerValue": 1,
+      "responseLength": 9,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1f2a5e4",
+          "function": "PilotCalibrationFacade::GetMotorPhasing(void)const"
+        },
+        {
+          "address": "0x1f2a5e8",
+          "function": "PilotCalibrationFacade::SetMotorPhasing(RAY_PilotTypes::PilotCalibrationMotorPhasing_t)"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeEnumValue"
+        }
+      ],
+      "valueType": "enum/integer"
+    },
+    {
+      "id": 20493,
+      "hex": "0x500D",
+      "meaning": null,
+      "meaningStatus": "unresolved",
+      "bytesPerValue": 1,
+      "responseLength": 9,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeEnumValue"
+        }
+      ],
+      "valueType": "enum/integer"
+    },
+    {
+      "id": 20494,
+      "hex": "0x500E",
+      "meaning": null,
+      "meaningStatus": "unresolved",
+      "bytesPerValue": 1,
+      "responseLength": 9,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeEnumValue"
+        }
+      ],
+      "valueType": "enum/integer"
+    },
+    {
+      "id": 20495,
+      "hex": "0x500F",
+      "meaning": "Wind Type",
+      "meaningStatus": "confirmed",
+      "bytesPerValue": 1,
+      "responseLength": 9,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1f2a6ac",
+          "function": "PilotCalibrationFacade::GetWindType(void)const"
+        },
+        {
+          "address": "0x1f2a6b0",
+          "function": "PilotCalibrationFacade::SetWindType(RAY_PilotTypes::PilotCalibrationWindTrim_t)"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeEnumValue"
+        }
+      ],
+      "valueType": "enum/integer",
+      "knownValues": [
+        {
+          "value": 0,
+          "name": "True Wind"
+        },
+        {
+          "value": 1,
+          "name": "Apparent Wind"
+        }
+      ],
+      "knownValuesEvidence": {
+        "binary": "libCommonPresentation_armeabi-v7a.so",
+        "qtMetaObject": "0x92AE0C",
+        "enum": "PilotAdvancedSettingsPresenter::WindType",
+        "getter": "0x660C68",
+        "setter": "0x660C7C"
+      }
+    },
+    {
+      "id": 20496,
+      "hex": "0x5010",
+      "meaning": "Wind Trim Response",
+      "meaningStatus": "confirmed",
+      "bytesPerValue": 2,
+      "responseLength": 13,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1f2a650",
+          "function": "PilotCalibrationFacade::GetWindTrimResponse(void)const"
+        },
+        {
+          "address": "0x1f2a654",
+          "function": "PilotCalibrationFacade::SetWindTrimResponse(int)"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeEnumValue"
+        }
+      ],
+      "valueType": "enum/integer"
+    },
+    {
+      "id": 20497,
+      "hex": "0x5011",
+      "meaning": "Auto Turn Angle",
+      "meaningStatus": "confirmed",
+      "bytesPerValue": 2,
+      "responseLength": 13,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1f2a578",
+          "function": "PilotCalibrationFacade::GetAutoTurn(void)const"
+        },
+        {
+          "address": "0x1f2a582",
+          "function": "PilotCalibrationFacade::SetAutoTurn(RAY_System::TSystemFloat<float>)"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeAngleValue"
+        }
+      ],
+      "valueType": "unsigned angle",
+      "resolution": 0.0001,
+      "unit": "rad"
+    },
+    {
+      "id": 20498,
+      "hex": "0x5012",
+      "meaning": "Calibration Lock",
+      "meaningStatus": "confirmed",
+      "bytesPerValue": 1,
+      "responseLength": 9,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1f2a458",
+          "function": "PilotCalibrationFacade::GetCalibrationLock(void)const"
+        },
+        {
+          "address": "0x1f2a45c",
+          "function": "PilotCalibrationFacade::SetCalibrationLock(bool)"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeEnumValue"
+        }
+      ],
+      "valueType": "enum/integer"
+    },
+    {
+      "id": 20499,
+      "hex": "0x5013",
+      "meaning": null,
+      "meaningStatus": "unresolved",
+      "bytesPerValue": 2,
+      "responseLength": 13,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        }
+      ],
+      "valueType": "not dispatched by generic receiver"
+    },
+    {
+      "id": 20500,
+      "hex": "0x5014",
+      "meaning": "Gybe Inhibit",
+      "meaningStatus": "confirmed",
+      "bytesPerValue": 1,
+      "responseLength": 9,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1f2a67c",
+          "function": "PilotCalibrationFacade::GetGybeInhibit(void)const"
+        },
+        {
+          "address": "0x1f2a680",
+          "function": "PilotCalibrationFacade::SetGybeInhibit(bool)"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeEnumValue"
+        }
+      ],
+      "valueType": "enum/integer"
+    },
+    {
+      "id": 20501,
+      "hex": "0x5015",
+      "meaning": "Compass Offset",
+      "meaningStatus": "confirmed",
+      "bytesPerValue": 2,
+      "responseLength": 13,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1f2a448",
+          "function": "PilotCalibrationFacade::GetCompassOffset(void)const"
+        },
+        {
+          "address": "0x1f2a452",
+          "function": "PilotCalibrationFacade::SetCompassOffset(RAY_System::TSystemFloat<float>)"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeSignedAngleValue"
+        }
+      ],
+      "valueType": "signed angle",
+      "resolution": 0.0001,
+      "unit": "rad"
+    },
+    {
+      "id": 20502,
+      "hex": "0x5016",
+      "meaning": "Vessel Hull Type",
+      "meaningStatus": "confirmed",
+      "bytesPerValue": 2,
+      "responseLength": 13,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1f2a38c",
+          "function": "PilotCalibrationFacade::GetVesselHullType(void)const"
+        },
+        {
+          "address": "0x1f2a390",
+          "function": "PilotCalibrationFacade::SetVesselHullType(RAY_PilotTypes::PilotCalibrationVessel_t)"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeEnumValue"
+        }
+      ],
+      "valueType": "enum/integer"
+    },
+    {
+      "id": 20503,
+      "hex": "0x5017",
+      "meaning": "Drive Type",
+      "meaningStatus": "confirmed",
+      "bytesPerValue": 2,
+      "responseLength": 13,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1f2a2d0",
+          "function": "PilotCalibrationFacade::GetDriveType(void)const"
+        },
+        {
+          "address": "0x1f2a2d4",
+          "function": "PilotCalibrationFacade::SetDriveType(RAY_PilotTypes::PilotCalibrationDrive_t)"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeEnumValue"
+        }
+      ],
+      "valueType": "enum/integer"
+    },
+    {
+      "id": 20504,
+      "hex": "0x5018",
+      "meaning": null,
+      "meaningStatus": "unresolved",
+      "bytesPerValue": 2,
+      "responseLength": 13,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeEnumValue"
+        }
+      ],
+      "valueType": "enum/integer"
+    },
+    {
+      "id": 20505,
+      "hex": "0x5019",
+      "meaning": "Pilot Response Level",
+      "meaningStatus": "confirmed",
+      "bytesPerValue": 2,
+      "responseLength": 13,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1F32D5C",
+          "function": "CPilotParameterDataFacade::GetResponseLevel"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeEnumValue"
+        }
+      ],
+      "valueType": "enum/integer"
+    },
+    {
+      "id": 20506,
+      "hex": "0x501A",
+      "meaning": "Max Compass Deviation",
+      "meaningStatus": "confirmed",
+      "bytesPerValue": 2,
+      "responseLength": 13,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1F3A634",
+          "function": "PilotDataQueryAgent::_onAngleValueChanged"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeSignedAngleValue"
+        }
+      ],
+      "valueType": "signed angle",
+      "resolution": 0.0001,
+      "unit": "rad"
+    },
+    {
+      "id": 20507,
+      "hex": "0x501B",
+      "meaning": "Hard Over Time",
+      "meaningStatus": "confirmed",
+      "bytesPerValue": 2,
+      "responseLength": 13,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1f2a630",
+          "function": "PilotCalibrationFacade::GetHardOverTime(void)const"
+        },
+        {
+          "address": "0x1f2a63a",
+          "function": "PilotCalibrationFacade::SetHardOverTime(RAY_System::TSystemFloat<double>)"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeTimeValue"
+        }
+      ],
+      "valueType": "time",
+      "resolution": 0.1,
+      "unit": "s"
+    },
+    {
+      "id": 20509,
+      "hex": "0x501D",
+      "meaning": "Debug Level",
+      "meaningStatus": "confirmed",
+      "bytesPerValue": 2,
+      "responseLength": 13,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1f2a4f4",
+          "function": "PilotCalibrationFacade::GetDebugLevel(void)const"
+        },
+        {
+          "address": "0x1f2a4f8",
+          "function": "PilotCalibrationFacade::SetDebugLevel(int)"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeEnumValue"
+        }
+      ],
+      "valueType": "enum/integer"
+    },
+    {
+      "id": 20513,
+      "hex": "0x5021",
+      "meaning": "Compass Lock",
+      "meaningStatus": "confirmed",
+      "bytesPerValue": 1,
+      "responseLength": 9,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1f2a488",
+          "function": "PilotCalibrationFacade::GetCompassLock(void)const"
+        },
+        {
+          "address": "0x1f2a48c",
+          "function": "PilotCalibrationFacade::SetCompassLock(bool)"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeEnumValue"
+        }
+      ],
+      "valueType": "enum/integer"
+    },
+    {
+      "id": 20514,
+      "hex": "0x5022",
+      "meaning": "Speed Input",
+      "meaningStatus": "confirmed",
+      "bytesPerValue": 1,
+      "responseLength": 9,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1f2a6d8",
+          "function": "PilotCalibrationFacade::GetSpeedInput(void)const"
+        },
+        {
+          "address": "0x1f2a6dc",
+          "function": "PilotCalibrationFacade::SetSpeedInput(RAY_PilotTypes::PilotCalibrationSpeedInput_t)"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeEnumValue"
+        }
+      ],
+      "valueType": "enum/integer"
+    },
+    {
+      "id": 20515,
+      "hex": "0x5023",
+      "meaning": "Compass Linearisation Progress",
+      "meaningStatus": "confirmed",
+      "bytesPerValue": 1,
+      "responseLength": 9,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1F3A57C",
+          "function": "PilotDataQueryAgent::_onEnumeratedValueChanged"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeEnumValue"
+        }
+      ],
+      "valueType": "enum/integer"
+    },
+    {
+      "id": 20516,
+      "hex": "0x5024",
+      "meaning": "ACU Debug Level",
+      "meaningStatus": "confirmed",
+      "bytesPerValue": 2,
+      "responseLength": 13,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1f2a520",
+          "function": "PilotCalibrationFacade::GetAcuDebugLevel(void)const"
+        },
+        {
+          "address": "0x1f2a524",
+          "function": "PilotCalibrationFacade::SetAcuDebugLevel(int)"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeEnumValue"
+        }
+      ],
+      "valueType": "enum/integer"
+    },
+    {
+      "id": 20517,
+      "hex": "0x5025",
+      "meaning": "Wind Shift Alarm",
+      "meaningStatus": "confirmed",
+      "bytesPerValue": 1,
+      "responseLength": 9,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1f2a4b8",
+          "function": "PilotCalibrationFacade::GetWindShiftAlarm(void)const"
+        },
+        {
+          "address": "0x1f2a4c8",
+          "function": "PilotCalibrationFacade::SetWindShiftAlarm(bool)"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeEnumValue"
+        }
+      ],
+      "valueType": "enum/integer"
+    },
+    {
+      "id": 20518,
+      "hex": "0x5026",
+      "meaning": "Auto Turn Enabled",
+      "meaningStatus": "confirmed",
+      "bytesPerValue": 1,
+      "responseLength": 9,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x20F3C8C",
+          "function": "CST2AutoPilotSource::GetAutoTurnEnable"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeEnumValue"
+        }
+      ],
+      "valueType": "enum/integer"
+    },
+    {
+      "id": 20519,
+      "hex": "0x5027",
+      "meaning": "Auto Turn Timeout",
+      "meaningStatus": "confirmed",
+      "bytesPerValue": 1,
+      "responseLength": 9,
+      "evidence": [
+        {
+          "address": "0x169A81C",
+          "function": "Startup size-map initializer",
+          "detail": "PilotCalibrationDataItem_t -> byte width; map at 0x2F32F98"
+        },
+        {
+          "address": "0x1f2a640",
+          "function": "PilotCalibrationFacade::GetAutoTurnTimeout(void)const"
+        },
+        {
+          "address": "0x1f2a64a",
+          "function": "PilotCalibrationFacade::SetAutoTurnTimeout(RAY_System::TSystemFloat<double>)"
+        },
+        {
+          "address": "0x1F33360",
+          "function": "CPilotParameterDataFacade::_ProcessGenericReceivedData",
+          "detail": "_DecodeTimerValue"
+        }
+      ],
+      "valueType": "timer",
+      "resolution": 1,
+      "unit": "s"
+    }
+  ]
+}

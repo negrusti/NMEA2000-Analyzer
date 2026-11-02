@@ -1,0 +1,237 @@
+using System.Collections.ObjectModel;
+using System.Globalization;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Input;
+using System.Windows.Media;
+using static NMEA2000Analyzer.MainWindow;
+
+namespace NMEA2000Analyzer
+{
+    /// <summary>
+    /// Interaction logic for Devices.xaml
+    /// </summary>
+    public partial class Devices : Window
+    {
+        private readonly Action<IReadOnlyCollection<DeviceStatisticsEntry>>? _includeRequested;
+        private readonly Action<DeviceStatisticsEntry>? _graphRequested;
+        private readonly Action<DeviceStatisticsEntry>? _supportedPgnsRequested;
+        private readonly Action<DeviceStatisticsEntry>? _emulationRequested;
+        private readonly Action<DeviceStatisticsEntry>? _buildEmulatorRequested;
+
+        public ObservableCollection<DeviceStatisticsEntry> BindableDevices { get; }
+            = new ObservableCollection<DeviceStatisticsEntry>();
+        public int TotalUnassembledCount { get; }
+        public int TotalAssembledCount { get; }
+        public double TotalAvgBpsValue { get; }
+        public double TotalPeakBpsValue { get; }
+        public string TotalAvgBps { get; }
+        public string TotalPeakBps { get; }
+        public int DeviceCount { get; }
+
+        public Devices(
+            IEnumerable<DeviceStatisticsEntry> statistics,
+            Action<IReadOnlyCollection<DeviceStatisticsEntry>>? includeRequested = null,
+            Action<DeviceStatisticsEntry>? graphRequested = null,
+            Action<DeviceStatisticsEntry>? supportedPgnsRequested = null,
+            Action<DeviceStatisticsEntry>? emulationRequested = null,
+            Action<DeviceStatisticsEntry>? buildEmulatorRequested = null,
+            string? titleSuffix = null)
+        {
+            _includeRequested = includeRequested;
+            _graphRequested = graphRequested;
+            _supportedPgnsRequested = supportedPgnsRequested;
+            _emulationRequested = emulationRequested;
+            _buildEmulatorRequested = buildEmulatorRequested;
+            var entries = statistics.ToList();
+            DeviceCount = entries.Count;
+            TotalUnassembledCount = entries.Sum(device => device.UnassembledCount);
+            TotalAssembledCount = entries.Sum(device => device.AssembledCount);
+            TotalAvgBpsValue = entries.Sum(device => device.AvgBpsValue);
+            TotalPeakBpsValue = entries.Sum(device => device.PeakBpsValue);
+            TotalAvgBps = FormatBps(TotalAvgBpsValue);
+            TotalPeakBps = FormatBps(TotalPeakBpsValue);
+
+            InitializeComponent();
+            if (!string.IsNullOrWhiteSpace(titleSuffix))
+            {
+                Title = $"Devices - {titleSuffix}";
+            }
+
+            DataContext = this;
+            BindableDevices.Clear();
+            foreach (var device in entries)
+            {
+                BindableDevices.Add(device);
+            }
+        }
+
+        private static string FormatBps(double bytesPerSecond)
+        {
+            return bytesPerSecond.ToString("0.##");
+        }
+
+        private void DeviceRow_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is not DataGridRow row ||
+                row.Item is not DeviceStatisticsEntry entry)
+            {
+                return;
+            }
+
+            row.IsSelected = true;
+            row.Focus();
+            _graphRequested?.Invoke(entry);
+        }
+
+        private void PacketGraphMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not MenuItem menuItem ||
+                menuItem.Parent is not ContextMenu contextMenu ||
+                contextMenu.PlacementTarget is not DataGridRow row ||
+                row.Item is not DeviceStatisticsEntry entry)
+            {
+                return;
+            }
+
+            row.IsSelected = true;
+            row.Focus();
+            _graphRequested?.Invoke(entry);
+        }
+
+        private void IncludeMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            var selectedDevices = GetSelectedDevices();
+            if (selectedDevices.Count == 0)
+            {
+                return;
+            }
+
+            _includeRequested?.Invoke(selectedDevices);
+        }
+
+        private List<DeviceStatisticsEntry> GetSelectedDevices()
+        {
+            return DevicesDataGrid.SelectedItems
+                .OfType<DeviceStatisticsEntry>()
+                .GroupBy(entry => entry.Address)
+                .Select(group => group.First())
+                .ToList();
+        }
+
+        private void SupportedPgnsMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not MenuItem menuItem ||
+                menuItem.Parent is not ContextMenu contextMenu ||
+                contextMenu.PlacementTarget is not DataGridRow row ||
+                row.Item is not DeviceStatisticsEntry entry)
+            {
+                return;
+            }
+
+            row.IsSelected = true;
+            row.Focus();
+            _supportedPgnsRequested?.Invoke(entry);
+        }
+
+        private void DeviceRowContextMenu_Opened(object sender, RoutedEventArgs e)
+        {
+            if (sender is not ContextMenu contextMenu ||
+                contextMenu.PlacementTarget is not DataGridRow row ||
+                row.Item is not DeviceStatisticsEntry entry)
+            {
+                return;
+            }
+
+            var emulateMenuItem = contextMenu.Items
+                .OfType<MenuItem>()
+                .FirstOrDefault(item => string.Equals(item.Header?.ToString(), "Emulate this device", StringComparison.Ordinal));
+            if (emulateMenuItem != null)
+            {
+                emulateMenuItem.IsEnabled = !string.IsNullOrWhiteSpace(entry.ModelID);
+            }
+
+            var buildMenuItem = contextMenu.Items
+                .OfType<MenuItem>()
+                .FirstOrDefault(item => string.Equals(item.Header?.ToString(), "Build device emulator in C#", StringComparison.Ordinal));
+            if (buildMenuItem != null)
+            {
+                buildMenuItem.IsEnabled = !string.IsNullOrWhiteSpace(entry.ModelID);
+            }
+        }
+
+        private void DeviceRow_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is not DataGridRow row)
+            {
+                return;
+            }
+
+            if (!row.IsSelected)
+            {
+                DevicesDataGrid.SelectedItems.Clear();
+                row.IsSelected = true;
+            }
+
+            row.Focus();
+        }
+
+        private void EmulateDeviceMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not MenuItem menuItem ||
+                menuItem.Parent is not ContextMenu contextMenu ||
+                contextMenu.PlacementTarget is not DataGridRow row ||
+                row.Item is not DeviceStatisticsEntry entry)
+            {
+                return;
+            }
+
+            row.IsSelected = true;
+            row.Focus();
+            _emulationRequested?.Invoke(entry);
+        }
+
+        private void BuildEmulatorMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not MenuItem menuItem ||
+                menuItem.Parent is not ContextMenu contextMenu ||
+                contextMenu.PlacementTarget is not DataGridRow row ||
+                row.Item is not DeviceStatisticsEntry entry)
+            {
+                return;
+            }
+
+            row.IsSelected = true;
+            row.Focus();
+            _buildEmulatorRequested?.Invoke(entry);
+        }
+    }
+
+    public class DeviceStatisticsEntry : Device
+    {
+        public int UnassembledCount { get; set; }
+        public int AssembledCount { get; set; }
+        public double AvgBpsValue { get; set; }
+        public double PeakBpsValue { get; set; }
+        public string AvgBps { get; set; } = string.Empty;
+        public string PeakBps { get; set; } = string.Empty;
+    }
+
+    public sealed class BpsHighlightConverter : IValueConverter
+    {
+        private static readonly Brush AlertBrush = new SolidColorBrush(Color.FromRgb(0x8B, 0x00, 0x00));
+
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return value is double numericValue && numericValue > 18000
+                ? AlertBrush
+                : Brushes.Black;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotSupportedException();
+        }
+    }
+}

@@ -1,0 +1,206 @@
+﻿<Window x:Class="NMEA2000Analyzer.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:NMEA2000Analyzer"
+        mc:Ignorable="d"
+        Title="NMEA2000 Analyzer" 
+        WindowState="Maximized"
+        MinWidth="800"
+        MinHeight="600">
+    <DockPanel LastChildFill="True">
+        <!-- Menu Bar -->
+        <Menu DockPanel.Dock="Top">
+            <Menu.ItemContainerStyle>
+                <Style TargetType="MenuItem">
+                    <Setter Property="Padding" Value="10,5" />
+                    <!-- Adjust padding -->
+                </Style>
+            </Menu.ItemContainerStyle>
+            <MenuItem Header="File" x:Name="FileMenu">
+                <MenuItem Header="Open" Click="OpenMenuItem_ClickAsync" />
+                <MenuItem Header="Save" Click="SaveAsCandumpMenuItem_Click" />
+                <MenuItem Header="Save Selected" Click="SaveSelectedAsCandumpMenuItem_Click" />
+                <MenuItem Header="Capture">
+                    <MenuItem x:Name="RecordMenuItem" Header="PCAN" Click="RecordMenuItem_ClickAsync" />
+                    <MenuItem Header="Actisense (Direct)" Click="ActisenseCaptureMenuItem_Click" />
+                    <MenuItem Header="Actisense (DLL)" Click="ActisenseDllCaptureMenuItem_Click" />
+                    <MenuItem Header="Mastervolt" Click="MastervoltCaptureMenuItem_Click" />
+                    <MenuItem Header="Maretron" IsEnabled="False" />
+                </MenuItem>
+                <Separator x:Name="RecentFilesSeparator" Visibility="Collapsed" />
+            </MenuItem>
+            <MenuItem Header="Data">
+                <MenuItem Header="PGNs" Click="PgnStatisticsMenuItem_Click" />
+                <MenuItem Header="Devices" Click="DevicesMenuItem_Click" />
+                <MenuItem Header="Alarms" Click="AlarmsMenuItem_Click" />
+                <MenuItem Header="Anomalies" Click="AnomaliesMenuItem_Click" />
+            </MenuItem>
+            <MenuItem Header="View">
+                <MenuItem x:Name="AssembledViewMenuItem"
+                          Header="Assembled"
+                          IsCheckable="True"
+                          IsChecked="True"
+                          Click="AssembledViewMenuItem_Click" />
+                <MenuItem x:Name="UnassembledViewMenuItem"
+                          Header="Unassembled"
+                          IsCheckable="True"
+                          Click="UnassembledViewMenuItem_Click" />
+            </MenuItem>
+            <MenuItem Header="Tools" Visibility="Collapsed">
+                <MenuItem Header="Raymarine">
+                    <MenuItem Header="i50 COG/SOG Source" Click="RaymarineI50CogSogSourceMenuItem_Click" />
+                </MenuItem>
+                <MenuItem Header="Garmin" />
+            </MenuItem>
+            <MenuItem Header="Presets" x:Name="Presets">
+            </MenuItem>
+            <MenuItem Header="About" Click="AboutMenuItem_Click">
+            </MenuItem>
+        </Menu>
+
+        <!-- Toolbar with Filters -->
+        <StackPanel Orientation="Horizontal" DockPanel.Dock="Top" Margin="10">
+
+            <TextBlock Text="Search PGN:" VerticalAlignment="Center" Margin="5"/>
+            <TextBox x:Name="PgnSearchTextBox" Width="60" VerticalContentAlignment="Center" TextChanged="SearchTextBox_TextChanged"/>
+            <Button Content=" &lt; " Margin="2,0,2,0" Click="SearchBackButton_Click" />
+            <Button Content=" &gt; " Margin="0" Click="SearchForwardButton_Click" />
+
+            <TextBlock Text="Include PGNs:" VerticalAlignment="Center" Margin="5"/>
+            <TextBox VerticalContentAlignment="Center" Width="200" x:Name="IncludePGNTextBox" 
+                 ToolTip="Comma-separated PGNs to include" 
+                 TextChanged="FilterTextBoxes_TextChanged"/>
+
+            <TextBlock Text="Exclude PGNs:" VerticalAlignment="Center" Margin="5"/>
+            <TextBox VerticalContentAlignment="Center" Width="200" x:Name="ExcludePGNTextBox" 
+                 ToolTip="Comma-separated PGNs to exclude" 
+                 TextChanged="FilterTextBoxes_TextChanged"/>
+
+            <TextBlock Text="Include Address:" VerticalAlignment="Center" Margin="5"/>
+            <TextBox VerticalContentAlignment="Center" Width="50" x:Name="IncludeAddressTextBox" 
+                 ToolTip="Comma-separated Sources to include" 
+                 TextChanged="FilterTextBoxes_TextChanged"/>
+
+            <CheckBox Content="Distinct Data" x:Name="DistinctFilterCheckBox" 
+              VerticalAlignment="Center" Margin="10,0" Checked="DistinctCheckbox_Changed" 
+              Unchecked="DistinctCheckbox_Changed"/>
+            <Button Content="Clear Filters" Padding ="5,0,5,0" Margin="2,0,2,0" Click="ClearFiltersButton_Click" />            
+        </StackPanel>
+        <StatusBar DockPanel.Dock="Bottom" x:Name="StatusBar" Height="30" VerticalAlignment="Center">
+            <StatusBarItem>
+                <TextBlock x:Name="TimestampRangeText" Text="No data loaded"/>
+            </StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right">
+                <TextBlock x:Name="RowCountText" Text="Rows: 0 / Selected: 0"/>
+            </StatusBarItem>
+        </StatusBar>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="6*"/>
+                <!-- DataGrid -->
+                <ColumnDefinition Width="5"/>
+                <!-- GridSplitter -->
+                <ColumnDefinition Width="2*"/>
+                <!-- JSON Viewer Panel -->
+            </Grid.ColumnDefinitions>
+
+            <!-- DataGrid -->
+            <DataGrid AutoGenerateColumns="False" Margin="3" 
+              Grid.Column="0"
+              HorizontalAlignment="Stretch" 
+              VerticalAlignment="Stretch" 
+              x:Name="DataGrid" 
+              SelectionMode="Extended"
+              SelectionUnit="FullRow"
+              EnableRowVirtualization="True"
+              EnableColumnVirtualization="True"
+              VirtualizingPanel.IsVirtualizing="True"
+              VirtualizingPanel.VirtualizationMode="Recycling"
+              GridLinesVisibility="All"
+              HorizontalGridLinesBrush="#F0F0F0"
+              VerticalGridLinesBrush="#F0F0F0"
+              IsReadOnly="True"
+              DockPanel.Dock="Top"
+              CanUserResizeRows="False"
+              SelectionChanged="DataGrid_SelectionChanged">
+                <DataGrid.Resources>
+                    <ContextMenu x:Key="rowContextMenu"
+                                 Opened="RowContextMenu_Opened">
+                        <MenuItem Header="Include PGN"
+                                            Click="IncludePgnMenuItem_Click"
+                                            CommandParameter="{Binding}" />
+                        <MenuItem Header="Include Address"
+                                            Click="IncludeAddressMenuItem_Click"
+                                            CommandParameter="{Binding}" />
+                        <MenuItem Header="Copy rows as CSV" Click="CopyRowAsCsvMenuItem_Click"
+                                            CommandParameter="{Binding}" />
+                        <MenuItem Header="Copy rows as JSON" Click="CopyRowsAsJsonMenuItem_Click"
+                                            CommandParameter="{Binding}" />
+                        <MenuItem Header="Copy Data" Click="CopyDataMenuItem_Click" CommandParameter="{Binding}" />
+                        <MenuItem Header="Edit definition"
+                                            Click="EditDefinitionMenuItem_Click"
+                                            CommandParameter="{Binding}" />
+                        <MenuItem Header="Open PGN Reference"
+                                            Click="ReferencePgnMenuItem_Click"                                  
+                                            CommandParameter="{Binding}" />
+                        <MenuItem Header="Google Device"
+                                            Click="GoogleDeviceMenuItem_Click"                                  
+                                            CommandParameter="{Binding}" />
+
+                    </ContextMenu>
+                </DataGrid.Resources>
+                <DataGrid.RowStyle>
+                    <Style TargetType="{x:Type DataGridRow}">
+                        <Setter Property="ContextMenu" Value="{StaticResource rowContextMenu}"/>
+                        <Setter Property="Background" Value="{Binding HighlightBackground}"/>
+                        <EventSetter Event="PreviewMouseRightButtonDown"
+                                     Handler="DataGridRow_PreviewMouseRightButtonDown" />
+                    </Style>
+                </DataGrid.RowStyle>
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Seq" Binding="{Binding LogSequenceNumber}" />
+                    <DataGridTextColumn Header="Timestamp" Binding="{Binding Timestamp}" />
+                    <DataGridTextColumn Header="Src" Binding="{Binding Source}" />
+                    <DataGridTextColumn Header="Device" Binding="{Binding DeviceInfo}" />
+                    <DataGridTextColumn Header="Dst" Binding="{Binding DestinationDisplay}" />
+                    <DataGridTextColumn Header="Prio" Binding="{Binding Priority}" />
+                    <DataGridTextColumn Header="PGN" Binding="{Binding PGN}" />
+                    <DataGridTextColumn Header="Type" Binding="{Binding Type}" />
+                    <DataGridTextColumn Header="Description" Binding="{Binding Description}" />
+
+                    <DataGridTextColumn Header="Raw" Binding="{Binding Data}" Width="*">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="FontFamily" Value="Consolas"/>
+                                <!-- Truncate text -->
+                                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                <Setter Property="TextWrapping" Value="NoWrap" />
+                                <Setter Property="ToolTip" Value="{Binding AsciiData}" />
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+            <GridSplitter Grid.Column="1"
+                            Width="Auto"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch"
+                            Background="LightGray"
+                            ResizeBehavior="PreviousAndNext"/>
+            <TextBox x:Name="JsonViewerTextBox"
+                            Grid.Column="2"    
+                            Margin="3"
+                            VerticalScrollBarVisibility="Auto"
+                            HorizontalScrollBarVisibility="Auto"
+                            TextWrapping="Wrap"
+                            IsReadOnly="True"
+                            FontFamily="Consolas"
+                            FontSize="12"
+                            Padding="8"
+                            Background="White"
+                            Foreground="Black"/>
+        </Grid>
+    </DockPanel>
+</Window>
